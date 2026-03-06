@@ -1,5 +1,4 @@
 """Martin CLI"""
-
 import argparse, os, sys, textwrap
 from pathlib import Path
 
@@ -8,7 +7,7 @@ from pathlib import Path
 # TEMPLATES
 # ══════════════════════════════════════════════════════════
 
-MAIN_PY = """\
+MAIN_PY = '''\
 from martin import App, Router
 from pages.home import home
 from pages.about import about
@@ -21,9 +20,9 @@ router.add("/components",  components, title="Componentes")
 
 if __name__ == "__main__":
     App(router=router, title="{name}").run()
-"""
+'''
 
-PAGE_HOME = """\
+PAGE_HOME = '''\
 from martin import (
     Raw,
     Column, Row, Card, Spacer, Divider,
@@ -130,9 +129,9 @@ def _feature(icon, title, desc):
             Text(desc, style=TextStyle(size=13, color=Colors.rgba(203,213,225,0.75), line_height=1.6)),
         ]
     )
-"""
+'''
 
-PAGE_ABOUT = """\
+PAGE_ABOUT = '''\
 from martin import (
     Raw,
     Column, Row, Card, Divider, Spacer,
@@ -202,9 +201,9 @@ def about():
                 style=TextStyle(size=14, color="#818cf8")),
         ]
     )
-"""
+'''
 
-PAGE_COMPONENTS = """\
+PAGE_COMPONENTS = '''\
 from martin import (
     Raw,
     Column, Row, Grid, Card, Spacer, Divider,
@@ -338,7 +337,7 @@ def _section(title, children):
             *children,
         ]
     )
-"""
+'''
 
 GITIGNORE = "__pycache__/\n*.pyc\n.DS_Store\ndist/\n"
 
@@ -367,9 +366,8 @@ martin run
 # COMANDOS
 # ══════════════════════════════════════════════════════════
 
-
 def cmd_new(args):
-    name = args.name
+    name   = args.name
     target = Path(name)
 
     if target.exists():
@@ -381,21 +379,19 @@ def cmd_new(args):
     (target / "pages").mkdir()
     (target / "pages" / "__init__.py").write_text("", encoding="utf-8")
 
-    (target / "main.py").write_text(MAIN_PY.replace("{name}", name), encoding="utf-8")
+    (target / "main.py").write_text(
+        MAIN_PY.replace("{name}", name), encoding="utf-8")
     (target / "pages" / "home.py").write_text(
-        PAGE_HOME.replace("{name}", name), encoding="utf-8"
-    )
+        PAGE_HOME.replace("{name}", name), encoding="utf-8")
     (target / "pages" / "about.py").write_text(
-        PAGE_ABOUT.replace("{name}", name), encoding="utf-8"
-    )
+        PAGE_ABOUT.replace("{name}", name), encoding="utf-8")
     (target / "pages" / "components.py").write_text(
-        PAGE_COMPONENTS.replace("{name}", name), encoding="utf-8"
-    )
+        PAGE_COMPONENTS.replace("{name}", name), encoding="utf-8")
     (target / ".gitignore").write_text(GITIGNORE)
-    (target / "README.md").write_text(README.replace("{name}", name), encoding="utf-8")
+    (target / "README.md").write_text(
+        README.replace("{name}", name), encoding="utf-8")
 
-    print(
-        f"""
+    print(f"""
   ✅  Proyecto '{name}' creado
 
   Estructura:
@@ -410,8 +406,7 @@ def cmd_new(args):
   Siguiente:
     cd {name}
     martin run
-"""
-    )
+""")
 
 
 def cmd_run(args):
@@ -425,32 +420,24 @@ def cmd_run(args):
         sys.path.insert(0, cwd)
 
     import importlib.util
-
     source_file = str(main_file.resolve())
     spec = importlib.util.spec_from_file_location("_martin_main", source_file)
-    mod = importlib.util.module_from_spec(spec)
+    mod  = importlib.util.module_from_spec(spec)
     sys.modules["_martin_main"] = mod
     spec.loader.exec_module(mod)
 
     from martin import App
-
     hot = not args.no_reload
 
     # Soporte para router o build function
     if hasattr(mod, "router"):
-        app = App(
-            router=mod.router,
-            title=getattr(mod, "TITLE", Path.cwd().name),
-            port=args.port,
-            hot_reload=hot,
-        )
+        app = App(router=mod.router,
+                  title=getattr(mod, "TITLE", Path.cwd().name),
+                  port=args.port, hot_reload=hot)
     elif hasattr(mod, "build"):
-        app = App(
-            build=mod.build,
-            title=getattr(mod, "TITLE", Path.cwd().name),
-            port=args.port,
-            hot_reload=hot,
-        )
+        app = App(build=mod.build,
+                  title=getattr(mod, "TITLE", Path.cwd().name),
+                  port=args.port, hot_reload=hot)
     else:
         print("❌  main.py debe tener una función 'build()' o un objeto 'router'.")
         sys.exit(1)
@@ -469,54 +456,60 @@ def cmd_export(args):
         sys.path.insert(0, cwd)
 
     import importlib.util
-
-    spec = importlib.util.spec_from_file_location(
-        "_martin_main", str(main_file.resolve())
-    )
-    mod = importlib.util.module_from_spec(spec)
+    spec = importlib.util.spec_from_file_location("_martin_main", str(main_file.resolve()))
+    mod  = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
 
     from martin import App
+    fmt     = getattr(args, "format", "html")
+    out_dir = getattr(args, "out", "dist")
 
     if hasattr(mod, "router"):
-        app = App(router=mod.router, title=getattr(mod, "TITLE", "Martin App"))
-        app.export_all(out_dir=args.out if args.out != "dist/index.html" else "dist")
+        app = App(router=mod.router, title=getattr(mod, "TITLE", "Martin App"), hot_reload=False)
     elif hasattr(mod, "build"):
-        app = App(build=mod.build, title=getattr(mod, "TITLE", "Martin App"))
-        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-        app.export(args.out)
+        app = App(build=mod.build, title=getattr(mod, "TITLE", "Martin App"), hot_reload=False)
     else:
         print("❌  main.py debe tener 'build' o 'router'.")
         sys.exit(1)
 
+    print(f"📦  Exportando ({fmt}) → {out_dir}/")
 
-def cmd_version(_):
+    if fmt == "split":
+        from martin.exporter import export_split
+        export_split(app, out_dir=out_dir, assets_src="assets")
+    else:
+        if hasattr(mod, "router"):
+            app.export_all(out_dir=out_dir)
+        else:
+            out_path = Path(out_dir) / "index.html"
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            app.export(str(out_path))
+
+
+def cmd_version(args):
     from martin import __version__
-
     print(f"martin {__version__}")
-
 
 # ══════════════════════════════════════════════════════════
 # ENTRY POINT
 # ══════════════════════════════════════════════════════════
-
 
 def main():
     parser = argparse.ArgumentParser(
         prog="martin",
         description="Martin — Python web framework",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=textwrap.dedent(
-            """\
+        epilog=textwrap.dedent("""\
           Ejemplos:
             martin new mi_proyecto
             martin run
             martin run --port 8080
             martin run --no-reload
-            martin export
+            martin export                        # HTML todo-en-uno → dist/
+            martin export --format split         # HTML + CSS + JS → dist/
+            martin export --format split --out build
             martin version
-        """
-        ),
+        """)
     )
     sub = parser.add_subparsers(dest="command", metavar="comando")
 
@@ -524,28 +517,25 @@ def main():
     p_new.add_argument("name", help="Nombre del proyecto")
 
     p_run = sub.add_parser("run", help="Inicia el servidor de desarrollo")
-    p_run.add_argument("--port", type=int, default=309, help="Puerto (default: 309)")
-    p_run.add_argument("--file", default="main.py", help="Fichero de entrada")
-    p_run.add_argument("--no-reload", action="store_true", help="Desactiva hot reload")
+    p_run.add_argument("--port",      type=int, default=309,         help="Puerto (default: 309)")
+    p_run.add_argument("--file",      default="main.py",             help="Fichero de entrada")
+    p_run.add_argument("--no-reload", action="store_true",           help="Desactiva hot reload")
 
-    p_exp = sub.add_parser("export", help="Exporta a HTML estático")
-    p_exp.add_argument("--file", default="main.py", help="Fichero de entrada")
-    p_exp.add_argument("--out", default="dist/index.html", help="Destino")
+    p_exp = sub.add_parser("export", help="Exporta el proyecto")
+    p_exp.add_argument("--file",   default="main.py",  help="Fichero de entrada (default: main.py)")
+    p_exp.add_argument("--out",    default="dist",     help="Carpeta de destino (default: dist)")
+    p_exp.add_argument("--format", default="html",     choices=["html", "split"],
+                       help="html = un fichero por página | split = HTML + CSS + JS separados")
 
     sub.add_parser("version", help="Muestra la versión")
 
     args = parser.parse_args()
 
-    if args.command == "new":
-        cmd_new(args)
-    elif args.command == "run":
-        cmd_run(args)
-    elif args.command == "export":
-        cmd_export(args)
-    elif args.command == "version":
-        cmd_version(args)
-    else:
-        parser.print_help()
+    if   args.command == "new":     cmd_new(args)
+    elif args.command == "run":     cmd_run(args)
+    elif args.command == "export":  cmd_export(args)
+    elif args.command == "version": cmd_version(args)
+    else:                           parser.print_help()
 
 
 if __name__ == "__main__":
