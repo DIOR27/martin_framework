@@ -136,25 +136,53 @@ class App:
         """Genera nav automática si hay router con varias páginas."""
         if not self._router or len(self._router.paths()) <= 1:
             return ""
+
+        # Logo: busca assets/logo.png, logo.svg, logo.webp
+        logo_html = ""
+        for ext in ("png", "svg", "webp", "jpg"):
+            logo_path = os.path.join(self.assets_dir, f"logo.{ext}")
+            if os.path.exists(logo_path):
+                logo_html = (
+                    f'<a href="/" style="display:flex;align-items:center;margin-right:16px">'
+                    f'<img src="/assets/logo.{ext}" style="height:32px;width:auto;display:block"></a>'
+                )
+                break
+        # Fallback: nombre de la app como texto si no hay imagen
+        if not logo_html:
+            logo_html = (
+                f'<a href="/" style="font-weight:800;font-size:18px;letter-spacing:-0.5px;'
+                f'text-decoration:none;color:#f1f5f9;margin-right:16px">'
+                f"{self.title}</a>"
+            )
+
         links = []
         for path in self._router.paths():
             _, title = self._router.resolve(path)
             label = title or path.strip("/").capitalize() or "Inicio"
-            active = (
-                "font-weight:700; text-decoration:underline"
-                if path == current_path
-                else ""
+            is_active = path == current_path
+            active_style = (
+                "color:#a5b4fc;font-weight:600"
+                if is_active
+                else "color:rgba(203,213,225,0.75)"
             )
             links.append(
-                f'<a href="{path}" style="color:inherit;text-decoration:none;{active}">{label}</a>'
+                f'<a href="{path}" style="text-decoration:none;font-size:14px;'
+                f'font-weight:500;transition:color 0.2s;{active_style}"'
+                f" onmouseover=\"if(!this.dataset.active)this.style.color='#f1f5f9'\""
+                f" onmouseout=\"if(!this.dataset.active)this.style.color='rgba(203,213,225,0.75)'\""
+                f'{"data-active=1" if is_active else ""}>{label}</a>'
             )
-        nav_links = "  ".join(links)
+        nav_links = "\n".join(links)
         return (
-            f'<nav style="display:flex;gap:24px;padding:16px 32px;'
+            f'<nav style="display:flex;align-items:center;gap:28px;padding:0 32px;'
+            f"height:56px;"
+            f"background:rgba(6,8,24,0.85);"
+            f"backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);"
             f"border-bottom:1px solid rgba(255,255,255,0.08);"
-            f"background:rgba(0,0,0,0.2);backdrop-filter:blur(12px);"
             f'position:sticky;top:0;z-index:100">'
-            f"{nav_links}</nav>"
+            f"{logo_html}"
+            f"{nav_links}"
+            f"</nav>"
         )
 
     def _wrap(
@@ -171,8 +199,9 @@ class App:
   <title>{title}</title>
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    html, body {{ background: #060818; }}
     body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-           line-height: 1.5; color: #f1f5f9; }}
+           line-height: 1.5; color: #f1f5f9; min-height: 100vh; }}
     img {{ display: block; max-width: 100%; }}
     a {{ color: inherit; }}
     {self.global_styles}
