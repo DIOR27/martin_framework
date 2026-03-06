@@ -5,7 +5,8 @@ Martin — App, Router & Dev Server
 import os, sys, time, threading, importlib.util
 import http.server, webbrowser
 from pathlib import Path
-from .theme import THEME_CSS, THEME_TOGGLE_JS, THEME_TOGGLE_BTN
+from .theme import THEME_CSS, THEME_TOGGLE_JS
+from .response import Response, Request
 
 
 LIVE_RELOAD_SCRIPT = """
@@ -113,7 +114,7 @@ class App:
         title="Mi App",
         theme="dark",           # "dark" | "light" | "auto" (default)
         theme_toggle=True,      # botón flotante para cambiar tema
-        # header=MyHeader(),      # header global (Widget)
+        header=MyHeader(),      # header global (Widget)
         footer=MyFooter(),      # footer global (Widget)
     ).run()
 
@@ -152,6 +153,55 @@ class App:
         self.global_styles = styles or global_css
         self._ts = str(time.time())
         self._lock = threading.Lock()
+        self._api_routes = {}
+
+    # ── API routes ───────────────────────────────────────────────────────────
+
+    def route(self, path, methods=None):
+        """
+        Registra un endpoint de API.
+
+            @app.route("/api/datos")
+            def datos(req):
+                return {"clave": "valor"}          # dict -> JSON 200
+
+            @app.route("/api/guardar", methods=["POST"])
+            def guardar(req):
+                body = req.json()
+                return Response({"ok": True, "data": body})
+        """
+        if methods is None:
+            methods = ["GET", "POST"]
+
+        def decorator(fn):
+            for m in methods:
+                self._api_routes[(m.upper(), path)] = fn
+            return fn
+
+        return decorator
+
+    def _handle_api(self, method, path, qs, body, headers):
+        import json as _json, traceback
+
+        handler = self._api_routes.get((method, path))
+        if handler is None:
+            has_path = any(p == path for _, p in self._api_routes)
+            if has_path:
+                return Response({"error": f"Metodo {method} no permitido"}, status=405)
+            return Response({"error": f"Ruta '{path}' no encontrada"}, status=404)
+        req = Request(method, path, qs, body, headers)
+        try:
+            result = handler(req)
+            if isinstance(result, (dict, list)):
+                return Response(result)
+            elif isinstance(result, Response):
+                return result
+            else:
+                return Response(str(result), content_type="text/plain")
+        except Exception:
+            tb = traceback.format_exc()
+            print(f"  Error en {method} {path}:\n{tb}")
+            return Response({"error": "Error interno", "detail": tb}, status=500)
 
     # ── Nav ───────────────────────────────────────────────────────────────────
 
@@ -231,7 +281,16 @@ class App:
         script = LIVE_RELOAD_SCRIPT if (reload and self.hot_reload) else ""
         title = page_title or self.title
         theme = page_theme or self.theme
-        toggle = THEME_TOGGLE_BTN if self.theme_toggle else ""
+        if self.theme_toggle:
+            from .widgets import ThemeToggle
+
+            toggle = ThemeToggle(
+                style="position:fixed;bottom:20px;right:20px;z-index:9999;"
+                "width:40px;height:40px;border-radius:50%;font-size:18px;"
+                "box-shadow:var(--shadow);backdrop-filter:blur(12px)"
+            ).render()
+        else:
+            toggle = ""
 
         # Inyectar theme en el JS
         toggle_js = THEME_TOGGLE_JS.replace("'INITIAL_THEME'", f"'{theme}'")
@@ -430,13 +489,51 @@ class App:
 
         class Handler(http.server.BaseHTTPRequestHandler):
             def do_GET(self):
-                path = self.path.split("?")[0]
+                parts = self.path.split("?", 1)
+                path = parts[0]
+                qs = parts[1] if len(parts) > 1 else ""
                 if path == "/__ping__":
-                    self._json({"ts": app._ts})
+                    self._send_json({"ts": app._ts})
                 elif path.startswith("/assets/"):
                     self._static(path[1:])
+                elif ("GET", path) in app._api_routes:
+                    self._api("GET", path, qs, b"")
                 else:
                     self._html(app._render(path))
+
+            def do_POST(self):
+                parts = self.path.split("?", 1)
+                path = parts[0]
+                qs = parts[1] if len(parts) > 1 else ""
+                length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(length) if length else b""
+                self._api("POST", path, qs, body)
+
+            def do_PUT(self):
+                parts = self.path.split("?", 1)
+                path = parts[0]
+                qs = parts[1] if len(parts) > 1 else ""
+                length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(length) if length else b""
+                self._api("PUT", path, qs, body)
+
+            def do_DELETE(self):
+                parts = self.path.split("?", 1)
+                path = parts[0]
+                qs = parts[1] if len(parts) > 1 else ""
+                self._api("DELETE", path, qs, b"")
+
+            def _api(self, method, path, qs, body):
+                resp = app._handle_api(method, path, qs, body, dict(self.headers))
+                data, ct = resp.to_bytes()
+                self.send_response(resp.status)
+                self.send_header("Content-Type", ct)
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Access-Control-Allow-Origin", "*")
+                for k, v in resp.headers.items():
+                    self.send_header(k, v)
+                self.end_headers()
+                self.wfile.write(data)
 
             def _html(self, content):
                 data = content.encode("utf-8")
@@ -446,7 +543,7 @@ class App:
                 self.end_headers()
                 self.wfile.write(data)
 
-            def _json(self, obj):
+            def _send_json(self, obj):
                 import json
 
                 data = json.dumps(obj).encode("utf-8")

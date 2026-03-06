@@ -9,18 +9,40 @@ from pathlib import Path
 # ══════════════════════════════════════════════════════════
 
 MAIN_PY = """\
-from martin import App, Router
+from martin import App, Router, Response
 from pages.home import home
 from pages.about import about
 from pages.components import components
+from pages.api_example import api_example
 
 router = Router()
-router.add("/",            home,       title="Inicio")
-router.add("/about",       about,      title="Acerca de")
-router.add("/components",  components, title="Componentes")
+router.add("/",            home,        title="Inicio")
+router.add("/about",       about,       title="Acerca de")
+router.add("/components",  components,  title="Componentes")
+router.add("/api-example", api_example, title="Backend")
+
+app = App(router=router, title="PROJECT_NAME", theme="auto")
+
+
+# Endpoints de API
+
+@app.route("/api/seleccion", methods=["POST"])
+def api_seleccion(req):
+    data     = req.json()
+    lenguaje = data.get("lenguaje", {})
+    areas    = data.get("areas", {})
+    return {
+        "ok": True,
+        "recibido": {
+            "lenguaje": {"valor": lenguaje.get("valor"), "etiqueta": lenguaje.get("etiqueta")},
+            "areas":    {"valores": areas.get("valores", []), "etiquetas": areas.get("etiquetas", [])},
+        },
+        "mensaje": f"Lenguaje: {lenguaje.get('etiqueta', '?')}. Areas: {', '.join(areas.get('etiquetas', [])) or 'ninguna'}.",
+    }
+
 
 if __name__ == "__main__":
-    App(router=router, title="PROJECT_NAME", theme="auto").run()
+    app.run()
 """
 
 PAGE_HOME = """\
@@ -343,6 +365,14 @@ martin run
 # ══════════════════════════════════════════════════════════
 
 
+def _write_api_example(path):
+    """Escribe pages/api_example.py en el proyecto nuevo."""
+    import textwrap
+
+    code = 'from martin import (\n    Column, Heading, Text, Paragraph, Button, Raw,\n    Select, MultiSelect, Border, Shadow, TextStyle,\n    GradientText, MeshBackground,\n)\n\n\ndef api_example():\n    return Column(\n        style=MeshBackground.themed(), padding=48, gap=32,\n        children=[\n            Column(gap=8, children=[\n                Heading(\n                    "Ejemplo de Backend",\n                    style=[GradientText.aurora(), TextStyle(size=40, weight="800")],\n                ),\n                Paragraph(\n                    "Selecciona valores y presiona el boton. "\n                    "El boton llama a una funcion Python en el servidor.",\n                    style=TextStyle(size=16, color="var(--text-muted)"),\n                ),\n            ]),\n            Column(\n                gap=20, padding=28,\n                style=[\n                    "background:var(--surface); border:1px solid var(--border)",\n                    Border(radius=16),\n                    Shadow(y=4, blur=20, color="rgba(0,0,0,0.1)"),\n                    "max-width:520px; width:100%",\n                ],\n                children=[\n                    Column(gap=6, children=[\n                        Text("Lenguaje",\n                             style=TextStyle(size=13, weight="600", color="var(--text-muted)")),\n                        Select(\n                            id="lang_select",\n                            options=[\n                                ("py", "Python"),\n                                ("js", "JavaScript"),\n                                ("rs", "Rust"),\n                                ("go", "Go"),\n                                ("ts", "TypeScript"),\n                            ],\n                            value="py",\n                            search=True,\n                            radius=8,\n                        ),\n                    ]),\n                    Column(gap=6, children=[\n                        Text("Areas de trabajo",\n                             style=TextStyle(size=13, weight="600", color="var(--text-muted)")),\n                        MultiSelect(\n                            id="areas_multi",\n                            options=["Diseno", "Frontend", "Backend",\n                                     "DevOps", "Testing", "Mobile"],\n                            values=["Frontend"],\n                            placeholder="Anadir area...",\n                            radius=8,\n                        ),\n                    ]),\n                    Button(\n                        "Enviar al servidor ->",\n                        id="send_btn",\n                        background="linear-gradient(135deg, #6366f1, #818cf8)",\n                        color="white",\n                        radius=10,\n                        style=(\n                            "border:none; font-size:15px; font-weight:700; padding:14px 24px; "\n                            "box-shadow:0 0 24px rgba(99,102,241,0.35); "\n                            "cursor:pointer; transition:opacity .2s"\n                        ),\n                    ),\n                    Raw(_api_script()),\n                ],\n            ),\n        ],\n    )\n\n\ndef _api_script():\n    # JS inline — lee los selects y llama al endpoint /api/seleccion (POST)\n    return """\n<div id="api_result" style="display:none; margin-top:4px">\n  <div id="api_result_inner"\n       style="padding:16px; border-radius:10px;\n              border:1px solid var(--border); background:var(--surface);\n              font-size:14px; line-height:1.7">\n  </div>\n</div>\n<script>\ndocument.getElementById("send_btn").addEventListener("click", async function() {\n  var btn = this;\n\n  // Leer Select: el hidden input tiene id="lang_select_val"\n  var lvEl = document.getElementById("lang_select_val");\n  var langVal = lvEl ? lvEl.value : "";\n  var llEl = document.getElementById("lang_select_label");\n  var langLbl = llEl ? llEl.textContent.trim() : langVal;\n\n  // Leer MultiSelect: hidden inputs dentro de #areas_multi_hidden\n  var aVals = [], aLabels = [];\n  document.querySelectorAll("#areas_multi_hidden input").forEach(function(i) {\n    aVals.push(i.value);\n  });\n  // Labels de los tags (span con data-tag)\n  document.querySelectorAll("#areas_multi_box span[data-tag]").forEach(function(t) {\n    aLabels.push(t.childNodes[0].textContent.trim());\n  });\n\n  btn.textContent = "Enviando...";\n  btn.style.opacity = "0.7";\n\n  try {\n    var res = await fetch("/api/seleccion", {\n      method: "POST",\n      headers: { "Content-Type": "application/json" },\n      body: JSON.stringify({\n        lenguaje: { valor: langVal, etiqueta: langLbl },\n        areas:    { valores: aVals, etiquetas: aLabels }\n      })\n    });\n    var data = await res.json();\n    var col = data.ok ? "#34d399" : "#f87171";\n    document.getElementById("api_result_inner").innerHTML =\n      "<div style=\\"display:flex;align-items:center;gap:8px;margin-bottom:10px\\">" +\n        "<span style=\\"width:8px;height:8px;border-radius:50%;flex-shrink:0;background:" + col + "\\"></span>" +\n        "<strong style=\\"color:var(--text)\\">Respuesta del servidor</strong>" +\n      "</div>" +\n      "<pre style=\\"margin:0;font-family:monospace;font-size:13px;" +\n           "color:var(--text-muted);white-space:pre-wrap\\">" +\n        JSON.stringify(data, null, 2) +\n      "</pre>";\n    document.getElementById("api_result").style.display = "block";\n  } catch(e) {\n    document.getElementById("api_result_inner").innerHTML =\n      "<span style=\\"color:#f87171\\">Error de conexion: " + e.message + "</span>";\n    document.getElementById("api_result").style.display = "block";\n  } finally {\n    btn.textContent = "Enviar al servidor ->";\n    btn.style.opacity = "1";\n  }\n});\n</script>"""\n'
+    path.write_text(code, encoding="utf-8")
+
+
 def cmd_new(args):
     name = args.name
     target = Path(name)
@@ -368,6 +398,7 @@ def cmd_new(args):
     (target / "pages" / "components.py").write_text(
         PAGE_COMPONENTS.replace("PROJECT_NAME", name), encoding="utf-8"
     )
+    _write_api_example(target / "pages" / "api_example.py")
     (target / ".gitignore").write_text(GITIGNORE)
     (target / "README.md").write_text(README.replace("{name}", name), encoding="utf-8")
 
