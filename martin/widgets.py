@@ -677,12 +677,12 @@ class MultiSelect(Widget):
         self,
         options=None,
         values=None,
-        placeholder="Buscar...",
+        placeholder="Añadir...",
         name=None,
         id=None,
-        tag_color="#eff6ff",
-        tag_border="#bfdbfe",
-        tag_text="#1d4ed8",
+        tag_color="rgba(99,102,241,0.15)",
+        tag_border="rgba(99,102,241,0.35)",
+        tag_text="var(--accent)",
         **kwargs,
     ):
         self._props = Widget._extract_props(kwargs)
@@ -708,78 +708,177 @@ class MultiSelect(Widget):
         return result
 
     def render(self):
+        import json as _json
+
+        uid = self.uid
         extra = self._resolve_props()
         opts = self._parse_options()
-        opts_json = "[" + ",".join(f'{{"v":"{v}","l":"{l}"}}' for v, l in opts) + "]"
         selected_vals = [str(v) for v in self.values]
-        selected_json = "[" + ",".join(f'"{v}"' for v in selected_vals) + "]"
-        wrapper_extra = f"; {extra}" if extra else ""
 
-        return f"""
-<div id="{self.uid}_wrap" style="position:relative;width:100%;font-size:14px{wrapper_extra}">
-  <div id="{self.uid}_box" onclick="pwMultiFocus('{self.uid}')"
-    style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:40px;padding:6px 10px;border:1px solid #d1d5db;border-radius:8px;background:#fff;cursor:text;box-sizing:border-box">
-    <div id="{self.uid}_tags" style="display:contents"></div>
-    <input type="text" id="{self.uid}_input" placeholder="{self.placeholder}"
-      oninput="pwMultiFilter('{self.uid}',this.value)" onfocus="pwMultiOpen('{self.uid}')"
-      style="border:none;outline:none;font-size:14px;min-width:120px;flex:1;padding:2px 0;background:transparent">
-  </div>
-  <div id="{self.uid}_hidden"></div>
-  <div id="{self.uid}_drop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:9999;background:#fff;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);overflow:hidden">
-    <div id="{self.uid}_list" style="max-height:200px;overflow-y:auto">
-      {"".join(
-        f'<div class="pw-mopt" data-val="{v}" data-label="{l}"'
-        f' onclick="pwMultiToggle(\'{self.uid}\',\'{v}\',\'{l}\')"'
-        f' style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;background:{"#eff6ff" if v in selected_vals else "#fff"}"'
-        f' onmouseover="this.style.background=\'#f9fafb\'"'
-        f' onmouseout="this.style.background=pwMultiIsSelected(\'{self.uid}\',\'{v}\')?\'#eff6ff\':\'#fff\'">'
-        f'<span id="{self.uid}_check_{v}" style="width:16px;height:16px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid {"#3b82f6" if v in selected_vals else "#d1d5db"};background:{"#3b82f6" if v in selected_vals else "#fff"}">'
-        f'{"<svg width=10 height=10 viewBox=\'0 0 10 10\'><path d=\'M1.5 5l2.5 2.5 4.5-4.5\' stroke=\'#fff\' stroke-width=\'1.5\' fill=\'none\' stroke-linecap=\'round\'/></svg>" if v in selected_vals else ""}'
-        f'</span>{l}</div>'
-        for v, l in opts)}
-    </div>
-    <div style="padding:8px 12px;border-top:1px solid #f3f4f6;display:flex;justify-content:flex-end">
-      <span onclick="pwMultiClear('{self.uid}')" style="font-size:12px;color:#6b7280;cursor:pointer;user-select:none"
-        onmouseover="this.style.color='#374151'" onmouseout="this.style.color='#6b7280'">Limpiar todo</span>
-    </div>
-  </div>
-</div>
-<script>
-(function(){{
-  if(!window._pwMultiState)window._pwMultiState={{}};
-  var uid='{self.uid}',opts={opts_json},name={f'"{self.name}"' if self.name else 'null'};
-  var tc='{self.tag_color}',tb='{self.tag_border}',tt='{self.tag_text}';
-  window._pwMultiState[uid]=new Set({selected_json});
-  _pwMultiRender(uid,opts,name,tc,tb,tt);
-  function _pwMultiRender(uid,opts,name,tc,tb,tt){{
-    var tagsEl=document.getElementById(uid+'_tags'),hiddenEl=document.getElementById(uid+'_hidden'),selected=window._pwMultiState[uid];
-    if(!tagsEl)return;
-    tagsEl.innerHTML='';
-    selected.forEach(function(val){{
-      var label=(opts.find(function(o){{return o.v===val;}})||{{}}).l||val;
-      var tag=document.createElement('span');
-      tag.style.cssText='display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:9999px;font-size:12px;font-weight:500;flex-shrink:0;background:'+tc+';color:'+tt+';border:1px solid '+tb;
-      tag.innerHTML=label+'<span onclick="pwMultiToggle(\''+uid+'\',\''+val+'\',\''+label+'\')" style="cursor:pointer;font-size:14px;line-height:1;opacity:0.6;margin-left:2px" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">×</span>';
-      tagsEl.appendChild(tag);
-    }});
-    if(name){{hiddenEl.innerHTML='';selected.forEach(function(val){{var i=document.createElement('input');i.type='hidden';i.name=name;i.value=val;hiddenEl.appendChild(i);}});}}
-    opts.forEach(function(opt){{
-      var el=document.getElementById(uid+'_check_'+opt.v);if(!el)return;
-      var s=selected.has(opt.v);
-      el.style.background=s?'#3b82f6':'#fff';el.style.borderColor=s?'#3b82f6':'#d1d5db';
-      el.innerHTML=s?'<svg width=10 height=10 viewBox="0 0 10 10"><path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>':'';
-      var row=el.parentElement;if(row)row.style.background=s?'#eff6ff':'#fff';
-    }});
-  }}
-  window.pwMultiIsSelected=function(uid,val){{return window._pwMultiState[uid]&&window._pwMultiState[uid].has(val);}};
-  window.pwMultiToggle=function(uid,val,label){{var s=window._pwMultiState[uid];if(s.has(val))s.delete(val);else s.add(val);_pwMultiRender(uid,opts,name,tc,tb,tt);}};
-  window.pwMultiClear=function(uid){{window._pwMultiState[uid].clear();_pwMultiRender(uid,opts,name,tc,tb,tt);}};
-  window.pwMultiOpen=function(uid){{document.getElementById(uid+'_drop').style.display='block';}};
-  window.pwMultiFocus=function(uid){{document.getElementById(uid+'_input').focus();}};
-  window.pwMultiFilter=function(uid,q){{document.querySelectorAll('#'+uid+'_list .pw-mopt').forEach(function(el){{el.style.display=el.getAttribute('data-label').toLowerCase().includes(q.toLowerCase())?'flex':'none';}});}};
-  document.addEventListener('click',function(e){{if(!e.target.closest('#'+uid+'_wrap')){{var d=document.getElementById(uid+'_drop'),i=document.getElementById(uid+'_input');if(d)d.style.display='none';if(i){{i.value='';pwMultiFilter(uid,'');}}}}}});
-}})();
-</script>"""
+        opts_js = _json.dumps([{"v": v, "l": l} for v, l in opts])
+        selected_js = _json.dumps(selected_vals)
+        name_js = _json.dumps(self.name)
+        tc_js = _json.dumps(self.tag_color)
+        tb_js = _json.dumps(self.tag_border)
+        tt_js = _json.dumps(self.tag_text)
+        ph_js = _json.dumps(self.placeholder)
+
+        wrapper_style = "position:relative;width:100%;font-size:14px"
+        if extra:
+            wrapper_style += ";" + extra
+
+        # Option rows — no inline event handlers, handled via JS delegation
+        rows = []
+        for v, l in opts:
+            display = "none" if v in selected_vals else "block"
+            rows.append(
+                '<div class="pw-mopt"'
+                ' data-val="' + v + '"'
+                ' data-label="' + l + '"'
+                ' style="display:' + display + ";padding:9px 14px;cursor:pointer;"
+                'font-size:14px;color:var(--text);border-radius:6px;transition:background .1s">'
+                + l
+                + "</div>"
+            )
+        opt_rows = "".join(rows)
+
+        # Style block for hover — avoids inline onmouseover
+        hover_css = (
+            "<style>"
+            "#" + uid + "_list .pw-mopt:hover{background:var(--surface-2)}"
+            "</style>"
+        )
+
+        return (
+            hover_css + '<div id="' + uid + '_wrap" style="' + wrapper_style + '">'
+            '  <div id="' + uid + '_box"'
+            '    style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:42px;'
+            "           padding:6px 10px;border:1px solid var(--border-input);border-radius:8px;"
+            '           background:var(--input-bg);cursor:text;box-sizing:border-box;transition:border-color .2s">'
+            '    <div id="'
+            + uid
+            + '_tags" style="display:contents;flex-wrap:wrap;gap:6px"></div>'
+            '    <input id="' + uid + '_input" type="text"'
+            '      style="border:none;outline:none;font-size:14px;min-width:100px;flex:1;'
+            '             padding:2px 0;background:transparent;color:var(--input-color)">'
+            "  </div>"
+            '  <div id="' + uid + '_hidden"></div>'
+            '  <div id="' + uid + '_drop"'
+            '    style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;'
+            "           z-index:9999;border:1px solid var(--border-input);border-radius:10px;"
+            '           box-shadow:0 12px 40px rgba(0,0,0,0.25);overflow:hidden;background:var(--dropdown-bg)">'
+            '    <div id="' + uid + '_list"'
+            '      style="max-height:220px;overflow-y:auto;padding:6px">'
+            "      " + opt_rows + "    </div>"
+            '    <div style="padding:6px 12px 8px;border-top:1px solid var(--border);'
+            '                display:flex;justify-content:flex-end">'
+            '      <span id="' + uid + '_clear"'
+            '        style="font-size:12px;color:var(--text-muted);cursor:pointer;user-select:none">'
+            "        Limpiar todo"
+            "      </span>"
+            "    </div>"
+            "  </div>"
+            "</div>"
+            "<script>(function(){"
+            "var uid=" + _json.dumps(uid) + ";"
+            "var opts=" + opts_js + ";"
+            "var name=" + name_js + ";"
+            "var tc=" + tc_js + ";"
+            "var tb=" + tb_js + ";"
+            "var tt=" + tt_js + ";"
+            "var ph=" + ph_js + ";"
+            "var sel=new Set(" + selected_js + ");"
+            "if(!window._pwMultiState)window._pwMultiState={};"
+            "window._pwMultiState[uid]=sel;"
+            "var box=document.getElementById(uid+'_box');"
+            "var input=document.getElementById(uid+'_input');"
+            "var drop=document.getElementById(uid+'_drop');"
+            "var list=document.getElementById(uid+'_list');"
+            "var tags=document.getElementById(uid+'_tags');"
+            "var hidden=document.getElementById(uid+'_hidden');"
+            "var clearBtn=document.getElementById(uid+'_clear');"
+            "function render(){"
+            "  box.querySelectorAll('span[data-tag]').forEach(function(t){t.remove();});"
+            "  sel.forEach(function(val){"
+            "    var opt=opts.find(function(o){return o.v===val;})||{};"
+            "    var label=opt.l||val;"
+            "    var tag=document.createElement('span');"
+            "    tag.setAttribute('data-tag',val);"
+            "    tag.style.cssText='display:inline-flex;align-items:center;gap:4px;padding:3px 8px;'"
+            "      +'border-radius:9999px;font-size:12px;font-weight:500;flex-shrink:0;'"
+            "      +'background:'+tc+';color:'+tt+';border:1px solid '+tb;"
+            "    var txt=document.createTextNode(label);"
+            "    var x=document.createElement('span');"
+            "    x.textContent='×';"
+            "    x.style.cssText='cursor:pointer;font-size:15px;line-height:1;opacity:0.6;margin-left:2px';"
+            "    x.onmouseover=function(){this.style.opacity='1';};"
+            "    x.onmouseout=function(){this.style.opacity='0.6';};"
+            "    (function(v){x.onclick=function(e){e.stopPropagation();sel.delete(v);render();showOpt(v);};})(val);"
+            "    tag.appendChild(txt);tag.appendChild(x);"
+            "    box.insertBefore(tag,input);"
+            "  });"
+            "  if(name){"
+            "    hidden.innerHTML='';"
+            "    sel.forEach(function(val){"
+            "      var i=document.createElement('input');"
+            "      i.type='hidden';i.name=name;i.value=val;"
+            "      hidden.appendChild(i);"
+            "    });"
+            "  }"
+            "  input.placeholder=sel.size===0?ph:'';"
+            "}"
+            "function showOpt(val){"
+            "  var el=list.querySelector('[data-val=\"'+val+'\"]');"
+            "  if(el)el.style.display='block';"
+            "}"
+            "function openDrop(){"
+            "  drop.style.display='block';"
+            "  box.style.borderColor='var(--accent)';"
+            "}"
+            "function closeDrop(){"
+            "  drop.style.display='none';"
+            "  box.style.borderColor='';"
+            "  input.value='';"
+            "  list.querySelectorAll('.pw-mopt').forEach(function(el){"
+            "    var v=el.getAttribute('data-val');"
+            "    el.style.display=sel.has(v)?'none':'block';"
+            "  });"
+            "}"
+            "list.addEventListener('click',function(e){"
+            "  var el=e.target.closest('.pw-mopt');"
+            "  if(!el)return;"
+            "  var val=el.getAttribute('data-val');"
+            "  sel.add(val);"
+            "  el.style.display='none';"
+            "  input.value='';"
+            "  list.querySelectorAll('.pw-mopt').forEach(function(e2){"
+            "    var v=e2.getAttribute('data-val');"
+            "    e2.style.display=sel.has(v)?'none':'block';"
+            "  });"
+            "  render();"
+            "  input.focus();"
+            "});"
+            "input.addEventListener('focus',openDrop);"
+            "input.addEventListener('input',function(){"
+            "  var q=this.value.toLowerCase();"
+            "  list.querySelectorAll('.pw-mopt').forEach(function(el){"
+            "    var v=el.getAttribute('data-val');"
+            "    var match=el.getAttribute('data-label').toLowerCase().includes(q);"
+            "    el.style.display=(match&&!sel.has(v))?'block':'none';"
+            "  });"
+            "});"
+            "clearBtn.addEventListener('click',function(){"
+            "  sel.clear();"
+            "  list.querySelectorAll('.pw-mopt').forEach(function(el){el.style.display='block';});"
+            "  render();"
+            "  closeDrop();"
+            "});"
+            "document.addEventListener('click',function(e){"
+            "  if(!e.target.closest('#'+uid+'_wrap'))closeDrop();"
+            "});"
+            "render();"
+            "})()</script>"
+        )
 
 
 # ══════════════════════════════════════════════════════════
