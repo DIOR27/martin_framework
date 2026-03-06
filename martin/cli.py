@@ -172,7 +172,7 @@ def cmd_run(args):
         title=getattr(mod, "TITLE", Path.cwd().name),
         port=args.port,
         hot_reload=hot,
-    ).run(watch_dir=cwd)
+    ).run(watch_dir=cwd, source_file=str(main_file.resolve()))
 
 
 def cmd_export(args):

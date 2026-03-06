@@ -1,9 +1,9 @@
 """
 Martin — App & Dev Server
-Hot reload real: recarga el módulo Python en cada cambio, no solo el HTML.
+Hot reload: recarga el fichero desde disco en cada cambio.
 """
 
-import os, sys, time, threading, importlib, importlib.util
+import os, sys, time, threading, importlib.util
 import http.server, webbrowser
 from pathlib import Path
 
@@ -26,11 +26,6 @@ LIVE_RELOAD_SCRIPT = """
 
 
 class App:
-    """
-    App(build=build, title="Mi App").run()
-    App(build=build, port=3000, hot_reload=False).run()
-    """
-
     def __init__(
         self,
         build,
@@ -41,15 +36,14 @@ class App:
         styles="",
     ):
         self._build_fn = build
+        self._source_file = None  # lo rellena el CLI o _detect_source
         self.title = title
         self.port = port
         self.hot_reload = hot_reload
         self.assets_dir = assets_dir
         self.global_styles = styles
-        self._ts = str(time.time())  # cambia cuando hay reload
+        self._ts = str(time.time())
         self._lock = threading.Lock()
-        # Guardamos referencia al módulo fuente para poder recargarlo
-        self._source_module = getattr(build, "__module__", None)
 
     # ── HTML ─────────────────────────────────────────────────────────────────
 
@@ -77,7 +71,16 @@ class App:
 
     def _render(self) -> str:
         with self._lock:
-            widget = self._build_fn()
+            try:
+                widget = self._build_fn()
+            except Exception as e:
+                import traceback
+
+                tb = traceback.format_exc()
+                return self._wrap(
+                    f'<pre style="color:red;padding:32px;font-size:13px;line-height:1.6">'
+                    f"⚠️  Error en build():\n\n{tb}</pre>"
+                )
         body = widget.render() if hasattr(widget, "render") else str(widget)
         return self._wrap(body)
 
@@ -86,51 +89,35 @@ class App:
         Path(path).write_text(html, encoding="utf-8")
         print(f"✅ Exportado → {path}")
 
-    # ── File watcher con reload real del módulo ───────────────────────────────
+    # ── Hot reload ────────────────────────────────────────────────────────────
 
-    def _start_watcher(self, watch_dir: str):
-        """
-        Observa cambios en .py y recarga el módulo fuente con importlib.reload.
-        No necesita watchdog: usa polling puro (compatible en todos los OS).
-        Si watchdog está instalado, lo usa para mayor eficiencia.
-        """
+    def _reload_from_file(self, source_file: str):
+        """Carga el fichero desde disco, sin tocar importlib.reload."""
+        try:
+            fn_name = self._build_fn.__name__
+            spec = importlib.util.spec_from_file_location("_martin_hot_", source_file)
+            fresh = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(fresh)
+            if hasattr(fresh, fn_name):
+                with self._lock:
+                    self._build_fn = getattr(fresh, fn_name)
+                self._ts = str(time.time())
+                print(f"  ↻  {os.path.basename(source_file)}")
+            else:
+                print(f"  ⚠️  '{fn_name}' no encontrado en {source_file}")
+                self._ts = str(time.time())  # recarga igual para mostrar el error
+        except Exception as e:
+            import traceback
+
+            print(f"  ⚠️  Error al recargar:\n{traceback.format_exc()}")
+            self._ts = str(time.time())
+
+    def _start_watcher(self, watch_dir: str, source_file: str):
         app = self
 
-        def _reload_module():
-            """Recarga el módulo donde está definida la función build."""
-            mod_name = app._source_module
-            if not mod_name or mod_name == "__main__":
-                # Caso especial: el script se ejecutó directamente
-                # Recargamos el módulo __main__ buscando su fichero
-                main = sys.modules.get("__main__")
-                if main and hasattr(main, "__file__") and main.__file__:
-                    try:
-                        spec = importlib.util.spec_from_file_location(
-                            "__main__reload__", main.__file__
-                        )
-                        fresh = importlib.util.module_from_spec(spec)
-                        spec.loader.exec_module(fresh)
-                        # Actualizamos la función build al símbolo recién cargado
-                        fn_name = app._build_fn.__name__
-                        if hasattr(fresh, fn_name):
-                            with app._lock:
-                                app._build_fn = getattr(fresh, fn_name)
-                    except Exception as e:
-                        print(f"  ⚠️  Error recargando: {e}")
-            else:
-                mod = sys.modules.get(mod_name)
-                if mod:
-                    try:
-                        importlib.reload(mod)
-                        fn_name = app._build_fn.__name__
-                        with app._lock:
-                            app._build_fn = getattr(mod, fn_name)
-                    except Exception as e:
-                        print(f"  ⚠️  Error recargando: {e}")
+        def on_change():
+            app._reload_from_file(source_file)
 
-            app._ts = str(time.time())
-
-        # Intenta usar watchdog, si no, polling
         try:
             from watchdog.observers import Observer
             from watchdog.events import FileSystemEventHandler
@@ -138,9 +125,7 @@ class App:
             class Handler(FileSystemEventHandler):
                 def on_modified(self, event):
                     if not event.is_directory and event.src_path.endswith(".py"):
-                        name = os.path.basename(event.src_path)
-                        print(f"  ↻  {name}")
-                        _reload_module()
+                        on_change()
 
             observer = Observer()
             observer.schedule(Handler(), watch_dir, recursive=True)
@@ -149,15 +134,11 @@ class App:
             print(f"  👁  watchdog activo en '{watch_dir}'")
 
         except ImportError:
-            # Polling manual — funciona sin dependencias
-            print(
-                f"  👁  polling activo en '{watch_dir}' (instala watchdog para mejor rendimiento)"
-            )
+            print(f"  👁  hot reload activo (polling cada 600ms)")
             mtimes: dict = {}
 
             def poll():
                 while True:
-                    changed = False
                     for root, _, files in os.walk(watch_dir):
                         for f in files:
                             if not f.endswith(".py"):
@@ -167,22 +148,27 @@ class App:
                                 mt = os.path.getmtime(fp)
                             except OSError:
                                 continue
-                            if fp not in mtimes:
+                            if fp in mtimes and mtimes[fp] != mt:
                                 mtimes[fp] = mt
-                            elif mtimes[fp] != mt:
+                                on_change()
+                            else:
                                 mtimes[fp] = mt
-                                print(f"  ↻  {f}")
-                                changed = True
-                    if changed:
-                        _reload_module()
                     time.sleep(0.6)
 
-            t = threading.Thread(target=poll, daemon=True)
-            t.start()
+            threading.Thread(target=poll, daemon=True).start()
 
     # ── HTTP server ───────────────────────────────────────────────────────────
 
-    def run(self, open_browser=True, watch_dir="."):
+    def run(self, open_browser=True, watch_dir=".", source_file=None):
+        # source_file lo pasa el CLI; si se ejecuta directo (python main.py)
+        # intentamos detectarlo desde __main__
+        if source_file is None:
+            source_file = self._source_file
+        if source_file is None:
+            main = sys.modules.get("__main__")
+            if main and hasattr(main, "__file__") and main.__file__:
+                source_file = os.path.abspath(main.__file__)
+
         app = self
 
         class Handler(http.server.BaseHTTPRequestHandler):
@@ -192,13 +178,7 @@ class App:
                 elif self.path.startswith("/assets/"):
                     self._static(self.path[1:])
                 else:
-                    try:
-                        html = app._render()
-                        self._html(html)
-                    except Exception as e:
-                        self._html(
-                            f"<pre style='color:red;padding:24px'>Error:\n{e}</pre>"
-                        )
+                    self._html(app._render())
 
             def _html(self, content):
                 data = content.encode("utf-8")
@@ -232,21 +212,21 @@ class App:
             def log_message(self, *a):
                 pass
 
+        if self.hot_reload and source_file:
+            self._start_watcher(watch_dir, source_file)
+        elif self.hot_reload:
+            print("  ⚠️  No se pudo detectar el fichero fuente para hot reload")
+
         url = f"http://localhost:{self.port}"
-
-        if self.hot_reload:
-            self._start_watcher(watch_dir)
-
-        server = http.server.HTTPServer(("", self.port), Handler)
-
         hl = "activado ↻" if self.hot_reload else "desactivado"
         print(f"\n  🌐  martin → {url}")
         print(f"  ⚡  Hot reload: {hl}")
         print(f"  ✋  Ctrl+C para parar\n")
 
         if open_browser:
-            threading.Timer(0.6, lambda: webbrowser.open(url)).start()
+            threading.Timer(0.8, lambda: webbrowser.open(url)).start()
 
+        server = http.server.HTTPServer(("", self.port), Handler)
         try:
             server.serve_forever()
         except KeyboardInterrupt:
