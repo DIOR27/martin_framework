@@ -2,7 +2,7 @@
 
 __version__ = "0.1.0"
 
-from .app import App, Router
+from .app import App, Router, PageConfig
 from .styles import (
     CSS,
     StyleBase,
@@ -53,6 +53,7 @@ __all__ = [
     "__version__",
     "App",
     "Router",
+    "PageConfig",
     "CSS",
     "StyleBase",
     "resolve_styles",

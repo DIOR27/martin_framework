@@ -444,8 +444,9 @@ class TextField(Widget):
 
     def render(self):
         base = (
-            "padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; "
-            "font-size: 14px; outline: none; width: 100%; box-sizing: border-box"
+            "padding: 8px 12px; border: 1px solid var(--border-input); border-radius: 6px; "
+            "font-size: 14px; outline: none; width: 100%; box-sizing: border-box; "
+            "background: var(--input-bg); color: var(--input-color)"
         )
         inline = self._resolve_props(base)
         attrs = self._attrs(
@@ -470,7 +471,7 @@ class Checkbox(Widget):
         self.name = name
 
     def render(self):
-        base = "display: flex; align-items: center; gap: 8px"
+        base = "display: flex; align-items: center; gap: 8px; color: var(--text)"
         inline = self._resolve_props(base)
         checked_attr = " checked" if self.checked else ""
         name_attr = f' name="{self.name}"' if self.name else ""
@@ -529,8 +530,8 @@ class Select(Widget):
 
         if not self.search:
             base = (
-                "padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; "
-                "font-size: 14px; background: #fff; cursor: pointer; width: 100%"
+                "padding: 8px 12px; border: 1px solid var(--border-input); border-radius: 6px; "
+                "font-size: 14px; background: var(--input-bg); color: var(--input-color); cursor: pointer; width: 100%"
             )
             inline = f"{base}; {extra}" if extra else base
             opt_tags = "".join(
@@ -551,25 +552,25 @@ class Select(Widget):
 <div id="{self.uid}_wrap" style="{wrapper_style}">
   {hidden_input}
   <div id="{self.uid}_btn" onclick="pwSelectToggle('{self.uid}')"
-    style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;background:#fff;cursor:pointer;user-select:none;gap:8px">
-    <span id="{self.uid}_label" style="color:#374151;flex:1">{selected_label}</span>
+    style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border:1px solid var(--border-input);border-radius:6px;background:var(--input-bg);cursor:pointer;user-select:none;gap:8px">
+    <span id="{self.uid}_label" style="color:var(--input-color);flex:1">{selected_label}</span>
     <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0;transition:transform 0.2s" id="{self.uid}_arrow">
       <path d="M2 4l4 4 4-4" stroke="#9ca3af" stroke-width="1.5" fill="none" stroke-linecap="round"/>
     </svg>
   </div>
-  <div id="{self.uid}_drop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:9999;background:#fff;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);overflow:hidden">
-    <div style="padding:8px;border-bottom:1px solid #f3f4f6">
+  <div id="{self.uid}_drop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:9999;background:var(--surface,#fff);border:1px solid var(--border-input);border-radius:8px;box-shadow:var(--shadow,0 8px 24px rgba(0,0,0,0.12));overflow:hidden;backdrop-filter:blur(12px)">
+    <div style="padding:8px;border-bottom:1px solid var(--border)">
       <input type="text" placeholder="Buscar..." oninput="pwSelectFilter('{self.uid}',this.value)"
-        style="width:100%;padding:6px 10px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;outline:none;box-sizing:border-box"
+        style="width:100%;padding:6px 10px;border:1px solid var(--border-input);border-radius:6px;font-size:13px;outline:none;box-sizing:border-box;background:var(--input-bg);color:var(--input-color)"
         id="{self.uid}_search">
     </div>
     <div id="{self.uid}_list" style="max-height:200px;overflow-y:auto">
       {"".join(
         f'<div class="pw-opt" data-val="{v}" data-label="{l}"'
         f' onclick="pwSelectPick(\'{self.uid}\',\'{v}\',\'{l}\')"'
-        f' style="padding:8px 12px;cursor:pointer;color:#374151;background:{"#eff6ff" if v==selected_val else "#fff"};font-weight:{"600" if v==selected_val else "400"}"'
-        f' onmouseover="this.style.background=\'#f9fafb\'"'
-        f' onmouseout="this.style.background=\'{"#eff6ff" if v==selected_val else "#fff"}\'">{l}</div>'
+        f' style="padding:8px 12px;cursor:pointer;color:var(--text);background:{"rgba(99,102,241,0.12)" if v==selected_val else "transparent"};font-weight:{"600" if v==selected_val else "400"}"'
+        f' onmouseover="this.style.background=\'var(--surface-2,#f9fafb)\'"'
+        f' onmouseout="this.style.background=\'{"rgba(99,102,241,0.12)" if v==selected_val else "transparent"}\'">{l}</div>'
         for v, l in opts)}
     </div>
   </div>

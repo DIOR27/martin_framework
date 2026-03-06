@@ -628,30 +628,35 @@ class GradientText(StyleBase):
 
 class MeshBackground(StyleBase):
     """
-    Fondo tipo mesh gradient animado, igual que la página de Martin.
-    Úsalo en el Container/Column raíz.
+    Fondo tipo mesh gradient que respeta el tema (dark/light/auto).
+    Usa var(--bg) como base para que el tema CSS lo controle.
 
-    MeshBackground()
-    MeshBackground(color1="#6366f1", color2="#34d399", base="#060818")
-    MeshBackground.dark()
-    MeshBackground.light()
+    MeshBackground()                          # respeta el tema
+    MeshBackground.dark()                     # fija fondo oscuro
+    MeshBackground.light()                    # fija fondo claro
+    MeshBackground.themed()                   # sigue var(--bg) del tema activo
+    MeshBackground(color1="#6366f1", ...)     # colores custom, base themed
     """
 
-    def __init__(
-        self, color1="#6366f1", color2="#34d399", color3="#7c3aed", base="#060818"
-    ):
+    def __init__(self, color1="#6366f1", color2="#34d399", color3="#7c3aed", base=None):
         self.color1 = color1
         self.color2 = color2
         self.color3 = color3
+        # base=None → usa var(--bg) del tema CSS
         self.base = base
 
     @classmethod
     def dark(cls):
-        return cls("#6366f1", "#34d399", "#7c3aed", "#060818")
+        return cls("#6366f1", "#34d399", "#7c3aed", base="#060818")
 
     @classmethod
     def light(cls):
-        return cls("#6366f1", "#34d399", "#7c3aed", "#f0f4ff")
+        return cls("#6366f1", "#34d399", "#7c3aed", base="#f0f4ff")
+
+    @classmethod
+    def themed(cls):
+        """Sigue automáticamente el tema activo (dark/light/auto)."""
+        return cls("#6366f1", "#34d399", "#7c3aed", base=None)
 
     def _hex_rgba(self, hex_color: str, opacity: float) -> str:
         h = hex_color.lstrip("#")
@@ -662,12 +667,14 @@ class MeshBackground(StyleBase):
         c1 = self._hex_rgba(self.color1, 0.18)
         c2 = self._hex_rgba(self.color2, 0.12)
         c3 = self._hex_rgba(self.color3, 0.08)
+        base = self.base if self.base else "var(--bg)"
         return {
             "background": (
                 f"radial-gradient(ellipse 80% 60% at 20% 10%, {c1} 0%, transparent 60%), "
                 f"radial-gradient(ellipse 60% 50% at 80% 80%, {c2} 0%, transparent 55%), "
                 f"radial-gradient(ellipse 50% 40% at 50% 50%, {c3} 0%, transparent 50%), "
-                f"{self.base}"
+                f"{base}"
             ),
             "min-height": "100vh",
+            "color": "var(--text)",
         }

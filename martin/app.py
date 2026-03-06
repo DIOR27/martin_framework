@@ -5,6 +5,7 @@ Martin — App, Router & Dev Server
 import os, sys, time, threading, importlib.util
 import http.server, webbrowser
 from pathlib import Path
+from .theme import THEME_CSS, THEME_TOGGLE_JS, THEME_TOGGLE_BTN
 
 
 LIVE_RELOAD_SCRIPT = """
@@ -22,34 +23,57 @@ LIVE_RELOAD_SCRIPT = """
 
 
 # ══════════════════════════════════════════════════════════
-# ROUTER — registra páginas
+# PAGE CONFIG — override por página
+# ══════════════════════════════════════════════════════════
+
+
+class PageConfig:
+    """
+    Configura opciones específicas de una página.
+    Úsalo retornando (widget, config) desde tu función de página.
+
+    Ejemplo:
+        def home():
+            return Column(...), PageConfig(
+                header=False,           # sin header en esta página
+                footer=MyFooter(),      # footer personalizado
+                title="Inicio — Mi App",
+            )
+    """
+
+    def __init__(self, header=None, footer=None, title=None, theme=None):
+        self.header = header  # False = sin header | Widget = header custom
+        self.footer = footer  # False = sin footer | Widget = footer custom
+        self.title = title  # str = título custom para esta página
+        self.theme = theme  # "dark"|"light"|"auto" override para esta página
+
+
+# ══════════════════════════════════════════════════════════
+# ROUTER
 # ══════════════════════════════════════════════════════════
 
 
 class Router:
     """
-    Define las páginas de la app.
-
     router = Router()
 
     @router.page("/")
     def home():
-        return Column(children=[Heading("Inicio")])
+        return Column(...)
 
-    @router.page("/about")
-    def about():
-        return Column(children=[Heading("Sobre nosotros")])
+    # Con PageConfig:
+    @router.page("/landing")
+    def landing():
+        return Column(...), PageConfig(header=False, footer=False)
 
     App(router=router).run()
     """
 
     def __init__(self):
-        self._routes: dict[str, callable] = {}
-        self._titles: dict[str, str] = {}
+        self._routes = {}
+        self._titles = {}
 
-    def page(self, path: str, title: str = None):
-        """Decorador para registrar una página."""
-
+    def page(self, path, title=None):
         def decorator(fn):
             self._routes[path] = fn
             if title:
@@ -58,18 +82,14 @@ class Router:
 
         return decorator
 
-    def add(self, path: str, fn: callable, title: str = None):
-        """Registra una página sin decorador."""
+    def add(self, path, fn, title=None):
         self._routes[path] = fn
         if title:
             self._titles[path] = title
 
-    def resolve(self, path: str):
-        """Devuelve (fn, title) para un path, o (None, None) si no existe."""
-        # Exact match
+    def resolve(self, path):
         if path in self._routes:
             return self._routes[path], self._titles.get(path)
-        # Strip trailing slash
         stripped = path.rstrip("/") or "/"
         if stripped in self._routes:
             return self._routes[stripped], self._titles.get(stripped)
@@ -86,23 +106,18 @@ class Router:
 
 class App:
     """
-    Modo página única:
-        App(build=build, title="Mi App").run()
+    App(build=build, title="Mi App").run()
 
-    Modo multi-página con Router:
-        router = Router()
+    App(
+        router=router,
+        title="Mi App",
+        theme="dark",           # "dark" | "light" | "auto" (default)
+        theme_toggle=True,      # botón flotante para cambiar tema
+        # header=MyHeader(),      # header global (Widget)
+        footer=MyFooter(),      # footer global (Widget)
+    ).run()
 
-        @router.page("/", title="Inicio")
-        def home(): return Column(...)
-
-        @router.page("/about", title="Acerca de")
-        def about(): return Column(...)
-
-        App(router=router, title="Mi App").run()
-
-    Modo multi-página con ficheros separados:
-        App(router=router, title="Mi App").run()
-        # Cada página en su propio .py, importada en main.py
+    Las páginas pueden sobreescribir header/footer retornando (widget, PageConfig(...)).
     """
 
     def __init__(
@@ -112,6 +127,10 @@ class App:
         title="Martin App",
         port=309,
         hot_reload=True,
+        theme="auto",
+        theme_toggle=True,
+        header=None,
+        footer=None,
         assets_dir="assets",
         styles="",
         global_css="",
@@ -125,33 +144,33 @@ class App:
         self.title = title
         self.port = port
         self.hot_reload = hot_reload
+        self.theme = theme
+        self.theme_toggle = theme_toggle
+        self.header = header
+        self.footer = footer
         self.assets_dir = assets_dir
         self.global_styles = styles or global_css
         self._ts = str(time.time())
         self._lock = threading.Lock()
 
-    # ── HTML shell ────────────────────────────────────────────────────────────
+    # ── Nav ───────────────────────────────────────────────────────────────────
 
-    def _nav_html(self, current_path: str) -> str:
-        """Genera nav automática si hay router con varias páginas."""
+    def _nav_html(self, current_path):
         if not self._router or len(self._router.paths()) <= 1:
             return ""
 
-        # Logo: busca assets/logo.png, logo.svg, logo.webp
         logo_html = ""
         for ext in ("png", "svg", "webp", "jpg"):
-            logo_path = os.path.join(self.assets_dir, f"logo.{ext}")
-            if os.path.exists(logo_path):
+            if os.path.exists(os.path.join(self.assets_dir, f"logo.{ext}")):
                 logo_html = (
                     f'<a href="/" style="display:flex;align-items:center;margin-right:16px">'
-                    f'<img src="/assets/logo.{ext}" style="height:32px;width:auto;display:block"></a>'
+                    f'<img src="/assets/logo.{ext}" style="height:32px;width:auto"></a>'
                 )
                 break
-        # Fallback: nombre de la app como texto si no hay imagen
         if not logo_html:
             logo_html = (
                 f'<a href="/" style="font-weight:800;font-size:18px;letter-spacing:-0.5px;'
-                f'text-decoration:none;color:#f1f5f9;margin-right:16px">'
+                f'text-decoration:none;color:var(--text);margin-right:16px">'
                 f"{self.title}</a>"
             )
 
@@ -160,89 +179,146 @@ class App:
             _, title = self._router.resolve(path)
             label = title or path.strip("/").capitalize() or "Inicio"
             is_active = path == current_path
-            active_style = (
-                "color:#a5b4fc;font-weight:600"
+            color = (
+                "color:var(--accent);font-weight:600"
                 if is_active
-                else "color:rgba(203,213,225,0.75)"
+                else "color:var(--nav-text)"
             )
             links.append(
                 f'<a href="{path}" style="text-decoration:none;font-size:14px;'
-                f'font-weight:500;transition:color 0.2s;{active_style}"'
-                f" onmouseover=\"if(!this.dataset.active)this.style.color='#f1f5f9'\""
-                f" onmouseout=\"if(!this.dataset.active)this.style.color='rgba(203,213,225,0.75)'\""
-                f'{"data-active=1" if is_active else ""}>{label}</a>'
+                f'font-weight:500;transition:color 0.2s;{color}"'
+                f" onmouseover=\"this.style.color='var(--text)'\""
+                f' onmouseout="this.style.color=\'{("var(--accent)" if is_active else "var(--nav-text)")}\'">{ label}</a>'
             )
-        nav_links = "\n".join(links)
+
         return (
             f'<nav style="display:flex;align-items:center;gap:28px;padding:0 32px;'
-            f"height:56px;"
-            f"background:rgba(6,8,24,0.85);"
+            f"height:56px;background:var(--nav-bg);"
             f"backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);"
-            f"border-bottom:1px solid rgba(255,255,255,0.08);"
+            f"border-bottom:1px solid var(--nav-border);"
             f'position:sticky;top:0;z-index:100">'
-            f"{logo_html}"
-            f"{nav_links}"
-            f"</nav>"
+            f'{logo_html}{"".join(links)}</nav>'
         )
 
+    # ── Render header/footer ──────────────────────────────────────────────────
+
+    def _render_widget(self, widget):
+        if widget is None or widget is False:
+            return ""
+        return widget.render() if hasattr(widget, "render") else str(widget)
+
+    # ── HTML shell ────────────────────────────────────────────────────────────
+
     def _wrap(
-        self, body: str, path: str = "/", page_title: str = None, reload=True
-    ) -> str:
+        self,
+        body,
+        path="/",
+        page_title=None,
+        reload=True,
+        page_header=None,
+        page_footer=None,
+        page_theme=None,
+    ):
+
+        # Resolver header y footer para esta página
+        # False = desactivado | None = usar global | Widget = override
+        use_header = page_header if page_header is not None else self.header
+        use_footer = page_footer if page_footer is not None else self.footer
+
+        header_html = self._render_widget(use_header)
+        footer_html = self._render_widget(use_footer)
+        nav_html = self._nav_html(path)
         script = LIVE_RELOAD_SCRIPT if (reload and self.hot_reload) else ""
         title = page_title or self.title
-        nav = self._nav_html(path)
+        theme = page_theme or self.theme
+        toggle = THEME_TOGGLE_BTN if self.theme_toggle else ""
+
+        # Inyectar theme en el JS
+        toggle_js = THEME_TOGGLE_JS.replace("'INITIAL_THEME'", f"'{theme}'")
+
         return f"""<!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="{theme}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{title}</title>
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
-    html, body {{ background: #060818; }}
     body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-           line-height: 1.5; color: #f1f5f9; min-height: 100vh; }}
+           line-height: 1.5; min-height: 100vh; }}
     img {{ display: block; max-width: 100%; }}
     a {{ color: inherit; }}
+    {THEME_CSS}
     {self.global_styles}
   </style>
+  {toggle_js}
 </head>
 <body>
-  {nav}
+  {nav_html}
+  {header_html}
   {body}
+  {footer_html}
+  {toggle}
   {script}
 </body>
 </html>"""
 
     # ── Render ────────────────────────────────────────────────────────────────
 
-    def _render(self, path: str = "/") -> str:
+    def _render(self, path="/"):
         with self._lock:
             try:
+                page_cfg = None
                 if self._router:
                     fn, page_title = self._router.resolve(path)
                     if fn is None:
                         widget = self._not_found(path)
                         page_title = "404"
                     else:
-                        widget = fn()
+                        result = fn()
+                        # Soporte para (widget, PageConfig) tuple
+                        if isinstance(result, tuple):
+                            widget, page_cfg = result
+                        else:
+                            widget = result
                 else:
-                    widget = self._build_fn()
+                    result = self._build_fn()
+                    if isinstance(result, tuple):
+                        widget, page_cfg = result
+                    else:
+                        widget = result
                     page_title = None
+
             except Exception:
                 import traceback
 
                 tb = traceback.format_exc()
                 return self._wrap(
                     f'<pre style="color:#f87171;padding:32px;font-size:13px;'
-                    f'line-height:1.6;background:#1e1e2e">⚠️  Error:\n\n{tb}</pre>',
+                    f'line-height:1.6">Error:\n\n{tb}</pre>',
                     path=path,
                 )
 
         body = widget.render() if hasattr(widget, "render") else str(widget)
-        return self._wrap(body, path=path, page_title=page_title)
 
-    def _not_found(self, path: str):
+        # Extraer overrides de PageConfig si existe
+        p_header = page_cfg.header if page_cfg else None
+        p_footer = page_cfg.footer if page_cfg else None
+        p_title = (
+            page_cfg.title if page_cfg and page_cfg.title else None
+        ) or page_title
+        p_theme = page_cfg.theme if page_cfg and page_cfg.theme else None
+
+        return self._wrap(
+            body,
+            path=path,
+            page_title=p_title,
+            page_header=p_header,
+            page_footer=p_footer,
+            page_theme=p_theme,
+        )
+
+    def _not_found(self, path):
         from .widgets import Column, Heading, Text, Button
 
         return Column(
@@ -251,51 +327,52 @@ class App:
             style="align-items:center;text-align:center",
             children=[
                 Heading("404", level=1, style="font-size:72px;opacity:0.3"),
-                Heading(f"Página '{path}' no encontrada", level=2),
-                Button("← Volver al inicio", href="/", variant="ghost"),
+                Heading(f"'{path}' no encontrada", level=2),
+                Button("← Inicio", href="/", variant="ghost"),
             ],
         )
 
     def export(self, path="index.html", router_path="/"):
-        html = self._render(router_path).replace(LIVE_RELOAD_SCRIPT, "")
+        html = self._render(router_path)
+        html = html.replace(LIVE_RELOAD_SCRIPT, "")
         Path(path).write_text(html, encoding="utf-8")
-        print(f"✅ Exportado → {path}")
+        print(f"  OK  {path}")
 
     def export_all(self, out_dir="dist"):
-        """Exporta todas las páginas del router a ficheros HTML."""
         out = Path(out_dir)
         out.mkdir(parents=True, exist_ok=True)
-        if self._router:
-            for rpath in self._router.paths():
-                fname = "index.html" if rpath == "/" else rpath.strip("/") + ".html"
-                self.export(str(out / fname), router_path=rpath)
-        else:
-            self.export(str(out / "index.html"))
+        routes = self._router.paths() if self._router else ["/"]
+        for rpath in routes:
+            fname = "index.html" if rpath == "/" else rpath.strip("/") + ".html"
+            self.export(str(out / fname), router_path=rpath)
 
     # ── Hot reload ────────────────────────────────────────────────────────────
 
-    def _reload_from_file(self, source_file: str):
+    def _reload_from_file(self, source_file):
         try:
             spec = importlib.util.spec_from_file_location("_martin_hot_", source_file)
             fresh = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(fresh)
-
             if self._router and hasattr(fresh, "router"):
                 with self._lock:
                     self._router = fresh.router
             elif self._build_fn and hasattr(fresh, self._build_fn.__name__):
                 with self._lock:
                     self._build_fn = getattr(fresh, self._build_fn.__name__)
-
+            # Recargar header/footer si son callables en el módulo
+            if hasattr(fresh, "header"):
+                self.header = fresh.header
+            if hasattr(fresh, "footer"):
+                self.footer = fresh.footer
             self._ts = str(time.time())
             print(f"  ↻  {os.path.basename(source_file)}")
         except Exception:
             import traceback
 
-            print(f"  ⚠️  Error al recargar:\n{traceback.format_exc()}")
+            print(f"  Error al recargar:\n{traceback.format_exc()}")
             self._ts = str(time.time())
 
-    def _start_watcher(self, watch_dir: str, source_file: str):
+    def _start_watcher(self, watch_dir, source_file):
         app = self
 
         def on_change(fp):
@@ -314,11 +391,10 @@ class App:
             observer.schedule(Handler(), watch_dir, recursive=True)
             observer.daemon = True
             observer.start()
-            print(f"  👁  watchdog activo en '{watch_dir}'")
-
+            print(f"  👁  watchdog activo")
         except ImportError:
             print(f"  👁  hot reload activo (polling)")
-            mtimes: dict = {}
+            mtimes = {}
 
             def poll():
                 while True:
@@ -354,7 +430,7 @@ class App:
 
         class Handler(http.server.BaseHTTPRequestHandler):
             def do_GET(self):
-                path = self.path.split("?")[0]  # ignora query params
+                path = self.path.split("?")[0]
                 if path == "/__ping__":
                     self._json({"ts": app._ts})
                 elif path.startswith("/assets/"):
@@ -396,19 +472,15 @@ class App:
 
         if self.hot_reload and source_file:
             self._start_watcher(watch_dir, source_file)
-        elif self.hot_reload:
-            print("  ⚠️  No se pudo detectar el fichero fuente para hot reload")
 
         url = f"http://localhost:{self.port}"
-        hl = "activado ↻" if self.hot_reload else "desactivado"
-        pages = (
-            f"  📄  Páginas: {', '.join(self._router.paths())}\n"
-            if self._router
-            else ""
-        )
-        print(f"\n  🌐  martin → {url}")
-        print(f"  ⚡  Hot reload: {hl}")
-        print(f"{pages}  ✋  Ctrl+C para parar\n")
+        hl = "activado" if self.hot_reload else "desactivado"
+        pages = ""
+        if self._router:
+            pages = "  📄  " + ", ".join(self._router.paths()) + "\n"
+        print(f"\n  🌐  martin -> {url}")
+        print(f"  ⚡  Hot reload: {hl}  |  Tema: {self.theme}")
+        print(f"{pages}  Ctrl+C para parar\n")
 
         if open_browser:
             threading.Timer(0.8, lambda: webbrowser.open(url)).start()
