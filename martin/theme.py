@@ -32,6 +32,7 @@ THEME_CSS = """
   --nav-bg:       rgba(248,250,252,0.90);
   --nav-border:   rgba(0,0,0,0.07);
   --nav-text:     rgba(15,23,42,0.75);
+  --dropdown-bg:  #ffffff;
 }
 
 /* ── Tema oscuro ── */
@@ -55,6 +56,7 @@ THEME_CSS = """
   --nav-bg:       rgba(6,8,24,0.85);
   --nav-border:   rgba(255,255,255,0.08);
   --nav-text:     rgba(203,213,225,0.75);
+  --dropdown-bg:  #1a1d2e;
 }
 
 /* ── Auto: usa preferencia del sistema ── */
@@ -79,6 +81,7 @@ THEME_CSS = """
     --nav-bg:       rgba(6,8,24,0.85);
     --nav-border:   rgba(255,255,255,0.08);
     --nav-text:     rgba(203,213,225,0.75);
+  --dropdown-bg:  #1a1d2e;
   }
 }
 @media (prefers-color-scheme: light) {
@@ -102,6 +105,7 @@ THEME_CSS = """
     --nav-bg:       rgba(248,250,252,0.90);
     --nav-border:   rgba(0,0,0,0.07);
     --nav-text:     rgba(15,23,42,0.75);
+  --dropdown-bg:  #ffffff;
   }
 }
 
@@ -156,24 +160,46 @@ select {
 THEME_TOGGLE_JS = """
 <script>
 (function(){
-  var STORED = localStorage.getItem('martin-theme') || 'INITIAL_THEME';
-  document.documentElement.setAttribute('data-theme', STORED);
+  // Default: respect OS setting. User can override with the toggle button.
+  var INITIAL = 'INITIAL_THEME';
+  var stored  = localStorage.getItem('martin-theme');
+  // If no stored preference, use the app default (usually 'auto')
+  var active  = stored || INITIAL;
+
+  function icon(t) {
+    if (t === 'dark')  return '☀️';
+    if (t === 'light') return '🌙';
+    // auto — show which mode the OS is currently in
+    var sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return '🌗';
+  }
 
   function setTheme(t) {
     document.documentElement.setAttribute('data-theme', t);
     localStorage.setItem('martin-theme', t);
     var btn = document.getElementById('_martin_theme_btn');
-    if (btn) btn.textContent = t === 'dark' ? '☀️' : t === 'light' ? '🌙' : '🌗';
+    if (btn) {
+      btn.textContent = icon(t);
+      btn.title = t === 'auto' ? 'Tema: automático (sistema)' :
+                  t === 'dark' ? 'Tema: oscuro' : 'Tema: claro';
+    }
   }
 
   function cycleTheme() {
     var cur = document.documentElement.getAttribute('data-theme') || 'auto';
+    // cycle: auto → dark → light → auto
     setTheme(cur === 'auto' ? 'dark' : cur === 'dark' ? 'light' : 'auto');
   }
 
-  window._martinSetTheme  = setTheme;
+  // Listen for OS theme changes when in auto mode
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+    var cur = document.documentElement.getAttribute('data-theme');
+    if (cur === 'auto') setTheme('auto'); // re-apply to refresh icon
+  });
+
+  window._martinSetTheme   = setTheme;
   window._martinCycleTheme = cycleTheme;
-  setTheme(STORED);
+  setTheme(active);
 })();
 </script>
 """

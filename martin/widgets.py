@@ -548,42 +548,121 @@ class Select(Widget):
             else f'<input type="hidden" id="{self.uid}_val" value="{selected_val}">'
         )
 
-        return f"""
-<div id="{self.uid}_wrap" style="{wrapper_style}">
-  {hidden_input}
-  <div id="{self.uid}_btn" onclick="pwSelectToggle('{self.uid}')"
-    style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border:1px solid var(--border-input);border-radius:6px;background:var(--input-bg);cursor:pointer;user-select:none;gap:8px">
-    <span id="{self.uid}_label" style="color:var(--input-color);flex:1">{selected_label}</span>
-    <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0;transition:transform 0.2s" id="{self.uid}_arrow">
-      <path d="M2 4l4 4 4-4" stroke="#9ca3af" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-    </svg>
-  </div>
-  <div id="{self.uid}_drop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:9999;background:var(--surface,#fff);border:1px solid var(--border-input);border-radius:8px;box-shadow:var(--shadow,0 8px 24px rgba(0,0,0,0.12));overflow:hidden;backdrop-filter:blur(12px)">
-    <div style="padding:8px;border-bottom:1px solid var(--border)">
-      <input type="text" placeholder="Buscar..." oninput="pwSelectFilter('{self.uid}',this.value)"
-        style="width:100%;padding:6px 10px;border:1px solid var(--border-input);border-radius:6px;font-size:13px;outline:none;box-sizing:border-box;background:var(--input-bg);color:var(--input-color)"
-        id="{self.uid}_search">
-    </div>
-    <div id="{self.uid}_list" style="max-height:200px;overflow-y:auto">
-      {"".join(
-        f'<div class="pw-opt" data-val="{v}" data-label="{l}"'
-        f' onclick="pwSelectPick(\'{self.uid}\',\'{v}\',\'{l}\')"'
-        f' style="padding:8px 12px;cursor:pointer;color:var(--text);background:{"rgba(99,102,241,0.12)" if v==selected_val else "transparent"};font-weight:{"600" if v==selected_val else "400"}"'
-        f' onmouseover="this.style.background=\'var(--surface-2,#f9fafb)\'"'
-        f' onmouseout="this.style.background=\'{"rgba(99,102,241,0.12)" if v==selected_val else "transparent"}\'">{l}</div>'
-        for v, l in opts)}
-    </div>
-  </div>
-</div>
-<script>
-(function(){{
-  if(window._pwSelectInit)return; window._pwSelectInit=true;
-  window.pwSelectToggle=function(uid){{var d=document.getElementById(uid+'_drop'),a=document.getElementById(uid+'_arrow'),o=d.style.display!=='none';document.querySelectorAll('[id$="_drop"]').forEach(function(el){{if(el.id!==uid+'_drop'){{el.style.display='none';var x=document.getElementById(el.id.replace('_drop','_arrow'));if(x)x.style.transform='';}}}}); if(o){{d.style.display='none';a.style.transform='';}}else{{d.style.display='block';a.style.transform='rotate(180deg)';setTimeout(function(){{var s=document.getElementById(uid+'_search');if(s){{s.value='';s.focus();pwSelectFilter(uid,'');}}}},50);}}}};
-  window.pwSelectFilter=function(uid,q){{document.querySelectorAll('#'+uid+'_list .pw-opt').forEach(function(i){{i.style.display=i.getAttribute('data-label').toLowerCase().includes(q.toLowerCase())?'block':'none';}});}};
-  window.pwSelectPick=function(uid,val,label){{document.getElementById(uid+'_val').value=val;document.getElementById(uid+'_label').textContent=label;document.getElementById(uid+'_drop').style.display='none';document.getElementById(uid+'_arrow').style.transform='';document.querySelectorAll('#'+uid+'_list .pw-opt').forEach(function(el){{var s=el.getAttribute('data-val')===val;el.style.background=s?'#eff6ff':'#fff';el.style.fontWeight=s?'600':'400';}});}};
-  document.addEventListener('click',function(e){{if(!e.target.closest('[id$="_wrap"]')){{document.querySelectorAll('[id$="_drop"]').forEach(function(el){{el.style.display='none';var a=document.getElementById(el.id.replace('_drop','_arrow'));if(a)a.style.transform='';}})}}}});
-}})();
-</script>"""
+        uid = self.uid
+
+        def make_opt(v, l):
+            sel = "1" if v == selected_val else "0"
+            weight = "600" if v == selected_val else "400"
+            # Build onclick safely — no nested f-string escaping
+            onclick = (
+                "pwSelectPick('"
+                + uid
+                + "','"
+                + v
+                + "','"
+                + l.replace("'", "\\'")
+                + "')"
+            )
+            return (
+                '<div class="pw-opt"'
+                ' data-val="' + v + '"'
+                ' data-label="' + l + '"'
+                ' onclick="' + onclick + '"'
+                ' data-sel="' + sel + '"'
+                ' style="padding:10px 14px;cursor:pointer;font-size:14px;font-weight:'
+                + weight
+                + '">'
+                + l
+                + "</div>"
+            )
+
+        opt_items = "".join(make_opt(v, l) for v, l in opts)
+
+        return (
+            f"<style>"
+            + f"#{uid}_list .pw-opt{{color:var(--text);background:transparent;border-radius:6px;transition:background .12s}}"
+            + f"#{uid}_list .pw-opt:hover{{background:var(--surface-2)}}"
+            + f'#{uid}_list .pw-opt[data-sel="1"]{{background:rgba(99,102,241,0.15);color:var(--accent);font-weight:600}}'
+            + f"</style>"
+            + f'<div id="{uid}_wrap" style="{wrapper_style}">'
+            + f"  {hidden_input}"
+            + f'  <div id="{uid}_btn" onclick="pwSelectToggle(\'{uid}\')" '
+            + f'    style="display:flex;align-items:center;justify-content:space-between;'
+            + f"           padding:8px 14px;border:1px solid var(--border-input);border-radius:6px;"
+            + f'           background:var(--input-bg);cursor:pointer;user-select:none;gap:8px;transition:border-color .2s">'
+            + f'    <span id="{uid}_label" style="color:var(--input-color);flex:1;font-size:14px">{selected_label}</span>'
+            + f'    <svg id="{uid}_arrow" width="12" height="12" viewBox="0 0 12 12" '
+            + f'         style="flex-shrink:0;transition:transform .2s;opacity:0.5">'
+            + f'      <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>'
+            + f"    </svg>"
+            + f"  </div>"
+            + f'  <div id="{uid}_drop" '
+            + f'    style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;'
+            + f"           z-index:9999;border:1px solid var(--border-input);border-radius:10px;"
+            + f"           box-shadow:0 12px 40px rgba(0,0,0,0.25);overflow:hidden;"
+            + f'           background:var(--dropdown-bg)">'
+            + f'    <div style="padding:8px 8px 6px;border-bottom:1px solid var(--border)">'
+            + f'      <input id="{uid}_search" type="text" placeholder="Buscar..."'
+            + f"        oninput=\"pwSelectFilter('{uid}',this.value)\""
+            + f'        style="width:100%;padding:7px 10px;border:1px solid var(--border-input);'
+            + f"               border-radius:6px;font-size:13px;outline:none;box-sizing:border-box;"
+            + f'               background:var(--input-bg);color:var(--input-color)">'
+            + f"    </div>"
+            + f'    <div id="{uid}_list" style="max-height:220px;overflow-y:auto;padding:6px">'
+            + f"      {opt_items}"
+            + f"    </div>"
+            + f"  </div>"
+            + f"</div>"
+            + "<script>"
+            + "(function(){if(window._pwSelInit)return;window._pwSelInit=true;"
+            + "window.pwSelectToggle=function(uid){"
+            + '  var d=document.getElementById(uid+"_drop"),'
+            + '      a=document.getElementById(uid+"_arrow"),'
+            + '      b=document.getElementById(uid+"_btn"),'
+            + '      o=d.style.display!=="none";'
+            + '  document.querySelectorAll("[id$=_drop]").forEach(function(el){'
+            + '    if(el.id!==uid+"_drop"){el.style.display="none";'
+            + '      var x=document.getElementById(el.id.replace("_drop","_arrow"));'
+            + '      if(x)x.style.transform="";'
+            + '      var bx=document.getElementById(el.id.replace("_drop","_btn"));'
+            + '      if(bx)bx.style.borderColor="";}'
+            + "  });"
+            + '  if(o){d.style.display="none";a.style.transform="";b.style.borderColor="";}'
+            + '  else{d.style.display="block";a.style.transform="rotate(180deg)";'
+            + '    b.style.borderColor="var(--accent)";'
+            + '    setTimeout(function(){var s=document.getElementById(uid+"_search");'
+            + '      if(s){s.value="";s.focus();pwSelectFilter(uid,"");}},30);}'
+            + "};"
+            + "window.pwSelectFilter=function(uid,q){"
+            + '  document.querySelectorAll("#"+uid+"_list .pw-opt").forEach(function(i){'
+            + '    i.style.display=i.getAttribute("data-label").toLowerCase().includes(q.toLowerCase())?"block":"none";'
+            + "  });"
+            + "};"
+            + "window.pwSelectPick=function(uid,val,label){"
+            + '  document.getElementById(uid+"_val").value=val;'
+            + '  document.getElementById(uid+"_label").textContent=label;'
+            + '  document.getElementById(uid+"_drop").style.display="none";'
+            + '  document.getElementById(uid+"_arrow").style.transform="";'
+            + '  document.getElementById(uid+"_btn").style.borderColor="";'
+            + '  document.querySelectorAll("#"+uid+"_list .pw-opt").forEach(function(el){'
+            + '    var s=el.getAttribute("data-val")===val;'
+            + '    el.setAttribute("data-sel",s?"1":"0");'
+            + '    el.style.fontWeight=s?"600":"400";'
+            + "  });"
+            + "};"
+            + 'document.addEventListener("click",function(e){'
+            + '  if(!e.target.closest("[id$=_wrap]")){'
+            + '    document.querySelectorAll("[id$=_drop]").forEach(function(el){'
+            + '      el.style.display="none";'
+            + '      var a=document.getElementById(el.id.replace("_drop","_arrow"));'
+            + '      if(a)a.style.transform="";'
+            + '      var b=document.getElementById(el.id.replace("_drop","_btn"));'
+            + '      if(b)b.style.borderColor="";'
+            + "    });"
+            + "  }"
+            + "});"
+            + "})();</script>"
+        )
 
 
 class MultiSelect(Widget):
@@ -765,3 +844,93 @@ class Raw(Widget):
 
     def render(self):
         return self.html
+
+
+class ThemeToggle(Widget):
+    """
+    Botón para cambiar entre temas oscuro/claro/auto.
+    Úsalo donde quieras dentro de tu layout.
+
+    # En el navbar:
+    ThemeToggle()
+
+    # Personalizado:
+    ThemeToggle(
+        dark_icon="🌙",
+        light_icon="☀️",
+        auto_icon="🌗",
+        radius=8,
+        padding=8,
+    )
+
+    # Solo oscuro/claro (sin auto):
+    ThemeToggle(include_auto=False)
+
+    # Como texto:
+    ThemeToggle(dark_icon="Oscuro", light_icon="Claro", auto_icon="Auto")
+    """
+
+    def __init__(
+        self,
+        dark_icon="🌙",
+        light_icon="☀️",
+        auto_icon="🌗",
+        include_auto=True,
+        title="Cambiar tema",
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.dark_icon = dark_icon
+        self.light_icon = light_icon
+        self.auto_icon = auto_icon
+        self.include_auto = include_auto
+        self.title = title
+
+    def render(self):
+        base = (
+            "background:var(--surface); border:1px solid var(--border); "
+            "color:var(--text); cursor:pointer; font-size:16px; "
+            "display:inline-flex; align-items:center; justify-content:center; "
+            "border-radius:8px; padding:6px 10px; transition:all 0.2s; "
+            "user-select:none"
+        )
+        inline = self._resolve_props(base)
+
+        # Cycle order depends on include_auto
+        if self.include_auto:
+            cycle = f"{{dark:'{self.light_icon}',light:'{self.auto_icon}',auto:'{self.dark_icon}'}}"
+            next_theme = "{{dark:'light',light:'auto',auto:'dark'}}"
+            initial = self.auto_icon  # shown before JS runs; JS will update
+        else:
+            cycle = f"{{dark:'{self.light_icon}',light:'{self.dark_icon}',auto:'{self.light_icon}'}}"
+            next_theme = "{{dark:'light',light:'dark',auto:'light'}}"
+            initial = self.dark_icon
+
+        uid = f"_mtt_{id(self) & 0xFFFF}"
+
+        return (
+            f'<button id="{uid}" title="{self.title}" style="{inline}" '
+            f"onclick=\"_mttCycle('{uid}')\" "
+            f"onmouseover=\"this.style.borderColor='var(--accent)'\" "
+            f"onmouseout=\"this.style.borderColor=''\">"
+            f"{initial}"
+            f"</button>"
+            f"<script>"
+            f"(function(){{"
+            f'  var ICONS={{"dark":"{self.dark_icon}","light":"{self.light_icon}","auto":"{self.auto_icon}"}};'
+            f'  var NEXT={{"dark":"light","light":{"auto" if self.include_auto else "dark"},"auto":"dark"}};'
+            f'  function _mttSync(id){{var t=document.documentElement.getAttribute("data-theme")||"auto";'
+            f'    var btn=document.getElementById(id);if(btn)btn.textContent=ICONS[t]||"{initial}";}} '
+            f"  window._mttCycle=function(id){{"
+            f'    var cur=document.documentElement.getAttribute("data-theme")||"auto";'
+            f'    var next=NEXT[cur]||"auto";'
+            f'    document.documentElement.setAttribute("data-theme",next);'
+            f'    try{{localStorage.setItem("martin-theme",next);}}catch(e){{}}'
+            f"    _mttSync(id);"
+            f"  }};"
+            f'  _mttSync("{uid}");'
+            f'  var obs=new MutationObserver(function(){{_mttSync("{uid}");}});'
+            f'  obs.observe(document.documentElement,{{attributes:true,attributeFilter:["data-theme"]}});'
+            f"}})();"
+            f"</script>"
+        )
