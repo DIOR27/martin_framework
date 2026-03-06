@@ -26,7 +26,7 @@ def build():
                     Image(
                         "foto.jpg", style=[Border(radius=8), CSS("object-fit:cover")]
                     ),
-                    Text("Hola mundo", style=TextStyle(size=16, weight="bold")),
+                    Text("Hola mundos", style=TextStyle(size=16, weight="bold")),
                     Button(
                         "Guardar",
                         style=[

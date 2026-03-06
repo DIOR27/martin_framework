@@ -1,13 +1,14 @@
 """
-MARTIN — Build webs with Python, Flutter-style.
+Martin — Build webs with Python, Flutter-style.
 
-Usage:
     from martin import App, Card, Row, Column, Text, Image, Button
     from martin import Border, Padding, Shadow, TextStyle, CSS, Colors
 """
 
-from martin.app import App
-from martin.styles import (
+__version__ = "0.1.0"
+
+from .app import App
+from .styles import (
     CSS,
     StyleBase,
     resolve_styles,
@@ -23,8 +24,7 @@ from martin.styles import (
     Cursor,
     Colors,
 )
-from martin.widgets import (
-    # Layout
+from .widgets import (
     Container,
     Row,
     Column,
@@ -33,30 +33,27 @@ from martin.widgets import (
     Grid,
     Spacer,
     Divider,
-    # Text
     Text,
     Heading,
     Paragraph,
     Link,
     Code,
-    # Media
     Image,
     Video,
     Icon,
-    # Input
     Button,
     TextField,
     Checkbox,
     Select,
-    # Utility
+    MultiSelect,
     Badge,
     Avatar,
     Raw,
 )
 
 __all__ = [
+    "__version__",
     "App",
-    # Styles
     "CSS",
     "StyleBase",
     "resolve_styles",
@@ -71,7 +68,6 @@ __all__ = [
     "Overflow",
     "Cursor",
     "Colors",
-    # Widgets
     "Container",
     "Row",
     "Column",
@@ -92,6 +88,7 @@ __all__ = [
     "TextField",
     "Checkbox",
     "Select",
+    "MultiSelect",
     "Badge",
     "Avatar",
     "Raw",

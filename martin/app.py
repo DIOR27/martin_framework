@@ -1,67 +1,62 @@
 """
-MARTIN - App & Dev Server
+Martin — App & Dev Server
+Hot reload real: recarga el módulo Python en cada cambio, no solo el HTML.
 """
 
-import os
-import threading
-import time
-import http.server
-import webbrowser
+import os, sys, time, threading, importlib, importlib.util
+import http.server, webbrowser
 from pathlib import Path
 
 
 LIVE_RELOAD_SCRIPT = """
 <script>
 (function() {
-    let lastModified = null;
-    setInterval(() => {
-        fetch('/__reload__')
-            .then(r => r.json())
-            .then(data => {
-                if (lastModified && data.modified !== lastModified) {
-                    location.reload();
-                }
-                lastModified = data.modified;
-            }).catch(() => {});
-    }, 800);
+  let _ts = null;
+  setInterval(() => {
+    fetch('/__ping__')
+      .then(r => r.json())
+      .then(d => {
+        if (_ts !== null && d.ts !== _ts) location.reload();
+        _ts = d.ts;
+      })
+      .catch(() => {});
+  }, 500);
 })();
-</script>
-"""
+</script>"""
 
 
 class App:
     """
-    Entry point for a MARTIN app.
-
-    Usage:
-        from pyweave import App
-        from .widgets import *
-
-        def build():
-            return Card(children=[
-                Heading("Hello world"),
-                Text("Welcome to MARTIN"),
-            ])
-
-        App(build=build, title="My App").run()
+    App(build=build, title="Mi App").run()
+    App(build=build, port=3000, hot_reload=False).run()
     """
 
     def __init__(
-        self, build, title="Martin App", port=309, assets_dir="assets", styles=""
+        self,
+        build,
+        title="Martin App",
+        port=309,
+        hot_reload=True,
+        assets_dir="assets",
+        styles="",
     ):
-        self.build = build  # callable → Widget
+        self._build_fn = build
         self.title = title
         self.port = port
+        self.hot_reload = hot_reload
         self.assets_dir = assets_dir
         self.global_styles = styles
-        self._last_modified = str(time.time())
+        self._ts = str(time.time())  # cambia cuando hay reload
+        self._lock = threading.Lock()
+        # Guardamos referencia al módulo fuente para poder recargarlo
+        self._source_module = getattr(build, "__module__", None)
 
-    # ── HTML generation ──────────────────────────────────────────────────────
+    # ── HTML ─────────────────────────────────────────────────────────────────
 
-    def _wrap_html(self, body_html: str, live_reload=True) -> str:
-        reload_script = LIVE_RELOAD_SCRIPT if live_reload else ""
+    def _wrap(self, body: str, reload=True) -> str:
+        script = LIVE_RELOAD_SCRIPT if (reload and self.hot_reload) else ""
         return f"""<!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -75,37 +70,135 @@ class App:
   </style>
 </head>
 <body>
-  {body_html}
-  {reload_script}
+  {body}
+  {script}
 </body>
 </html>"""
 
-    def build_html(self, live_reload=True) -> str:
-        widget = self.build()
+    def _render(self) -> str:
+        with self._lock:
+            widget = self._build_fn()
         body = widget.render() if hasattr(widget, "render") else str(widget)
-        return self._wrap_html(body, live_reload=live_reload)
+        return self._wrap(body)
 
     def export(self, path="index.html"):
-        """Export static HTML file (no live reload)."""
-        html = self.build_html(live_reload=False)
+        html = self._wrap(self._build_fn().render(), reload=False)
         Path(path).write_text(html, encoding="utf-8")
-        print(f"✅ Exported → {path}")
+        print(f"✅ Exportado → {path}")
 
-    # ── Dev server ────────────────────────────────────────────────────────────
+    # ── File watcher con reload real del módulo ───────────────────────────────
 
-    def run(self, open_browser=True):
-        app_ref = self
+    def _start_watcher(self, watch_dir: str):
+        """
+        Observa cambios en .py y recarga el módulo fuente con importlib.reload.
+        No necesita watchdog: usa polling puro (compatible en todos los OS).
+        Si watchdog está instalado, lo usa para mayor eficiencia.
+        """
+        app = self
+
+        def _reload_module():
+            """Recarga el módulo donde está definida la función build."""
+            mod_name = app._source_module
+            if not mod_name or mod_name == "__main__":
+                # Caso especial: el script se ejecutó directamente
+                # Recargamos el módulo __main__ buscando su fichero
+                main = sys.modules.get("__main__")
+                if main and hasattr(main, "__file__") and main.__file__:
+                    try:
+                        spec = importlib.util.spec_from_file_location(
+                            "__main__reload__", main.__file__
+                        )
+                        fresh = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(fresh)
+                        # Actualizamos la función build al símbolo recién cargado
+                        fn_name = app._build_fn.__name__
+                        if hasattr(fresh, fn_name):
+                            with app._lock:
+                                app._build_fn = getattr(fresh, fn_name)
+                    except Exception as e:
+                        print(f"  ⚠️  Error recargando: {e}")
+            else:
+                mod = sys.modules.get(mod_name)
+                if mod:
+                    try:
+                        importlib.reload(mod)
+                        fn_name = app._build_fn.__name__
+                        with app._lock:
+                            app._build_fn = getattr(mod, fn_name)
+                    except Exception as e:
+                        print(f"  ⚠️  Error recargando: {e}")
+
+            app._ts = str(time.time())
+
+        # Intenta usar watchdog, si no, polling
+        try:
+            from watchdog.observers import Observer
+            from watchdog.events import FileSystemEventHandler
+
+            class Handler(FileSystemEventHandler):
+                def on_modified(self, event):
+                    if not event.is_directory and event.src_path.endswith(".py"):
+                        name = os.path.basename(event.src_path)
+                        print(f"  ↻  {name}")
+                        _reload_module()
+
+            observer = Observer()
+            observer.schedule(Handler(), watch_dir, recursive=True)
+            observer.daemon = True
+            observer.start()
+            print(f"  👁  watchdog activo en '{watch_dir}'")
+
+        except ImportError:
+            # Polling manual — funciona sin dependencias
+            print(
+                f"  👁  polling activo en '{watch_dir}' (instala watchdog para mejor rendimiento)"
+            )
+            mtimes: dict = {}
+
+            def poll():
+                while True:
+                    changed = False
+                    for root, _, files in os.walk(watch_dir):
+                        for f in files:
+                            if not f.endswith(".py"):
+                                continue
+                            fp = os.path.join(root, f)
+                            try:
+                                mt = os.path.getmtime(fp)
+                            except OSError:
+                                continue
+                            if fp not in mtimes:
+                                mtimes[fp] = mt
+                            elif mtimes[fp] != mt:
+                                mtimes[fp] = mt
+                                print(f"  ↻  {f}")
+                                changed = True
+                    if changed:
+                        _reload_module()
+                    time.sleep(0.6)
+
+            t = threading.Thread(target=poll, daemon=True)
+            t.start()
+
+    # ── HTTP server ───────────────────────────────────────────────────────────
+
+    def run(self, open_browser=True, watch_dir="."):
+        app = self
 
         class Handler(http.server.BaseHTTPRequestHandler):
             def do_GET(self):
-                if self.path == "/__reload__":
-                    self._json({"modified": app_ref._last_modified})
-                elif self.path == "/" or self.path == "/index.html":
-                    self._html(app_ref.build_html())
+                if self.path == "/__ping__":
+                    self._json({"ts": app._ts})
                 elif self.path.startswith("/assets/"):
                     self._static(self.path[1:])
                 else:
-                    self._html(app_ref.build_html())
+                    try:
+                        html = app._render()
+                        self._html(html)
+                    except Exception as e:
+                        self._html(
+                            f"<pre style='color:red;padding:24px'>Error:\n{e}</pre>"
+                        )
 
             def _html(self, content):
                 data = content.encode("utf-8")
@@ -136,44 +229,26 @@ class App:
                     self.send_response(404)
                     self.end_headers()
 
-            def log_message(self, format, *args):
-                pass  # Silence request logs
+            def log_message(self, *a):
+                pass
+
+        url = f"http://localhost:{self.port}"
+
+        if self.hot_reload:
+            self._start_watcher(watch_dir)
 
         server = http.server.HTTPServer(("", self.port), Handler)
-        url = f"http://localhost:{self.port}"
-        print(f"🌐 MARTIN dev server → {url}")
-        print(f"   Hot reload: enabled | Ctrl+C to stop\n")
+
+        hl = "activado ↻" if self.hot_reload else "desactivado"
+        print(f"\n  🌐  martin → {url}")
+        print(f"  ⚡  Hot reload: {hl}")
+        print(f"  ✋  Ctrl+C para parar\n")
 
         if open_browser:
-            threading.Timer(0.5, lambda: webbrowser.open(url)).start()
+            threading.Timer(0.6, lambda: webbrowser.open(url)).start()
 
         try:
             server.serve_forever()
         except KeyboardInterrupt:
-            print("\n👋 Server stopped.")
+            print("\n👋")
             server.shutdown()
-
-    # ── File watcher (optional, requires watchdog) ────────────────────────────
-
-    def watch(self, path="."):
-        """Start file watcher for hot reload. Call before run()."""
-        try:
-            from watchdog.observers import Observer
-            from watchdog.events import FileSystemEventHandler
-
-            app_ref = self
-
-            class ChangeHandler(FileSystemEventHandler):
-                def on_modified(self, event):
-                    if event.src_path.endswith(".py"):
-                        app_ref._last_modified = str(time.time())
-                        print(f"  ↻ Reloaded ({event.src_path})")
-
-            observer = Observer()
-            observer.schedule(ChangeHandler(), path, recursive=True)
-            observer.start()
-            print(f"👁️  Watching {path} for changes...")
-            return observer
-        except ImportError:
-            print("⚠️  Install watchdog for hot reload: pip install watchdog")
-            return None
