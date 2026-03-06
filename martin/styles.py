@@ -1,5 +1,5 @@
 """
-MARTIN - Style System
+PyWeave - Style System
 Allows defining styles like:
     Border(radius=5, weight=1, style="solid", color="black")
     Padding(all=16)
@@ -502,3 +502,172 @@ class Colors:
     @staticmethod
     def hex(value: str):
         return value if value.startswith("#") else f"#{value}"
+
+
+# ─────────────────────────────────────────────
+# GLASSMORPHISM
+# ─────────────────────────────────────────────
+
+
+class Glass(StyleBase):
+    """
+    Glassmorphism card/panel.
+
+    Glass()                          → defaults: blur=20, opacity=0.08, dark
+    Glass(blur=32, opacity=0.12)
+    Glass.light()                    → glass sobre fondo claro
+    Glass.dark()                     → glass sobre fondo oscuro (default)
+    Glass.colored("#6366f1", 0.15)   → tinte de color
+
+    Combina con Border(radius=16) y Shadow para mejores resultados.
+    """
+
+    def __init__(
+        self,
+        blur=20,
+        opacity=0.08,
+        bg_color="255,255,255",
+        border_opacity=0.15,
+        saturate=180,
+    ):
+        self.blur = blur
+        self.opacity = opacity
+        self.bg_color = bg_color
+        self.border_opacity = border_opacity
+        self.saturate = saturate
+
+    @classmethod
+    def light(cls, blur=20, opacity=0.6):
+        """Glass sobre fondo claro — fondo blanco semitransparente."""
+        return cls(
+            blur=blur, opacity=opacity, bg_color="255,255,255", border_opacity=0.25
+        )
+
+    @classmethod
+    def dark(cls, blur=20, opacity=0.08):
+        """Glass sobre fondo oscuro — fondo blanco con baja opacidad."""
+        return cls(
+            blur=blur, opacity=opacity, bg_color="255,255,255", border_opacity=0.12
+        )
+
+    @classmethod
+    def colored(cls, hex_color: str, opacity=0.15, blur=20):
+        """Glass con tinte de color. colored('#6366f1', 0.15)"""
+        hex_color = hex_color.lstrip("#")
+        r = int(hex_color[0:2], 16)
+        g = int(hex_color[2:4], 16)
+        b = int(hex_color[4:6], 16)
+        return cls(
+            blur=blur,
+            opacity=opacity,
+            bg_color=f"{r},{g},{b}",
+            border_opacity=opacity * 1.5,
+        )
+
+    def to_css(self) -> dict:
+        return {
+            "background": f"rgba({self.bg_color},{self.opacity})",
+            "backdrop-filter": f"blur({self.blur}px) saturate({self.saturate}%)",
+            "-webkit-backdrop-filter": f"blur({self.blur}px) saturate({self.saturate}%)",
+            "border": f"1px solid rgba({self.bg_color},{self.border_opacity})",
+        }
+
+
+# ─────────────────────────────────────────────
+# GRADIENT TEXT
+# ─────────────────────────────────────────────
+
+
+class GradientText(StyleBase):
+    """
+    GradientText("#818cf8", "#34d399")
+    GradientText.indigo_mint()
+    GradientText.fire()
+    GradientText.ocean()
+    """
+
+    def __init__(self, *colors, direction="135deg"):
+        self.colors = colors if colors else ("#818cf8", "#34d399")
+        self.direction = direction
+
+    @classmethod
+    def indigo_mint(cls):
+        return cls("#818cf8", "#34d399")
+
+    @classmethod
+    def fire(cls):
+        return cls("#f97316", "#ef4444")
+
+    @classmethod
+    def ocean(cls):
+        return cls("#06b6d4", "#3b82f6")
+
+    @classmethod
+    def aurora(cls):
+        return cls("#c7d2fe", "#818cf8", "#34d399")
+
+    @classmethod
+    def rose_gold(cls):
+        return cls("#fda4af", "#f59e0b")
+
+    def to_css(self) -> dict:
+        stops = ", ".join(self.colors)
+        return {
+            "background": f"linear-gradient({self.direction}, {stops})",
+            "-webkit-background-clip": "text",
+            "background-clip": "text",
+            "-webkit-text-fill-color": "transparent",
+            "color": "transparent",
+        }
+
+
+# ─────────────────────────────────────────────
+# MESH BACKGROUND (animated gradient orbs)
+# ─────────────────────────────────────────────
+
+
+class MeshBackground(StyleBase):
+    """
+    Fondo tipo mesh gradient animado, igual que la página de Martin.
+    Úsalo en el Container/Column raíz.
+
+    MeshBackground()
+    MeshBackground(color1="#6366f1", color2="#34d399", base="#060818")
+    MeshBackground.dark()
+    MeshBackground.light()
+    """
+
+    def __init__(
+        self, color1="#6366f1", color2="#34d399", color3="#7c3aed", base="#060818"
+    ):
+        self.color1 = color1
+        self.color2 = color2
+        self.color3 = color3
+        self.base = base
+
+    @classmethod
+    def dark(cls):
+        return cls("#6366f1", "#34d399", "#7c3aed", "#060818")
+
+    @classmethod
+    def light(cls):
+        return cls("#6366f1", "#34d399", "#7c3aed", "#f0f4ff")
+
+    def _hex_rgba(self, hex_color: str, opacity: float) -> str:
+        h = hex_color.lstrip("#")
+        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+        return f"rgba({r},{g},{b},{opacity})"
+
+    def to_css(self) -> dict:
+        c1 = self._hex_rgba(self.color1, 0.18)
+        c2 = self._hex_rgba(self.color2, 0.12)
+        c3 = self._hex_rgba(self.color3, 0.08)
+        return {
+            "background": (
+                f"radial-gradient(ellipse 80% 60% at 20% 10%, {c1} 0%, transparent 60%), "
+                f"radial-gradient(ellipse 60% 50% at 80% 80%, {c2} 0%, transparent 55%), "
+                f"radial-gradient(ellipse 50% 40% at 50% 50%, {c3} 0%, transparent 50%), "
+                f"{self.base}"
+            ),
+            "min-height": "100vh",
+        }
