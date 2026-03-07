@@ -444,7 +444,14 @@ def cmd_run(args):
 
     hot = not args.no_reload
 
-    if hasattr(mod, "router"):
+    # Si main.py ya define un objeto `app` (App instance), usarlo directamente.
+    # Esto preserva los @app.route() y cualquier config custom.
+    if hasattr(mod, "app") and isinstance(mod.app, App):
+        app = mod.app
+        app.hot_reload = hot
+        if args.port != 309:  # solo sobreescribir si se pasó explícito
+            app.port = args.port
+    elif hasattr(mod, "router"):
         app = App(
             router=mod.router,
             title=getattr(mod, "TITLE", Path.cwd().name),
@@ -459,7 +466,9 @@ def cmd_run(args):
             hot_reload=hot,
         )
     else:
-        print("ERROR: main.py debe tener una funcion 'build()' o un objeto 'router'.")
+        print(
+            "ERROR: main.py debe definir un objeto 'app', una funcion 'build()' o un 'router'."
+        )
         sys.exit(1)
 
     app.run(watch_dir=cwd, source_file=source_file)
