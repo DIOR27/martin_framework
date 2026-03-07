@@ -73,6 +73,7 @@ class Router:
     def __init__(self):
         self._routes = {}
         self._titles = {}
+        self._app = None  # set by App after creation
 
     def page(self, path, title=None):
         def decorator(fn):
@@ -87,6 +88,16 @@ class Router:
         self._routes[path] = fn
         if title:
             self._titles[path] = title
+        # Auto-registrar endpoints si la función tiene un módulo con register_routes
+        if self._app is not None:
+            mod = getattr(fn, "__module__", None)
+            if mod and mod in sys.modules:
+                m = sys.modules[mod]
+                if hasattr(m, "register_routes") and callable(m.register_routes):
+                    try:
+                        m.register_routes(self._app)
+                    except Exception as e:
+                        print(f"  ⚠️  register_routes en '{mod}': {e}")
 
     def resolve(self, path):
         if path in self._routes:
@@ -155,6 +166,12 @@ class App:
         self._lock = threading.Lock()
         self._api_routes = {}
 
+        # Link router back to app so router.add() can auto-register routes
+        if self._router:
+            self._router._app = self
+            # Scan already-added pages for register_routes
+            self._scan_router_routes()
+
     # ── API routes ───────────────────────────────────────────────────────────
 
     def route(self, path, methods=None):
@@ -179,6 +196,27 @@ class App:
             return fn
 
         return decorator
+
+    def _scan_router_routes(self):
+        """Llama register_routes(app) en todos los módulos de páginas ya registradas."""
+        if not self._router:
+            return
+        seen = set()
+        for fn in self._router._routes.values():
+            mod_name = getattr(fn, "__module__", None)
+            if not mod_name or mod_name in seen:
+                continue
+            seen.add(mod_name)
+            mod = sys.modules.get(mod_name)
+            if (
+                mod
+                and hasattr(mod, "register_routes")
+                and callable(mod.register_routes)
+            ):
+                try:
+                    mod.register_routes(self)
+                except Exception as e:
+                    print(f"  ⚠️  register_routes en '{mod_name}': {e}")
 
     def _handle_api(self, method, path, qs, body, headers):
         import json as _json, traceback
