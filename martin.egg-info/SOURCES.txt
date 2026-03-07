@@ -4,7 +4,10 @@ setup.py
 martin/__init__.py
 martin/app.py
 martin/cli.py
+martin/exporter.py
+martin/response.py
 martin/styles.py
+martin/theme.py
 martin/widget.py
 martin/widgets.py
 martin.egg-info/PKG-INFO

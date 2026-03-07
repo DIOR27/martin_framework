@@ -282,13 +282,17 @@ class App:
         title = page_title or self.title
         theme = page_theme or self.theme
         if self.theme_toggle:
-            from .widgets import ThemeToggle
-
-            toggle = ThemeToggle(
-                style="position:fixed;bottom:20px;right:20px;z-index:9999;"
-                "width:40px;height:40px;border-radius:50%;font-size:18px;"
-                "box-shadow:var(--shadow);backdrop-filter:blur(12px)"
-            ).render()
+            toggle = (
+                '<button id="_martin_theme_btn"'
+                + ' onclick="window._martinCycleTheme()"'
+                + ' title="Cambiar tema"'
+                + ' style="position:fixed;bottom:20px;right:20px;z-index:9999;'
+                + "        width:40px;height:40px;border-radius:50%;font-size:18px;"
+                + "        border:1px solid var(--border);background:var(--surface);"
+                + '        cursor:pointer;box-shadow:var(--shadow);backdrop-filter:blur(12px);transition:all .2s"'
+                + " onmouseover=\"this.style.borderColor='var(--accent)'\""
+                + " onmouseout=\"this.style.borderColor=''\">&#127763;</button>"
+            )
         else:
             toggle = ""
 

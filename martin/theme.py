@@ -171,7 +171,7 @@ THEME_TOGGLE_JS = """
     if (t === 'light') return '🌙';
     // auto — show which mode the OS is currently in
     var sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    return '◐';
+    return '🌗';
   }
 
   function setTheme(t) {
@@ -216,6 +216,6 @@ THEME_TOGGLE_BTN = """
          transition:transform 0.2s"
   onmouseover="this.style.transform='scale(1.1)'"
   onmouseout="this.style.transform='scale(1)'">
-  ◐
+  🌗
 </button>
 """
