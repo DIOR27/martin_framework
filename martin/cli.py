@@ -567,14 +567,16 @@ def main():
 
     args = parser.parse_args()
 
-    if args.command == "new":
-        cmd_new(args)
-    elif args.command == "run":
-        cmd_run(args)
-    elif args.command == "export":
-        cmd_export(args)
-    elif args.command == "version":
-        cmd_version(args)
+    commands = {
+        "new": cmd_new,
+        "run": cmd_run,
+        "export": cmd_export,
+        "version": cmd_version,
+    }
+
+    cmd = commands.get(args.command)
+    if cmd:
+        cmd(args)
     else:
         parser.print_help()
 

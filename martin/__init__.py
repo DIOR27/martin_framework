@@ -52,6 +52,7 @@ from .widgets import (
     ApiCall,
     Ref,
     ResultBox,
+    WordCloud,
 )
 
 __all__ = [

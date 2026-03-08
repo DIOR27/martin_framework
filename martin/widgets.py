@@ -1355,3 +1355,229 @@ class ResultBox(Widget):
             "});"
             "})()</script>"
         )
+
+
+class WordCloud(Widget):
+    """
+    Nube de palabras interactiva, sin dependencias externas.
+
+    WordCloud(words=["Python", "Martin", "Web"])
+    WordCloud(words={"Python": 10, "JS": 4, "Rust": 7})
+    WordCloud(words=[("Python", 10), ("JS", 4)], width=700, height=350)
+
+    Opciones:
+        width       int     ancho en px          (default: 600)
+        height      int     alto en px           (default: 300)
+        min_size    int     tamaño mínimo fuente (default: 14)
+        max_size    int     tamaño máximo fuente (default: 64)
+        colors      list    lista de colores CSS (default: paleta indigo/mint)
+        font        str     fuente CSS           (default: "inherit")
+        on_click    str     JS ejecutado al hacer click: usa `word` y `weight`.
+    """
+
+    _id_counter = 0
+
+    def __init__(
+        self,
+        words=None,
+        width=600,
+        height=300,
+        min_size=12,
+        max_size=72,
+        colors=None,
+        font="inherit",
+        on_click=None,
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.words = words or []
+        self.width = width
+        self.height = height
+        self.min_size = min_size
+        self.max_size = max_size
+        self.colors = colors or [
+            "#818cf8",
+            "#34d399",
+            "#fb923c",
+            "#f472b6",
+            "#38bdf8",
+            "#a78bfa",
+            "#4ade80",
+            "#fbbf24",
+        ]
+        self.font = font
+        self.on_click = on_click
+        WordCloud._id_counter += 1
+        self.uid = f"wc_{WordCloud._id_counter}"
+
+    def _parse_words(self):
+        w = self.words
+        if isinstance(w, dict):
+            return list(w.items())
+        result = []
+        for item in w:
+            if isinstance(item, (list, tuple)) and len(item) == 2:
+                result.append((str(item[0]), float(item[1])))
+            else:
+                result.append((str(item), 1.0))
+        return result
+
+    def render(self):
+        import json as _json
+
+        uid = self.uid
+        pairs = self._parse_words()
+        extra = self._resolve_props()
+        w = self.width
+        h = self.height
+
+        words_js = _json.dumps(pairs)
+        colors_js = _json.dumps(self.colors)
+        min_s = self.min_size
+        max_s = self.max_size
+        font_js = _json.dumps(self.font)
+        on_click = self.on_click or ""
+
+        wrapper_style = "display:inline-block;max-width:100%;position:relative"
+        if extra:
+            wrapper_style += ";" + extra
+
+        return (
+            '<div style="' + wrapper_style + '">'
+            '<canvas id="' + uid + '" width="' + str(w) + '" height="' + str(h) + '"'
+            ' style="max-width:100%;border-radius:12px;cursor:default;display:block"></canvas>'
+            # Tooltip div — positioned absolute over canvas
+            '<div id="' + uid + '_tip"'
+            ' style="display:none;position:absolute;pointer-events:none;'
+            "padding:5px 10px;background:rgba(0,0,0,0.75);color:#fff;"
+            "border-radius:6px;font-size:12px;white-space:nowrap;"
+            'transform:translate(-50%,-100%);margin-top:-6px;z-index:99"></div>'
+            "</div>"
+            "<script>(function(){"
+            "var canvas=document.getElementById(" + _json.dumps(uid) + ");"
+            "var tip=document.getElementById(" + _json.dumps(uid + "_tip") + ");"
+            "if(!canvas)return;"
+            'var ctx=canvas.getContext("2d");'
+            "var dpr=window.devicePixelRatio||1;"
+            "var W=" + str(w) + ",H=" + str(h) + ";"
+            "canvas.width=W*dpr;canvas.height=H*dpr;"
+            'canvas.style.width=W+"px";canvas.style.height=H+"px";'
+            "ctx.scale(dpr,dpr);"
+            "var rawWords=" + words_js + ";"
+            "var colors=" + colors_js + ";"
+            "var minS=" + str(min_s) + ",maxS=" + str(max_s) + ";"
+            "var font=" + font_js + ";"
+            'if(font==="inherit")font="system-ui,sans-serif";'
+            # Logarithmic scale for more visible size contrast
+            "var weights=rawWords.map(function(p){return p[1];});"
+            "var minW=Math.min.apply(null,weights);"
+            "var maxW=Math.max.apply(null,weights);"
+            "var logMin=Math.log(minW+1),logMax=Math.log(maxW+1),logRange=logMax-logMin||1;"
+            "var words=rawWords.map(function(p,i){"
+            "  var logNorm=(Math.log(p[1]+1)-logMin)/logRange;"
+            "  var size=Math.round(minS+logNorm*(maxS-minS));"
+            "  var col=colors[i%colors.length];"
+            "  return {text:p[0],weight:p[1],size:size,color:col};"
+            "});"
+            "words.sort(function(a,b){return b.size-a.size;});"
+            # Collision detection
+            "var placed=[];"
+            "function overlaps(r){"
+            "  for(var i=0;i<placed.length;i++){"
+            "    var p=placed[i];"
+            "    if(r.x<p.x+p.w+4&&r.x+r.w+4>p.x&&r.y<p.y+p.h+4&&r.y+r.h+4>p.y)return true;"
+            "  }"
+            "  return false;"
+            "}"
+            "function tryPlace(word){"
+            '  ctx.font="bold "+word.size+"px "+font;'
+            "  var tw=ctx.measureText(word.text).width;"
+            "  var th=word.size*1.1;"
+            "  var cx=W/2,cy=H/2;"
+            "  for(var step=0;step<400;step++){"
+            "    var angle=step*0.5;"
+            "    var r=step*1.1;"
+            "    var x=cx+r*Math.cos(angle)-tw/2;"
+            "    var y=cy+r*Math.sin(angle)*0.55+th/2;"
+            "    if(x<4||y-th<4||x+tw>W-4||y>H-4)continue;"
+            "    var rect={x:x,y:y-th,w:tw,h:th};"
+            "    if(!overlaps(rect)){placed.push(rect);return {x:x,y:y,w:tw,h:th};}"
+            "  }"
+            "  return null;"
+            "}"
+            "var placedWords=[];"
+            "words.forEach(function(word){"
+            "  var pos=tryPlace(word);"
+            "  if(pos)placedWords.push({word:word,pos:pos});"
+            "});"
+            # Draw function
+            "function draw(hitItem){"
+            "  ctx.clearRect(0,0,W,H);"
+            "  placedWords.forEach(function(item){"
+            "    var word=item.word,pos=item.pos;"
+            "    var isHit=item===hitItem;"
+            "    ctx.save();"
+            "    ctx.globalAlpha=(hitItem&&!isHit)?0.35:1;"
+            "    if(isHit){"
+            "      ctx.shadowColor=word.color;"
+            "      ctx.shadowBlur=14;"
+            '      ctx.font="bold "+(word.size+3)+"px "+font;'
+            "    }else{"
+            '      ctx.font="bold "+word.size+"px "+font;'
+            "    }"
+            "    ctx.fillStyle=word.color;"
+            "    ctx.fillText(word.text,pos.x,pos.y);"
+            "    ctx.restore();"
+            "  });"
+            "}"
+            "draw(null);"
+            # Mousemove — hit detection + tooltip
+            'canvas.addEventListener("mousemove",function(e){'
+            "  var rect=canvas.getBoundingClientRect();"
+            "  var scaleX=W/rect.width,scaleY=H/rect.height;"
+            "  var mx=(e.clientX-rect.left)*scaleX;"
+            "  var my=(e.clientY-rect.top)*scaleY;"
+            "  var hit=null;"
+            "  placedWords.forEach(function(item){"
+            "    var p=item.pos;"
+            "    if(mx>=p.x&&mx<=p.x+p.w&&my>=p.y-p.h&&my<=p.y)hit=item;"
+            "  });"
+            '  canvas.style.cursor=hit?"pointer":"default";'
+            "  draw(hit);"
+            "  if(hit&&tip){"
+            "    var bRect=canvas.getBoundingClientRect();"
+            "    var px=hit.pos.x+hit.pos.w/2;"
+            "    var py=hit.pos.y-hit.pos.h;"
+            "    var scX=bRect.width/W,scY=bRect.height/H;"
+            '    tip.textContent=hit.word.text+" · peso: "+hit.word.weight;'
+            '    tip.style.left=(px*scX)+"px";'
+            '    tip.style.top=(py*scY)+"px";'
+            '    tip.style.display="block";'
+            "  }else if(tip){"
+            '    tip.style.display="none";'
+            "  }"
+            "});"
+            'canvas.addEventListener("mouseleave",function(){'
+            "  draw(null);"
+            '  if(tip)tip.style.display="none";'
+            "});"
+            # Click handler
+            + (
+                'canvas.addEventListener("click",function(e){'
+                "  var rect=canvas.getBoundingClientRect();"
+                "  var scaleX=W/rect.width,scaleY=H/rect.height;"
+                "  var mx=(e.clientX-rect.left)*scaleX;"
+                "  var my=(e.clientY-rect.top)*scaleY;"
+                "  placedWords.forEach(function(item){"
+                "    var p=item.pos;"
+                "    if(mx>=p.x&&mx<=p.x+p.w&&my>=p.y-p.h&&my<=p.y){"
+                "      var word=item.word.text;"
+                "      var weight=item.word.weight;"
+                "      " + on_click + "    }"
+                "  });"
+                "});"
+                if on_click
+                else ""
+            )
+            + "})()</script>"
+        )
