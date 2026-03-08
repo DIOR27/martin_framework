@@ -454,19 +454,41 @@ class App:
             spec = importlib.util.spec_from_file_location("_martin_hot_", source_file)
             fresh = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(fresh)
-            if self._router and hasattr(fresh, "router"):
-                with self._lock:
+
+            with self._lock:
+                # Router: reemplazar y re-vincular
+                if self._router and hasattr(fresh, "router"):
                     self._router = fresh.router
-            elif self._build_fn and hasattr(fresh, self._build_fn.__name__):
-                with self._lock:
+                    self._router._app = self
+                elif self._build_fn and hasattr(fresh, self._build_fn.__name__):
                     self._build_fn = getattr(fresh, self._build_fn.__name__)
-            # Recargar header/footer si son callables en el módulo
-            if hasattr(fresh, "header"):
-                self.header = fresh.header
-            if hasattr(fresh, "footer"):
-                self.footer = fresh.footer
+
+                # Si fresh tiene app (instancia App), tomar su router y rutas
+                from martin import App as _App
+
+                if hasattr(fresh, "app") and isinstance(fresh.app, _App):
+                    if fresh.app._router:
+                        self._router = fresh.app._router
+                        self._router._app = self
+                    # Copiar rutas de API registradas en el app fresco
+                    self._api_routes = dict(fresh.app._api_routes)
+
+                # Header / footer
+                if hasattr(fresh, "header"):
+                    self.header = fresh.header
+                if hasattr(fresh, "footer"):
+                    self.footer = fresh.footer
+
+            # Re-escanear register_routes de todas las páginas
+            (
+                self._api_routes.clear()
+                if not (hasattr(fresh, "app") and hasattr(fresh.app, "_api_routes"))
+                else None
+            )
+            self._scan_router_routes()
+
             self._ts = str(time.time())
-            print(f"  ↻  {os.path.basename(source_file)}")
+            print(f"  ↻  recargado")
         except Exception:
             import traceback
 
@@ -477,7 +499,19 @@ class App:
         app = self
 
         def on_change(fp):
-            app._reload_from_file(fp if fp.endswith("main.py") else source_file)
+            # Eliminar de sys.modules el archivo cambiado y todos los del proyecto
+            # para que main.py los reimporte frescos al recargar
+            changed = os.path.abspath(fp)
+            to_remove = []
+            for mod_name, mod in list(sys.modules.items()):
+                mod_file = getattr(mod, "__file__", None)
+                if mod_file and os.path.abspath(mod_file).startswith(
+                    os.path.abspath(watch_dir)
+                ):
+                    to_remove.append(mod_name)
+            for mod_name in to_remove:
+                sys.modules.pop(mod_name, None)
+            app._reload_from_file(source_file)
 
         try:
             from watchdog.observers import Observer
