@@ -23,7 +23,18 @@ router.add("/api-example", api_example, title="Backend")
 
 # Martin registra automaticamente los endpoints de cada pagina
 # si el modulo tiene una funcion register_routes(app).
-app = App(router=router, title="PROJECT_NAME", theme="auto")
+app = App(
+    router=router,
+    title="PROJECT_NAME",
+    theme="auto",
+    # SEO global del sitio
+    site_url="https://tu-dominio.com",
+    description="Descripcion de tu sitio para buscadores.",
+    keywords=["palabra1", "palabra2"],
+    og_image="https://tu-dominio.com/og.png",
+    twitter_handle="@tu_usuario",
+    lang="es",
+)
 
 
 if __name__ == "__main__":
@@ -39,7 +50,8 @@ from martin import (
 
 
 def home():
-    return Column(
+    from martin import PageConfig
+    page = Column(
         style=MeshBackground.themed(),
         children=[
 
@@ -72,7 +84,7 @@ def home():
                     ),
 
                     Paragraph(
-                        "Build webs con Python puro. Sin HTML, sin CSS, sin JavaScript.",
+                        "PROJECT_DESC",
                         style=TextStyle(size=20, color="var(--text-muted)", line_height=1.6),
                     ),
 
@@ -113,6 +125,10 @@ def home():
                 '0%%,100%%{opacity:1;transform:scale(1)}'
                 '50%%{opacity:.5;transform:scale(.8)}}</style>'),
         ]
+    )
+    return page, PageConfig(
+        title="PROJECT_NAME",
+        description="PROJECT_DESC",
     )
 
 
@@ -356,6 +372,17 @@ def _write_api_example(path):
     path.write_text(code, encoding="utf-8")
 
 
+def _prompt(label, default=""):
+    """Pregunta interactiva con valor por defecto."""
+    hint = f" [{default}]" if default else ""
+    try:
+        val = input(f"  {label}{hint}: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print("")
+        val = ""
+    return val or default
+
+
 def cmd_new(args):
     name = args.name
     target = Path(name)
@@ -364,29 +391,60 @@ def cmd_new(args):
         print("ERROR: La carpeta '" + name + "' ya existe.")
         sys.exit(1)
 
+    # ── Preguntas interactivas ─────────────────────────────
+    print("")
+    print("  Nuevo proyecto Martin · '" + name + "'")
+    print("  " + "─" * 38)
+
+    title = _prompt("Título del proyecto", default=name)
+    desc = _prompt("Descripción", default="An amazing idea")
+
+    print("")
+
+    # ── Crear estructura ───────────────────────────────────
     target.mkdir()
     (target / "assets").mkdir()
+
+    # Copiar icono por defecto (el usuario puede reemplazarlo)
+    _pkg_dir = Path(__file__).parent
+    import shutil as _sh
+
+    for _icon_name, _dest_name in [
+        ("assets/default_icon.webp", "icon.webp"),
+        ("assets/default_icon.png", "icon.png"),
+        ("default_icon.webp", "icon.webp"),
+        ("default_icon.png", "icon.png"),
+    ]:
+        _src = _pkg_dir / _icon_name
+        if _src.exists():
+            _sh.copy(_src, target / "assets" / _dest_name)
+            break
     (target / "pages").mkdir()
     (target / "pages" / "__init__.py").write_text("", encoding="utf-8")
 
-    (target / "main.py").write_text(
-        MAIN_PY.replace("PROJECT_NAME", name), encoding="utf-8"
+    main_src = MAIN_PY.replace("PROJECT_NAME", title).replace(
+        "Descripcion de tu sitio para buscadores.", desc
     )
+
+    (target / "main.py").write_text(main_src, encoding="utf-8")
     (target / "pages" / "home.py").write_text(
-        PAGE_HOME.replace("PROJECT_NAME", name), encoding="utf-8"
+        PAGE_HOME.replace("PROJECT_NAME", title).replace("PROJECT_DESC", desc),
+        encoding="utf-8",
     )
     (target / "pages" / "about.py").write_text(
-        PAGE_ABOUT.replace("PROJECT_NAME", name), encoding="utf-8"
+        PAGE_ABOUT.replace("PROJECT_NAME", title), encoding="utf-8"
     )
     (target / "pages" / "components.py").write_text(
-        PAGE_COMPONENTS.replace("PROJECT_NAME", name), encoding="utf-8"
+        PAGE_COMPONENTS.replace("PROJECT_NAME", title), encoding="utf-8"
     )
     _write_api_example(target / "pages" / "api_example.py")
     (target / ".gitignore").write_text(GITIGNORE)
     (target / "README.md").write_text(README.replace("{name}", name), encoding="utf-8")
 
+    print("  ✓  Proyecto '" + name + "' creado")
     print("")
-    print("  OK  Proyecto '" + name + "' creado")
+    print("  Título      : " + title)
+    print("  Descripción : " + desc)
     print("")
     print("  Estructura:")
     print("    " + name + "/")

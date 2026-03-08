@@ -42,11 +42,31 @@ class PageConfig:
             )
     """
 
-    def __init__(self, header=None, footer=None, title=None, theme=None):
+    def __init__(
+        self,
+        header=None,
+        footer=None,
+        title=None,
+        theme=None,
+        description=None,
+        keywords=None,
+        og_image=None,
+        canonical=None,
+        noindex=False,
+        schema=None,
+        og_type="website",
+    ):
         self.header = header  # False = sin header | Widget = header custom
         self.footer = footer  # False = sin footer | Widget = footer custom
         self.title = title  # str = título custom para esta página
-        self.theme = theme  # "dark"|"light"|"auto" override para esta página
+        self.theme = theme  # "dark"|"light"|"auto" override
+        self.description = description  # meta description (160 chars ideal)
+        self.keywords = keywords  # str o list de keywords
+        self.og_image = og_image  # URL imagen Open Graph
+        self.canonical = canonical  # URL canónica absoluta
+        self.noindex = noindex  # True = noindex,nofollow
+        self.schema = schema  # dict → JSON-LD structured data
+        self.og_type = og_type  # "website"|"article"|"product"
 
 
 # ══════════════════════════════════════════════════════════
@@ -143,6 +163,14 @@ class App:
         theme_toggle=True,
         header=None,
         footer=None,
+        # SEO global
+        site_url=None,
+        description=None,
+        keywords=None,
+        og_image=None,
+        twitter_handle=None,
+        lang="es",
+        favicon=None,
         assets_dir="assets",
         styles="",
         global_css="",
@@ -165,6 +193,14 @@ class App:
         self._ts = str(time.time())
         self._lock = threading.Lock()
         self._api_routes = {}
+        # SEO
+        self.site_url = (site_url or "").rstrip("/")
+        self.description = description or ""
+        self.keywords = keywords or ""
+        self.og_image = og_image or ""
+        self.twitter_handle = twitter_handle or ""
+        self.lang = lang
+        self.favicon = favicon or ""
 
         # Link router back to app so router.add() can auto-register routes
         if self._router:
@@ -247,20 +283,34 @@ class App:
         if not self._router or len(self._router.paths()) <= 1:
             return ""
 
-        logo_html = ""
-        for ext in ("png", "svg", "webp", "jpg"):
-            if os.path.exists(os.path.join(self.assets_dir, f"logo.{ext}")):
-                logo_html = (
-                    f'<a href="/" style="display:flex;align-items:center;margin-right:16px">'
-                    f'<img src="/assets/logo.{ext}" style="height:32px;width:auto"></a>'
+        # Buscar icono en assets/ — icon.* tiene prioridad, luego logo.*
+        icon_html = ""
+        for name_ext in (
+            "icon.png",
+            "icon.svg",
+            "icon.webp",
+            "logo.png",
+            "logo.svg",
+            "logo.webp",
+            "logo.jpg",
+        ):
+            if os.path.exists(os.path.join(self.assets_dir, name_ext)):
+                icon_html = (
+                    f'<img src="/assets/{name_ext}" '
+                    f'style="height:28px;width:28px;object-fit:contain;border-radius:6px;flex-shrink:0">'
                 )
                 break
-        if not logo_html:
-            logo_html = (
-                f'<a href="/" style="font-weight:800;font-size:18px;letter-spacing:-0.5px;'
-                f'text-decoration:none;color:var(--text);margin-right:16px">'
-                f"{self.title}</a>"
-            )
+
+        # Siempre muestra título; con icono a la izquierda si existe
+        inner = icon_html
+        inner += (
+            f'<span style="font-weight:800;font-size:17px;letter-spacing:-0.3px;'
+            f'color:var(--text)">{self.title}</span>'
+        )
+        logo_html = (
+            f'<a href="/" style="display:flex;align-items:center;gap:8px;'
+            f'text-decoration:none;margin-right:16px;flex-shrink:0">{inner}</a>'
+        )
 
         links = []
         for path in self._router.paths():
@@ -306,6 +356,13 @@ class App:
         page_header=None,
         page_footer=None,
         page_theme=None,
+        page_desc=None,
+        page_keywords=None,
+        page_og_image=None,
+        page_canonical=None,
+        page_noindex=False,
+        page_schema=None,
+        page_og_type="website",
     ):
 
         # Resolver header y footer para esta página
@@ -337,12 +394,124 @@ class App:
         # Inyectar theme en el JS
         toggle_js = THEME_TOGGLE_JS.replace("'INITIAL_THEME'", f"'{theme}'")
 
+        # ── SEO meta tags ─────────────────────────────────────────────
+        import json as _json
+
+        desc = page_desc or self.description
+        kw = page_keywords or self.keywords
+        og_img = page_og_image or self.og_image
+        canonical = page_canonical
+        noindex = page_noindex
+        schema = page_schema
+        og_type = page_og_type
+        tw = self.twitter_handle
+        full_url = (self.site_url + path) if self.site_url else ""
+        canonical = canonical or full_url
+
+        if isinstance(kw, list):
+            kw = ", ".join(kw)
+
+        # robots
+        robots_content = (
+            "noindex,nofollow"
+            if noindex
+            else "index,follow,max-snippet:-1,max-image-preview:large"
+        )
+
+        # Build meta tags string
+        seo_tags = []
+
+        # Basic
+        if desc:
+            seo_tags.append(f'  <meta name="description" content="{desc}">')
+        if kw:
+            seo_tags.append(f'  <meta name="keywords" content="{kw}">')
+        seo_tags.append(f'  <meta name="robots" content="{robots_content}">')
+
+        # Canonical
+        if canonical:
+            seo_tags.append(f'  <link rel="canonical" href="{canonical}">')
+
+        # Open Graph
+        seo_tags.append(f'  <meta property="og:type" content="{og_type}">')
+        seo_tags.append(f'  <meta property="og:title" content="{title}">')
+        if desc:
+            seo_tags.append(f'  <meta property="og:description" content="{desc}">')
+        if canonical:
+            seo_tags.append(f'  <meta property="og:url" content="{canonical}">')
+        if og_img:
+            seo_tags.append(f'  <meta property="og:image" content="{og_img}">')
+            seo_tags.append(f'  <meta property="og:image:width" content="1200">')
+            seo_tags.append(f'  <meta property="og:image:height" content="630">')
+        seo_tags.append(f'  <meta property="og:site_name" content="{self.title}">')
+        seo_tags.append(f'  <meta property="og:locale" content="{self.lang}">')
+
+        # Twitter Card
+        tw_card = "summary_large_image" if og_img else "summary"
+        seo_tags.append(f'  <meta name="twitter:card" content="{tw_card}">')
+        seo_tags.append(f'  <meta name="twitter:title" content="{title}">')
+        if desc:
+            seo_tags.append(f'  <meta name="twitter:description" content="{desc}">')
+        if og_img:
+            seo_tags.append(f'  <meta name="twitter:image" content="{og_img}">')
+        if tw:
+            handle = tw if tw.startswith("@") else f"@{tw}"
+            seo_tags.append(f'  <meta name="twitter:site" content="{handle}">')
+
+        # Favicon
+        # Auto-detect favicon: explicit > assets/icon.* > assets/favicon.* > assets/logo.*
+        favicon = self.favicon
+        if not favicon:
+            for _fn in (
+                "icon.png",
+                "icon.svg",
+                "icon.webp",
+                "favicon.png",
+                "favicon.ico",
+                "logo.png",
+            ):
+                if os.path.exists(os.path.join(self.assets_dir, _fn)):
+                    favicon = f"/assets/{_fn}"
+                    break
+        if favicon:
+            ext = favicon.rsplit(".", 1)[-1].lower()
+            mime = {
+                "png": "image/png",
+                "jpg": "image/jpeg",
+                "jpeg": "image/jpeg",
+                "svg": "image/svg+xml",
+                "ico": "image/x-icon",
+                "webp": "image/webp",
+            }.get(ext, "image/x-icon")
+            seo_tags.append(f'  <link rel="icon" type="{mime}" href="{favicon}">')
+        else:
+            seo_tags.append(
+                "  <link rel=\"icon\" href=\"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='28'>🅜</text></svg>\">"
+            )
+
+        # Performance hints
+        seo_tags.append('  <meta http-equiv="X-UA-Compatible" content="IE=edge">')
+        seo_tags.append('  <meta name="theme-color" content="#6366f1">')
+        if self.site_url:
+            seo_tags.append(f'  <link rel="preconnect" href="{self.site_url}">')
+
+        # JSON-LD structured data
+        schema_tag = ""
+        if schema:
+            schema_str = _json.dumps(schema, ensure_ascii=False)
+            schema_tag = f'  <script type="application/ld+json">{schema_str}</script>'
+
+        seo_html = "\n".join(seo_tags)
+        if schema_tag:
+            seo_html += "\n" + schema_tag
+
         return f"""<!DOCTYPE html>
-<html lang="es" data-theme="{theme}">
+<html lang="{self.lang}" data-theme="{theme}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{title}</title>
+{seo_html}
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
     body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -410,6 +579,13 @@ class App:
         ) or page_title
         p_theme = page_cfg.theme if page_cfg and page_cfg.theme else None
 
+        p_desc = page_cfg.description if page_cfg and page_cfg.description else None
+        p_keywords = page_cfg.keywords if page_cfg and page_cfg.keywords else None
+        p_og_image = page_cfg.og_image if page_cfg and page_cfg.og_image else None
+        p_canonical = page_cfg.canonical if page_cfg and page_cfg.canonical else None
+        p_noindex = page_cfg.noindex if page_cfg else False
+        p_schema = page_cfg.schema if page_cfg and page_cfg.schema else None
+        p_og_type = page_cfg.og_type if page_cfg and page_cfg.og_type else "website"
         return self._wrap(
             body,
             path=path,
@@ -417,6 +593,13 @@ class App:
             page_header=p_header,
             page_footer=p_footer,
             page_theme=p_theme,
+            page_desc=p_desc,
+            page_keywords=p_keywords,
+            page_og_image=p_og_image,
+            page_canonical=p_canonical,
+            page_noindex=p_noindex,
+            page_schema=p_schema,
+            page_og_type=p_og_type,
         )
 
     def _not_found(self, path):
