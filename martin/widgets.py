@@ -213,15 +213,18 @@ class Text(Widget):
     Text("Hola", style=TextStyle(size=18, weight="bold"))
     """
 
-    def __init__(self, content, id=None, **kwargs):
+    def __init__(self, content=None, id=None, child=None, children=None, **kwargs):
         self._props = Widget._extract_props(kwargs)
         self.content = content
         self.id = id
+        self.child = child
+        self.children = children
 
     def render(self):
         inline = self._resolve_props()
         attrs = self._attrs(style=inline or None, id=self.id)
-        return f"<span{attrs}>{self.content}</span>"
+        inner = self._resolve_inner(self.content, self.child, self.children)
+        return f"<span{attrs}>{inner}</span>"
 
 
 class Heading(Widget):
@@ -229,29 +232,37 @@ class Heading(Widget):
     Heading("Título", level=1, color="#111", margin=16)
     """
 
-    def __init__(self, content, level=1, id=None, **kwargs):
+    def __init__(
+        self, content=None, level=1, id=None, child=None, children=None, **kwargs
+    ):
         self._props = Widget._extract_props(kwargs)
         self.content = content
         self.level = max(1, min(6, level))
         self.id = id
+        self.child = child
+        self.children = children
 
     def render(self):
         inline = self._resolve_props()
         attrs = self._attrs(style=inline or None, id=self.id)
         tag = f"h{self.level}"
-        return f"<{tag}{attrs}>{self.content}</{tag}>"
+        inner = self._resolve_inner(self.content, self.child, self.children)
+        return f"<{tag}{attrs}>{inner}</{tag}>"
 
 
 class Paragraph(Widget):
-    def __init__(self, content, id=None, **kwargs):
+    def __init__(self, content=None, id=None, child=None, children=None, **kwargs):
         self._props = Widget._extract_props(kwargs)
         self.content = content
         self.id = id
+        self.child = child
+        self.children = children
 
     def render(self):
         inline = self._resolve_props()
         attrs = self._attrs(style=inline or None, id=self.id)
-        return f"<p{attrs}>{self.content}</p>"
+        inner = self._resolve_inner(self.content, self.child, self.children)
+        return f"<p{attrs}>{inner}</p>"
 
 
 class Link(Widget):
@@ -259,18 +270,20 @@ class Link(Widget):
     Link("Click", href="/page", color="#3b82f6")
     """
 
-    def __init__(self, content, href="#", target=None, **kwargs):
+    def __init__(
+        self, content=None, href="#", target=None, child=None, children=None, **kwargs
+    ):
         self._props = Widget._extract_props(kwargs)
         self.content = content
         self.href = href
         self.target = target
+        self.child = child
+        self.children = children
 
     def render(self):
         inline = self._resolve_props()
         attrs = self._attrs(href=self.href, target=self.target, style=inline or None)
-        inner = (
-            self.content.render() if isinstance(self.content, Widget) else self.content
-        )
+        inner = self._resolve_inner(self.content, self.child, self.children)
         return f"<a{attrs}>{inner}</a>"
 
 
@@ -347,15 +360,18 @@ class Video(Widget):
 class Icon(Widget):
     """Icon("🚀", size=24, margin=8)"""
 
-    def __init__(self, icon, size=20, **kwargs):
+    def __init__(self, icon=None, size=20, child=None, children=None, **kwargs):
         self._props = Widget._extract_props(kwargs)
         self.icon = icon
         self.size = size
+        self.child = child
+        self.children = children
 
     def render(self):
-        base = f"font-size: {self.size}px; line-height: 1"
+        base = f"font-size: {self.size}px; line-height: 1; display:inline-flex; align-items:center"
         inline = self._resolve_props(base)
-        return f'<span style="{inline}" aria-hidden="true">{self.icon}</span>'
+        inner = self._resolve_inner(self.icon, self.child, self.children)
+        return f'<span style="{inline}" aria-hidden="true">{inner}</span>'
 
 
 # ══════════════════════════════════════════════════════════
@@ -912,10 +928,11 @@ class MultiSelect(Widget):
 class Badge(Widget):
     """Badge("Nuevo", background="#3b82f6", color="#fff", radius=999, padding=8)"""
 
-    def __init__(self, label, **kwargs):
+    def __init__(self, label=None, child=None, children=None, **kwargs):
         self._props = Widget._extract_props(kwargs)
         self.label = label
-        # defaults si no se pasan
+        self.child = child
+        self.children = children
         if not self._props.get("background"):
             self._props["background"] = "#3b82f6"
         if not self._props.get("color"):
@@ -924,7 +941,8 @@ class Badge(Widget):
     def render(self):
         base = "display:inline-block;padding:2px 8px;border-radius:9999px;font-size:12px;font-weight:600"
         inline = self._resolve_props(base)
-        return f'<span style="{inline}">{self.label}</span>'
+        inner = self._resolve_inner(self.label, self.child, self.children)
+        return f'<span style="{inline}">{inner}</span>'
 
 
 class Avatar(Widget):

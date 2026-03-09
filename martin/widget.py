@@ -132,6 +132,21 @@ class Widget:
                 parts.append(str(child))
         return "".join(parts)
 
+    @staticmethod
+    def _resolve_inner(text=None, child=None, children=None) -> str:
+        """
+        Resuelve el contenido de un widget hoja.
+        Prioridad: children > child > text
+        Permite anidar widgets dentro de cualquier widget.
+        """
+        if children:
+            return Widget._render_children(children)
+        if child is not None:
+            return child.render() if isinstance(child, Widget) else str(child)
+        if text is not None:
+            return text.render() if isinstance(text, Widget) else str(text)
+        return ""
+
     def render(self) -> str:
         raise NotImplementedError(f"{self.__class__.__name__} must implement render()")
 
