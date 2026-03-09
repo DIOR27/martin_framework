@@ -157,7 +157,7 @@ class App:
         build=None,
         router=None,
         title="Martin App",
-        port=309,
+        port=3908,
         hot_reload=True,
         theme="auto",
         theme_toggle=True,
