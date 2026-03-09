@@ -641,8 +641,8 @@ def main():
             martin run --port 8080
             martin run --no-reload
             martin export
-            martin export --format split
-            martin export --format split --out build
+            martin export --out build
+            martin export --format html
             martin version
         """
         ),
@@ -664,7 +664,7 @@ def main():
     )
     p_exp.add_argument(
         "--format",
-        default="html",
+        default="split",
         choices=["html", "split"],
         help="html = un fichero por pagina | split = HTML + CSS + JS separados",
     )
