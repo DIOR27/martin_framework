@@ -157,7 +157,7 @@ class App:
         build=None,
         router=None,
         title="Martin App",
-        port=3908,
+        port=309,
         hot_reload=True,
         theme="auto",
         theme_toggle=True,
@@ -316,19 +316,7 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
   nav.martin-nav .mn-burger{display:flex;}
 }
 </style>
-<script>
-document.addEventListener('DOMContentLoaded',function(){
-  var nav=document.querySelector('nav.martin-nav');
-  var burger=nav&&nav.querySelector('.mn-burger');
-  if(!burger)return;
-  burger.addEventListener('click',function(e){e.stopPropagation();nav.classList.toggle('mn-open');});
-  var drawer=nav.querySelector('.mn-drawer');
-  if(drawer)drawer.querySelectorAll('a').forEach(function(a){
-    a.addEventListener('click',function(){nav.classList.remove('mn-open');});
-  });
-  document.addEventListener('click',function(e){if(!nav.contains(e.target))nav.classList.remove('mn-open');});
-});
-</script>"""
+"""
 
     def _nav_html(self, current_path):
         if not self._router or len(self._router.paths()) <= 1:
@@ -367,6 +355,18 @@ document.addEventListener('DOMContentLoaded',function(){
         burger = '<button class="mn-burger" aria-label="Menú"><span></span><span></span><span></span></button>'
         drawer = f'<div class="mn-drawer">{links_html}</div>'
 
+        _nav_js = (
+            "<script>(function(){"
+            "var n=document.currentScript.previousElementSibling;"
+            'if(!n||!n.classList.contains("martin-nav")){n=document.querySelector("nav.martin-nav");}'
+            "if(!n)return;"
+            'var b=n.querySelector(".mn-burger");if(!b)return;'
+            'b.addEventListener("click",function(e){e.stopPropagation();n.classList.toggle("mn-open");});'
+            'var d=n.querySelector(".mn-drawer");'
+            'if(d)d.querySelectorAll("a").forEach(function(a){a.addEventListener("click",function(){n.classList.remove("mn-open");});});'
+            'document.addEventListener("click",function(e){if(!n.contains(e.target))n.classList.remove("mn-open");});'
+            "})();</script>"
+        )
         return (
             self._NAV_CSS
             + f'<nav class="martin-nav">'
@@ -375,6 +375,7 @@ document.addEventListener('DOMContentLoaded',function(){
             + burger
             + drawer
             + "</nav>"
+            + _nav_js
         )
 
     # ── Render header/footer ──────────────────────────────────────────────────

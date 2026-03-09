@@ -145,7 +145,8 @@ nav.martin-nav .mn-drawer a.active { color: var(--accent); font-weight: 600; bac
 
 NAV_JS = """\
 /* Martin — nav.js */
-document.addEventListener('DOMContentLoaded', function () {
+/* defer garantiza que el DOM ya está listo — no necesitamos DOMContentLoaded */
+(function () {
   var file = window.location.pathname.split('/').pop() || 'index.html';
   if (!file.endsWith('.html')) file = 'index.html';
   document.querySelectorAll('nav.martin-nav a').forEach(function (a) {
@@ -169,7 +170,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!nav.contains(e.target)) nav.classList.remove('mn-open');
     });
   }
-});
+})();
 """
 
 SELECT_JS = """\
@@ -388,9 +389,15 @@ def _assemble_page(raw_html, app, current_route, route_map, slug):
         r"<script[^>]*>.*?/__ping__.*?</script>", "", raw_html, flags=re.DOTALL
     )
 
-    # Quitar el <style>+<script> inline del nav (app.py los inyecta para dev/html);
-    # en split mode el nav.css estático los sustituye.
+    # Quitar CSS+JS inline del nav (inyectados por app.py para dev/html);
+    # en split mode nav.css y nav.js los sustituyen.
     html = re.sub(r'<style id="_martin_nav_css">.*?</style>', "", html, flags=re.DOTALL)
+    html = re.sub(
+        r"<script>\(function\(\)\{var n=document\.currentScript.*?\(\);\s*</script>",
+        "",
+        html,
+        flags=re.DOTALL,
+    )
 
     nav = _build_nav(app, current_route, route_map)
     if nav:
