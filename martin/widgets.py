@@ -1887,14 +1887,19 @@ class Map(Widget):
             'crossorigin=""></script>'
         )
 
+        # data-height permite al JS fijar el alto aunque el CSS tarde en cargar
         return (
             leaflet_css
             + '<div style="'
             + wrapper_style
+            + '" data-mapheight="'
+            + height
             + '">'
             + '<div id="'
             + uid
-            + '" style="width:100%;height:100%"></div>'
+            + '" style="width:100%;height:'
+            + height
+            + 'px"></div>'
             + search_html
             + geo_html
             + "</div>"

@@ -90,7 +90,7 @@ SELECT_JS = """\
       document.getElementById(uid+'_arrow').style.transform='';
       document.querySelectorAll('#'+uid+'_list .pw-opt').forEach(function(el){
         var s=el.getAttribute('data-val')===val;
-        el.style.background=s?'#eff6ff':'#fff';el.style.fontWeight=s?'600':'400';});
+        el.style.background=s?'rgba(99,102,241,0.15)':'';el.style.color=s?'var(--accent)':'';el.style.fontWeight=s?'600':'400';});
     };
     document.addEventListener('click',function(e){
       if(!e.target.closest('[id$="_wrap"]'))
@@ -327,22 +327,11 @@ def export_split(app, out_dir: str = "dist", assets_src: str = "assets"):
             page_css += f"/* inline */\n{css_inline}\n"
 
         # 10. JS de la página
+        # No filtramos nada — select.js ya tiene guard if(!window._pwSelectInit)
+        # por lo que cargar el JS de instancia (MultiSelect state) no duplica nada.
         page_js = ""
-        if js_inline:
-            js_clean = re.sub(
-                r"\(function\(\)\{.*?window\._pwSelectInit.*?\}\)\(\);",
-                "",
-                js_inline,
-                flags=re.DOTALL,
-            )
-            js_clean = re.sub(
-                r"\(function\(\)\{.*?window\._pwMultiState.*?\}\)\(\);",
-                "",
-                js_clean,
-                flags=re.DOTALL,
-            ).strip()
-            if js_clean:
-                page_js = f"/* {slug}.js */\n{js_clean}"
+        if js_inline.strip():
+            page_js = f"/* {slug}.js */\n{js_inline.strip()}"
 
         # 11. Inyectar en <head>:
         #     CSS propio → CSS externo → JS externo (sin defer) → JS diferido
@@ -354,9 +343,16 @@ def export_split(app, out_dir: str = "dist", assets_src: str = "assets"):
             + "".join(f"  {t}\n" for t in ext_scripts)
             + f'  <script src="js/select.js" defer></script>\n'
             + f'  <script src="js/nav.js" defer></script>\n'
-            + (f'  <script src="js/{slug}.js" defer></script>\n' if page_js else "")
         )
         html = html.replace("</head>", head_inject + "</head>", 1)
+
+        # El JS de la página va al final del body (sin defer)
+        # para garantizar que el DOM y los estilos ya están listos
+        # cuando se ejecutan widgets como WordCloud y Map
+        if page_js:
+            html = html.replace(
+                "</body>", f'  <script src="js/{slug}.js"></script>\n</body>', 1
+            )
 
         # 12. Escribir
         (out / out_file).write_text(html, encoding="utf-8")
