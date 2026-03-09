@@ -189,30 +189,35 @@ def _extract_inline_styles(html: str):
 def _rewrite_paths(html: str, routes: list) -> str:
     """
     Convierte TODAS las rutas absolutas en relativas.
-    Crítico para que funcione con file:// (abrir HTML directo).
+    Funciona independientemente de la versión de app.py.
+    Cubre: nav, Button(href=), Link(href=), src de assets, url() CSS.
     """
-    # 1. Rutas del router → nombre de archivo .html
-    for route in routes:
-        html = html.replace(f'href="{route}"', f'href="{_route_to_file(route)}"')
+    # Mapa de rutas exactas → archivo .html
+    route_map = {r: _route_to_file(r) for r in routes}
 
-    # 2. Cualquier href="/..." restante
     def fix_href(m):
         val = m.group(1)
-        if val.startswith(("http", "#", "data:", "mailto:", "tel:")):
+        # Dejar intactos: externos, anclas, data URIs
+        if val.startswith(("http", "//", "#", "data:", "mailto:", "tel:")):
             return m.group(0)
-        if val.startswith("/assets/"):
-            return f'href="{val.lstrip("/")}"'
+        # Ya reescrito (termina en .html o es relativo no-ruta)
+        if val.endswith(".html") or val.startswith(("css/", "js/", "assets/")):
+            return m.group(0)
+        # Ruta exacta del router
+        if val in route_map:
+            return f'href="{route_map[val]}"'
+        # Ruta absoluta → convertir a .html
         if val.startswith("/"):
             slug = _slugify(val)
             return f'href="{slug or "index"}.html"'
+        # Ruta relativa sin / — dejar como está
         return m.group(0)
 
     html = re.sub(r'href="([^"]*)"', fix_href, html)
 
-    # 3. src="/assets/..." → src="assets/..."
+    # src="/assets/..." → src="assets/..."
     html = re.sub(r'src="/assets/', 'src="assets/', html)
-
-    # 4. url() en CSS inline
+    # url() en estilos inline
     html = re.sub(r"url\('/assets/", "url('assets/", html)
     html = re.sub(r'url\("/assets/', 'url("assets/', html)
 
@@ -244,14 +249,37 @@ def export_split(app, out_dir: str = "dist", assets_src: str = "assets"):
     (js_dir / "nav.js").write_text(NAV_JS, encoding="utf-8")
     (js_dir / "select.js").write_text(SELECT_JS, encoding="utf-8")
 
+    # Copiar assets del proyecto (tiene prioridad sobre los del paquete)
+    dst_assets = out / "assets"
+    dst_assets.mkdir(exist_ok=True)
+
+    # 1. Copiar assets del paquete martin (icono por defecto, etc.)
+    pkg_assets = Path(__file__).parent / "assets"
+    if pkg_assets.exists():
+        for f in pkg_assets.iterdir():
+            if f.is_file():
+                dst_file = dst_assets / f.name
+                if not dst_file.exists():  # no sobreescribir los del proyecto
+                    shutil.copy2(f, dst_file)
+
+    # 2. Copiar assets del proyecto (sobreescriben los del paquete si hay conflicto)
     if os.path.exists(assets_src):
-        dst = out / "assets"
-        if dst.exists():
-            shutil.rmtree(dst)
-        shutil.copytree(assets_src, dst)
+        for item in Path(assets_src).iterdir():
+            if item.is_file():
+                shutil.copy2(item, dst_assets / item.name)
+            elif item.is_dir():
+                sub_dst = dst_assets / item.name
+                if sub_dst.exists():
+                    shutil.rmtree(sub_dst)
+                shutil.copytree(item, sub_dst)
         print(f"  📁  assets/ copiado")
+    elif pkg_assets.exists():
+        print(f"  📁  assets/ (paquete) copiado")
 
     routes = app._router.paths() if app._router else ["/"]
+
+    # Activar modo export: nav genera hrefs relativos (.html) directamente
+    app._export_mode = True
 
     for route in routes:
         slug = _slugify(route)

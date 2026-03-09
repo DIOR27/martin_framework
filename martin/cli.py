@@ -445,7 +445,7 @@ def cmd_new(args):
     print("  " + "─" * 38)
 
     title = _prompt("Título del proyecto", default=name)
-    desc = _prompt("Descripción", default="An amazing idea")
+    desc = _prompt("Descripción", default="Let's build an incredible idea!")
 
     print("")
 

@@ -190,6 +190,7 @@ class App:
         self.footer = footer
         self.assets_dir = assets_dir
         self.global_styles = styles or global_css
+        self._export_mode = False  # set True by exporter
         self._ts = str(time.time())
         self._lock = threading.Lock()
         self._api_routes = {}
@@ -295,8 +296,9 @@ class App:
             "logo.jpg",
         ):
             if os.path.exists(os.path.join(self.assets_dir, name_ext)):
+                _pfx = "assets/" if self._export_mode else "/assets/"
                 icon_html = (
-                    f'<img src="/assets/{name_ext}" '
+                    f'<img src="{_pfx}{name_ext}" '
                     f'style="height:28px;width:28px;object-fit:contain;border-radius:6px;flex-shrink:0">'
                 )
                 break
@@ -307,8 +309,9 @@ class App:
             f'<span style="font-weight:800;font-size:17px;letter-spacing:-0.3px;'
             f'color:var(--text)">{self.title}</span>'
         )
+        _home_href = "index.html" if self._export_mode else "/"
         logo_html = (
-            f'<a href="/" style="display:flex;align-items:center;gap:8px;'
+            f'<a href="{_home_href}" style="display:flex;align-items:center;gap:8px;'
             f'text-decoration:none;margin-right:16px;flex-shrink:0">{inner}</a>'
         )
 
@@ -323,7 +326,8 @@ class App:
                 else "color:var(--nav-text)"
             )
             links.append(
-                f'<a href="{path}" style="text-decoration:none;font-size:14px;'
+                f'<a href="{(path.lstrip("/") + ".html").replace("//","/") if self._export_mode and path != "/" else ("index.html" if self._export_mode else path)}"'
+                f' style="text-decoration:none;font-size:14px;'
                 f'font-weight:500;transition:color 0.2s;{color}"'
                 f" onmouseover=\"this.style.color='var(--text)'\""
                 f' onmouseout="this.style.color=\'{("var(--accent)" if is_active else "var(--nav-text)")}\'">{ label}</a>'
