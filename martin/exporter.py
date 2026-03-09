@@ -1,7 +1,8 @@
 """
 Martin — Exporter
-Genera archivos estáticos que funcionan tanto en servidor web
-como abiertos directamente desde el sistema de archivos (file://).
+Genera archivos estáticos (HTML + CSS + JS separados) que funcionan:
+  - Servidos desde cualquier servidor web estático
+  - Abiertos directamente desde el sistema de archivos (file://)
 """
 
 import re, os, shutil
@@ -9,47 +10,139 @@ from pathlib import Path
 
 
 # ══════════════════════════════════════════════════════════
-# ARCHIVOS ESTÁTICOS BASE
+# CSS / JS ESTÁTICOS
 # ══════════════════════════════════════════════════════════
 
 BASE_CSS = """\
 /* Martin — base.css */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-:root {
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-  --color-bg: #060818; --color-text: #f1f5f9;
-  --color-muted: rgba(148,163,184,0.8); --color-border: rgba(255,255,255,0.08);
-  --color-accent: #818cf8; --color-accent2: #34d399;
+html, body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.5; min-height: 100vh;
+  background: var(--bg); color: var(--text);
 }
-html, body { background: var(--color-bg); min-height: 100vh; }
-body { font-family: var(--font-sans); line-height: 1.5; color: var(--color-text); }
 img { display: block; max-width: 100%; }
 a   { color: inherit; }
 @keyframes pulse  { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
 @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
 @keyframes float  { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(30px,-20px) scale(1.05)} 66%{transform:translate(-20px,15px) scale(.97)} }
-::-webkit-scrollbar { width:6px } ::-webkit-scrollbar-track { background:transparent }
+::-webkit-scrollbar { width:6px }
+::-webkit-scrollbar-track { background:transparent }
 ::-webkit-scrollbar-thumb { background:rgba(129,140,248,.3); border-radius:3px }
+
+/* Temas */
+[data-theme="light"], .theme-light {
+  --bg:#f8fafc; --bg-secondary:#f1f5f9; --surface:#ffffff; --surface-2:#f3f4f6;
+  --border:rgba(0,0,0,0.10); --border-input:#d1d5db;
+  --text:#0f172a; --text-muted:#64748b; --text-placeholder:#94a3b8;
+  --input-bg:#ffffff; --input-color:#0f172a;
+  --accent:#6366f1; --accent-hover:#4f46e5;
+  --shadow:0 2px 12px rgba(0,0,0,0.08);
+  --nav-bg:rgba(248,250,252,0.92); --nav-border:rgba(0,0,0,0.07); --nav-text:rgba(15,23,42,0.70);
+  --dropdown-bg:#ffffff;
+}
+[data-theme="dark"], .theme-dark {
+  --bg:#060818; --bg-secondary:#0d1117; --surface:rgba(255,255,255,0.05); --surface-2:rgba(255,255,255,0.03);
+  --border:rgba(255,255,255,0.08); --border-input:rgba(255,255,255,0.15);
+  --text:#f1f5f9; --text-muted:rgba(148,163,184,0.8); --text-placeholder:rgba(148,163,184,0.45);
+  --input-bg:rgba(255,255,255,0.06); --input-color:#f1f5f9;
+  --accent:#818cf8; --accent-hover:#6366f1;
+  --shadow:0 4px 24px rgba(0,0,0,0.35);
+  --nav-bg:rgba(6,8,24,0.88); --nav-border:rgba(255,255,255,0.08); --nav-text:rgba(203,213,225,0.75);
+  --dropdown-bg:#1a1d2e;
+}
+@media (prefers-color-scheme: dark) {
+  [data-theme="auto"] {
+    --bg:#060818; --bg-secondary:#0d1117; --surface:rgba(255,255,255,0.05); --surface-2:rgba(255,255,255,0.03);
+    --border:rgba(255,255,255,0.08); --border-input:rgba(255,255,255,0.15);
+    --text:#f1f5f9; --text-muted:rgba(148,163,184,0.8); --text-placeholder:rgba(148,163,184,0.45);
+    --input-bg:rgba(255,255,255,0.06); --input-color:#f1f5f9;
+    --accent:#818cf8; --accent-hover:#6366f1; --shadow:0 4px 24px rgba(0,0,0,0.35);
+    --nav-bg:rgba(6,8,24,0.88); --nav-border:rgba(255,255,255,0.08); --nav-text:rgba(203,213,225,0.75);
+    --dropdown-bg:#1a1d2e;
+  }
+}
+@media (prefers-color-scheme: light) {
+  [data-theme="auto"] {
+    --bg:#f8fafc; --bg-secondary:#f1f5f9; --surface:#ffffff; --surface-2:#f3f4f6;
+    --border:rgba(0,0,0,0.10); --border-input:#d1d5db;
+    --text:#0f172a; --text-muted:#64748b; --text-placeholder:#94a3b8;
+    --input-bg:#ffffff; --input-color:#0f172a;
+    --accent:#6366f1; --accent-hover:#4f46e5; --shadow:0 2px 12px rgba(0,0,0,0.08);
+    --nav-bg:rgba(248,250,252,0.92); --nav-border:rgba(0,0,0,0.07); --nav-text:rgba(15,23,42,0.70);
+    --dropdown-bg:#ffffff;
+  }
+}
+
+/* Inputs themed */
+input:not([type="checkbox"]):not([type="radio"]), select, textarea {
+  background: var(--input-bg) !important; color: var(--input-color) !important;
+  border-color: var(--border-input) !important;
+}
+input::placeholder, textarea::placeholder { color: var(--text-placeholder) !important; }
+input:focus:not([type="checkbox"]), select:focus, textarea:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
+  outline: none !important;
+}
+.pw-opt, .pw-mopt { color: var(--text) !important; }
+.pw-opt:hover, .pw-mopt:hover { background: var(--surface-2) !important; }
 """
 
 NAV_CSS = """\
 /* Martin — nav.css */
 nav.martin-nav {
-  display:flex; align-items:center; gap:28px; padding:0 32px; height:56px;
-  background:rgba(6,8,24,.85); backdrop-filter:blur(20px);
-  -webkit-backdrop-filter:blur(20px);
-  border-bottom:1px solid rgba(255,255,255,.08);
-  position:sticky; top:0; z-index:100;
+  display: flex; align-items: center; padding: 0 24px; height: 56px;
+  background: var(--nav-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--nav-border);
+  position: sticky; top: 0; z-index: 200; gap: 0;
 }
-nav.martin-nav a { text-decoration:none; font-size:14px; font-weight:500; color:rgba(203,213,225,.75); transition:color .2s; }
-nav.martin-nav a:hover  { color:#f1f5f9; }
-nav.martin-nav a.active { color:#a5b4fc; font-weight:600; }
-nav.martin-nav .nav-logo { font-weight:800; font-size:18px; letter-spacing:-.5px; color:#f1f5f9; margin-right:8px; text-decoration:none; }
-nav.martin-nav .nav-logo img { height:32px; width:auto; }
+nav.martin-nav .mn-logo {
+  display: flex; align-items: center; gap: 8px;
+  text-decoration: none; font-weight: 800; font-size: 17px;
+  letter-spacing: -0.3px; color: var(--text); flex-shrink: 0; margin-right: auto;
+}
+nav.martin-nav .mn-logo img { height: 28px; width: 28px; object-fit: contain; border-radius: 6px; }
+nav.martin-nav .mn-links { display: flex; align-items: center; gap: 4px; }
+nav.martin-nav .mn-links a {
+  text-decoration: none; font-size: 14px; font-weight: 500; color: var(--nav-text);
+  padding: 6px 12px; border-radius: 8px; transition: color .2s, background .2s;
+}
+nav.martin-nav .mn-links a:hover { color: var(--text); background: rgba(128,128,128,0.08); }
+nav.martin-nav .mn-links a.active { color: var(--accent); font-weight: 600; background: rgba(99,102,241,0.10); }
+nav.martin-nav .mn-burger {
+  display: none; flex-direction: column; justify-content: center; align-items: center;
+  gap: 5px; width: 40px; height: 40px; background: none; border: none;
+  cursor: pointer; padding: 4px; border-radius: 8px; transition: background .2s; flex-shrink: 0;
+}
+nav.martin-nav .mn-burger:hover { background: rgba(128,128,128,0.1); }
+nav.martin-nav .mn-burger span {
+  display: block; width: 22px; height: 2px; background: var(--text);
+  border-radius: 2px; transition: transform .25s, opacity .25s;
+}
+nav.martin-nav.mn-open .mn-burger span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+nav.martin-nav.mn-open .mn-burger span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+nav.martin-nav.mn-open .mn-burger span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+nav.martin-nav .mn-drawer {
+  display: none; position: fixed; top: 56px; left: 0; right: 0;
+  background: var(--nav-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--nav-border);
+  padding: 12px 16px 16px; flex-direction: column; gap: 4px;
+  z-index: 199; box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+}
+nav.martin-nav.mn-open .mn-drawer { display: flex; }
+nav.martin-nav .mn-drawer a {
+  text-decoration: none; font-size: 15px; font-weight: 500; color: var(--nav-text);
+  padding: 10px 14px; border-radius: 10px; transition: color .15s, background .15s;
+}
+nav.martin-nav .mn-drawer a:hover { color: var(--text); background: rgba(128,128,128,0.08); }
+nav.martin-nav .mn-drawer a.active { color: var(--accent); font-weight: 600; background: rgba(99,102,241,0.10); }
+@media (max-width: 640px) {
+  nav.martin-nav .mn-links { display: none; }
+  nav.martin-nav .mn-burger { display: flex; }
+}
 """
 
-# NAV_JS — usa el nombre del archivo para marcar el link activo (funciona en file://)
 NAV_JS = """\
 /* Martin — nav.js */
 (function () {
@@ -59,6 +152,23 @@ NAV_JS = """\
     var href = (a.getAttribute('href') || '').split('/').pop() || 'index.html';
     if (href === file) a.classList.add('active');
   });
+  var nav    = document.querySelector('nav.martin-nav');
+  var burger = nav && nav.querySelector('.mn-burger');
+  if (burger) {
+    burger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      nav.classList.toggle('mn-open');
+    });
+    var drawer = nav.querySelector('.mn-drawer');
+    if (drawer) {
+      drawer.querySelectorAll('a').forEach(function (a) {
+        a.addEventListener('click', function () { nav.classList.remove('mn-open'); });
+      });
+    }
+    document.addEventListener('click', function (e) {
+      if (!nav.contains(e.target)) nav.classList.remove('mn-open');
+    });
+  }
 })();
 """
 
@@ -68,26 +178,27 @@ SELECT_JS = """\
   if (!window._pwSelectInit) {
     window._pwSelectInit = true;
     window.pwSelectToggle = function (uid) {
-      var drop=document.getElementById(uid+'_drop'), arrow=document.getElementById(uid+'_arrow');
-      var isOpen=drop.style.display!=='none';
+      var drop=document.getElementById(uid+'_drop'),arrow=document.getElementById(uid+'_arrow'),btn=document.getElementById(uid+'_btn');
+      var isOpen=drop&&drop.style.display!=='none';
       document.querySelectorAll('[id$="_drop"]').forEach(function(el){
         if(el.id!==uid+'_drop'){el.style.display='none';
-          var a=document.getElementById(el.id.replace('_drop','_arrow'));if(a)a.style.transform='';}
+          var a=document.getElementById(el.id.replace('_drop','_arrow'));if(a)a.style.transform='';
+          var b=document.getElementById(el.id.replace('_drop','_btn'));if(b)b.style.borderColor='';}
       });
-      if(isOpen){drop.style.display='none';arrow.style.transform='';}
-      else{drop.style.display='block';arrow.style.transform='rotate(180deg)';
-        setTimeout(function(){var s=document.getElementById(uid+'_search');
-          if(s){s.value='';s.focus();pwSelectFilter(uid,'');}},50);}
+      if(isOpen){drop.style.display='none';if(arrow)arrow.style.transform='';if(btn)btn.style.borderColor='';}
+      else{drop.style.display='block';if(arrow)arrow.style.transform='rotate(180deg)';if(btn)btn.style.borderColor='var(--accent)';
+        setTimeout(function(){var s=document.getElementById(uid+'_search');if(s){s.value='';s.focus();pwSelectFilter(uid,'');}},50);}
     };
-    window.pwSelectFilter = function(uid,q){
+    window.pwSelectFilter=function(uid,q){
       document.querySelectorAll('#'+uid+'_list .pw-opt').forEach(function(i){
         i.style.display=i.getAttribute('data-label').toLowerCase().includes(q.toLowerCase())?'block':'none';});
     };
-    window.pwSelectPick = function(uid,val,label){
+    window.pwSelectPick=function(uid,val,label){
       document.getElementById(uid+'_val').value=val;
       document.getElementById(uid+'_label').textContent=label;
       document.getElementById(uid+'_drop').style.display='none';
-      document.getElementById(uid+'_arrow').style.transform='';
+      var arrow=document.getElementById(uid+'_arrow');if(arrow)arrow.style.transform='';
+      var btn=document.getElementById(uid+'_btn');if(btn)btn.style.borderColor='';
       document.querySelectorAll('#'+uid+'_list .pw-opt').forEach(function(el){
         var s=el.getAttribute('data-val')===val;
         el.style.background=s?'rgba(99,102,241,0.15)':'';el.style.color=s?'var(--accent)':'';el.style.fontWeight=s?'600':'400';});
@@ -96,13 +207,14 @@ SELECT_JS = """\
       if(!e.target.closest('[id$="_wrap"]'))
         document.querySelectorAll('[id$="_drop"]').forEach(function(el){
           el.style.display='none';
-          var a=document.getElementById(el.id.replace('_drop','_arrow'));if(a)a.style.transform='';});
+          var a=document.getElementById(el.id.replace('_drop','_arrow'));if(a)a.style.transform='';
+          var b=document.getElementById(el.id.replace('_drop','_btn'));if(b)b.style.borderColor='';});
     });
   }
-  if(!window._pwMultiState) window._pwMultiState={};
+  if(!window._pwMultiState)window._pwMultiState={};
   window.pwMultiIsSelected=function(uid,val){return window._pwMultiState[uid]&&window._pwMultiState[uid].has(val);};
-  window.pwMultiOpen=function(uid){document.getElementById(uid+'_drop').style.display='block';};
-  window.pwMultiFocus=function(uid){document.getElementById(uid+'_input').focus();};
+  window.pwMultiOpen=function(uid){var d=document.getElementById(uid+'_drop');if(d)d.style.display='block';};
+  window.pwMultiFocus=function(uid){var i=document.getElementById(uid+'_input');if(i)i.focus();};
   window.pwMultiFilter=function(uid,q){
     document.querySelectorAll('#'+uid+'_list .pw-mopt').forEach(function(el){
       el.style.display=el.getAttribute('data-label').toLowerCase().includes(q.toLowerCase())?'flex':'none';});
@@ -117,54 +229,65 @@ SELECT_JS = """\
 
 
 def _slugify(path: str) -> str:
-    s = path.strip("/")
-    return s.replace("/", "-") or "index"
+    return (path.strip("/").replace("/", "-")) or "index"
 
 
 def _route_to_file(route: str) -> str:
     return "index.html" if route == "/" else f"{_slugify(route)}.html"
 
 
-def _extract_head_style(html: str):
-    m = re.search(r"<style>(.*?)</style>", html, re.DOTALL)
+def _reset_widget_counters():
+    """Resetea contadores de UID antes de cada render para que HTML y JS coincidan."""
+    try:
+        from martin.widgets import Select, MultiSelect, WordCloud, Map
+
+        Select._id_counter = MultiSelect._id_counter = WordCloud._id_counter = (
+            Map._id_counter
+        ) = 0
+    except Exception:
+        pass
+
+
+def _extract_head_style(html):
+    m = re.search(r"<style[^>]*>(.*?)</style>", html, re.DOTALL)
     if not m:
         return html, ""
     return html[: m.start()] + html[m.end() :], m.group(1).strip()
 
 
-def _extract_inline_scripts(html: str):
-    scripts = []
+def _collect_inline_scripts(html):
+    chunks = []
 
     def rep(m):
-        if "src=" in m.group(1):
+        attrs, body = m.group(1), m.group(2).strip()
+        if "src=" in attrs:
             return m.group(0)
-        body = m.group(2)
-        if "__ping__" in body or "__reload__" in body:
+        if not body or "__ping__" in body or "__reload__" in body:
             return ""
-        scripts.append(body.strip())
+        chunks.append(body)
         return ""
 
     clean = re.sub(r"<script([^>]*)>(.*?)</script>", rep, html, flags=re.DOTALL)
-    return clean, "\n\n".join(scripts)
+    return clean, ";\n\n".join(chunks)
 
 
-def _extract_external_scripts(html: str):
+def _collect_external_scripts(html):
     tags = []
 
     def rep(m):
-        tags.append(m.group(0))
+        tags.append(m.group(0).strip())
         return ""
 
     clean = re.sub(r"<script\s[^>]*src=[^>]*>\s*</script>", rep, html)
     return clean, tags
 
 
-def _extract_external_links(html: str):
+def _collect_external_links(html):
     tags = []
 
     def rep(m):
         if 'href="http' in m.group(0) or "href='http" in m.group(0):
-            tags.append(m.group(0))
+            tags.append(m.group(0).strip())
             return ""
         return m.group(0)
 
@@ -172,9 +295,8 @@ def _extract_external_links(html: str):
     return clean, tags
 
 
-def _extract_inline_styles(html: str):
-    rules = []
-    n = [0]
+def _extract_inline_styles(html):
+    rules, n = [], [0]
 
     def rep(m):
         cls = f"m-{n[0]}"
@@ -186,60 +308,135 @@ def _extract_inline_styles(html: str):
     return clean, "\n".join(rules)
 
 
-def _rewrite_paths(html: str, routes: list) -> str:
-    """
-    Convierte TODAS las rutas absolutas en relativas.
-    Funciona independientemente de la versión de app.py.
-    Cubre: nav, Button(href=), Link(href=), src de assets, url() CSS.
-    """
-    # Mapa de rutas exactas → archivo .html
-    route_map = {r: _route_to_file(r) for r in routes}
-
+def _rewrite_paths(html, route_map):
     def fix_href(m):
         val = m.group(1)
-        # Dejar intactos: externos, anclas, data URIs
         if val.startswith(("http", "//", "#", "data:", "mailto:", "tel:")):
             return m.group(0)
-        # Ya reescrito (termina en .html o es relativo no-ruta)
         if val.endswith(".html") or val.startswith(("css/", "js/", "assets/")):
             return m.group(0)
-        # Ruta exacta del router
         if val in route_map:
             return f'href="{route_map[val]}"'
-        # Ruta absoluta → convertir a .html
         if val.startswith("/"):
             slug = _slugify(val)
             return f'href="{slug or "index"}.html"'
-        # Ruta relativa sin / — dejar como está
         return m.group(0)
 
     html = re.sub(r'href="([^"]*)"', fix_href, html)
-
-    # src="/assets/..." → src="assets/..."
     html = re.sub(r'src="/assets/', 'src="assets/', html)
-    # url() en estilos inline
     html = re.sub(r"url\('/assets/", "url('assets/", html)
     html = re.sub(r'url\("/assets/', 'url("assets/', html)
-
     return html
 
 
+def _build_nav(app, current_route, route_map):
+    """Nav HTML responsivo puro usando clases mn-* del nav.css estático."""
+    if not app._router or len(app._router.paths()) <= 1:
+        return ""
+
+    icon_html = ""
+    for ext in (
+        "icon.png",
+        "icon.svg",
+        "icon.webp",
+        "logo.png",
+        "logo.svg",
+        "logo.webp",
+        "logo.jpg",
+    ):
+        if os.path.exists(os.path.join(app.assets_dir, ext)):
+            icon_html = f'<img src="assets/{ext}" alt="">'
+            break
+
+    home = route_map.get("/", "index.html")
+    logo = f'<a href="{home}" class="mn-logo">{icon_html}<span>{app.title}</span></a>'
+
+    links_html = ""
+    for path in app._router.paths():
+        _, title = app._router.resolve(path)
+        label = title or path.strip("/").capitalize() or "Inicio"
+        href = route_map.get(path, _route_to_file(path))
+        act = ' class="active"' if path == current_route else ""
+        links_html += f'<a href="{href}"{act}>{label}</a>'
+
+    burger = '<button class="mn-burger" aria-label="Menú"><span></span><span></span><span></span></button>'
+    drawer = f'<div class="mn-drawer">{links_html}</div>'
+
+    return (
+        f'<nav class="martin-nav">'
+        f'{logo}<div class="mn-links">{links_html}</div>{burger}{drawer}'
+        f"</nav>"
+    )
+
+
+def _assemble_page(raw_html, app, current_route, route_map, slug):
+    """
+    Procesa el HTML crudo → (html_final, page_css, page_js).
+    Pipeline garantizado:
+      1. Quitar live-reload
+      2. Sustituir nav inline por nav responsivo de clases
+      3. Extraer <style> global
+      4. Extraer <script> inline → page_js
+      5. Subir CDN <script src> al head (sin defer = bloquea = Leaflet listo antes que widgets)
+      6. Subir CDN <link> al head
+      7. Convertir style="…" → class="m-N" → page_css
+      8. Reescribir rutas absolutas → relativas
+      9. Inyectar assets en <head>
+     10. Page JS al final del <body> sin defer
+    """
+    html = re.sub(
+        r"<script[^>]*>.*?/__ping__.*?</script>", "", raw_html, flags=re.DOTALL
+    )
+
+    nav = _build_nav(app, current_route, route_map)
+    if nav:
+        html = re.sub(r"<nav\b[^>]*>.*?</nav>", nav, html, count=1, flags=re.DOTALL)
+
+    html, css_global = _extract_head_style(html)
+    html, js_inline = _collect_inline_scripts(html)
+    html, ext_scripts = _collect_external_scripts(html)
+    html, ext_links = _collect_external_links(html)
+    html, css_inline = _extract_inline_styles(html)
+    html = _rewrite_paths(html, route_map)
+
+    # Head: base → nav → page → CDN CSS → CDN JS (blocking) → select defer → nav defer
+    head = (
+        f'  <link rel="stylesheet" href="css/base.css">\n'
+        f'  <link rel="stylesheet" href="css/nav.css">\n'
+        f'  <link rel="stylesheet" href="css/{slug}.css">\n'
+        + "".join(f"  {t}\n" for t in ext_links)
+        + "".join(f"  {t}\n" for t in ext_scripts)
+        + f'  <script src="js/select.js" defer></script>\n'
+        + f'  <script src="js/nav.js" defer></script>\n'
+    )
+    html = html.replace("</head>", head + "</head>", 1)
+
+    page_js = ""
+    if js_inline.strip():
+        page_js = f"/* {slug}.js */\n{js_inline.strip()}"
+        html = html.replace(
+            "</body>", f'  <script src="js/{slug}.js"></script>\n</body>', 1
+        )
+
+    page_css = f"/* {slug}.css */\n\n"
+    if css_global:
+        page_css += f"/* global */\n{css_global}\n\n"
+    if css_inline:
+        page_css += f"/* inline */\n{css_inline}\n"
+
+    return html, page_css, page_js
+
+
 # ══════════════════════════════════════════════════════════
-# EXPORT PRINCIPAL
+# ENTRY POINT
 # ══════════════════════════════════════════════════════════
 
 
 def export_split(app, out_dir: str = "dist", assets_src: str = "assets"):
-    """
-    Exporta el sitio Martin a HTML estático en out_dir/.
-    Los archivos generados funcionan:
-      - Servidos desde cualquier servidor web estático
-      - Abiertos directamente desde el sistema de archivos (file://)
-    """
+    """Exporta el sitio Martin a HTML estático con CSS/JS separados."""
     out = Path(out_dir)
     css_dir = out / "css"
     js_dir = out / "js"
-
     out.mkdir(parents=True, exist_ok=True)
     css_dir.mkdir(exist_ok=True)
     js_dir.mkdir(exist_ok=True)
@@ -249,119 +446,45 @@ def export_split(app, out_dir: str = "dist", assets_src: str = "assets"):
     (js_dir / "nav.js").write_text(NAV_JS, encoding="utf-8")
     (js_dir / "select.js").write_text(SELECT_JS, encoding="utf-8")
 
-    # Copiar assets del proyecto (tiene prioridad sobre los del paquete)
-    dst_assets = out / "assets"
-    dst_assets.mkdir(exist_ok=True)
-
-    # 1. Copiar assets del paquete martin (icono por defecto, etc.)
+    # Assets: paquete primero, proyecto encima
+    dst = out / "assets"
+    dst.mkdir(exist_ok=True)
     pkg_assets = Path(__file__).parent / "assets"
     if pkg_assets.exists():
         for f in pkg_assets.iterdir():
-            if f.is_file():
-                dst_file = dst_assets / f.name
-                if not dst_file.exists():  # no sobreescribir los del proyecto
-                    shutil.copy2(f, dst_file)
-
-    # 2. Copiar assets del proyecto (sobreescriben los del paquete si hay conflicto)
+            if f.is_file() and not (dst / f.name).exists():
+                shutil.copy2(f, dst / f.name)
     if os.path.exists(assets_src):
         for item in Path(assets_src).iterdir():
             if item.is_file():
-                shutil.copy2(item, dst_assets / item.name)
+                shutil.copy2(item, dst / item.name)
             elif item.is_dir():
-                sub_dst = dst_assets / item.name
-                if sub_dst.exists():
-                    shutil.rmtree(sub_dst)
-                shutil.copytree(item, sub_dst)
+                sub = dst / item.name
+                if sub.exists():
+                    shutil.rmtree(sub)
+                shutil.copytree(item, sub)
         print(f"  📁  assets/ copiado")
     elif pkg_assets.exists():
         print(f"  📁  assets/ (paquete) copiado")
 
     routes = app._router.paths() if app._router else ["/"]
-
-    # Activar modo export: nav genera hrefs relativos (.html) directamente
+    route_map = {r: _route_to_file(r) for r in routes}
     app._export_mode = True
 
+    print()
     for route in routes:
         slug = _slugify(route)
-        out_file = _route_to_file(route)
-        html = app._render(route)
-
-        # 1. Quitar live reload
-        html = re.sub(
-            r"<script[^>]*>.*?/__ping__.*?</script>", "", html, flags=re.DOTALL
-        )
-
-        # 2. Extraer <style> del head
-        html, css_global = _extract_head_style(html)
-
-        # 3. Extraer JS inline del body
-        html, js_inline = _extract_inline_scripts(html)
-
-        # 4. Extraer <script src=...> externos del body → subirlos al head
-        html, ext_scripts = _extract_external_scripts(html)
-
-        # 5. Extraer <link href="http..."> externos del body → subirlos al head
-        html, ext_links = _extract_external_links(html)
-
-        # 6. Convertir style="..." → class="m-N"
-        html, css_inline = _extract_inline_styles(html)
-
-        # 7. Marcar <nav> con martin-nav (tiene class="m-N" del paso anterior)
-        html = re.sub(
-            r'<nav\s+class="([^"]*)"',
-            lambda m: f'<nav class="martin-nav {m.group(1)}"',
-            html,
-            count=1,
-        )
-        if '<nav class="martin-nav' not in html:
-            html = html.replace("<nav ", '<nav class="martin-nav" ', 1)
-
-        # 8. Reescribir TODAS las rutas a relativas (fix file://)
-        html = _rewrite_paths(html, routes)
-
-        # 9. CSS de la página
-        page_css = f"/* {slug}.css */\n\n"
-        if css_global:
-            page_css += f"/* global */\n{css_global}\n\n"
-        if css_inline:
-            page_css += f"/* inline */\n{css_inline}\n"
-
-        # 10. JS de la página
-        # No filtramos nada — select.js ya tiene guard if(!window._pwSelectInit)
-        # por lo que cargar el JS de instancia (MultiSelect state) no duplica nada.
-        page_js = ""
-        if js_inline.strip():
-            page_js = f"/* {slug}.js */\n{js_inline.strip()}"
-
-        # 11. Inyectar en <head>:
-        #     CSS propio → CSS externo → JS externo (sin defer) → JS diferido
-        head_inject = (
-            f'  <link rel="stylesheet" href="css/base.css">\n'
-            f'  <link rel="stylesheet" href="css/nav.css">\n'
-            f'  <link rel="stylesheet" href="css/{slug}.css">\n'
-            + "".join(f"  {t}\n" for t in ext_links)
-            + "".join(f"  {t}\n" for t in ext_scripts)
-            + f'  <script src="js/select.js" defer></script>\n'
-            + f'  <script src="js/nav.js" defer></script>\n'
-        )
-        html = html.replace("</head>", head_inject + "</head>", 1)
-
-        # El JS de la página va al final del body (sin defer)
-        # para garantizar que el DOM y los estilos ya están listos
-        # cuando se ejecutan widgets como WordCloud y Map
-        if page_js:
-            html = html.replace(
-                "</body>", f'  <script src="js/{slug}.js"></script>\n</body>', 1
-            )
-
-        # 12. Escribir
-        (out / out_file).write_text(html, encoding="utf-8")
+        _reset_widget_counters()  # IDs siempre desde 1
+        raw_html = app._render(route)
+        html, page_css, page_js = _assemble_page(raw_html, app, route, route_map, slug)
+        (out / route_map[route]).write_text(html, encoding="utf-8")
         (css_dir / f"{slug}.css").write_text(page_css, encoding="utf-8")
         if page_js:
             (js_dir / f"{slug}.js").write_text(page_js, encoding="utf-8")
-
         note = f" + js/{slug}.js" if page_js else ""
-        print(f"  📄  {out_file}  →  css/{slug}.css{note}")
+        print(f"  📄  {route_map[route]}  →  css/{slug}.css{note}")
 
     print(f"\n  ✅  Exportado en '{out_dir}/'")
-    print(f"      {len(routes)} página(s) · base.css · nav.css · select.js · nav.js")
+    print(
+        f"      {len(routes)} página(s)  ·  base.css  ·  nav.css  ·  select.js  ·  nav.js"
+    )
