@@ -609,12 +609,9 @@ def cmd_export(args):
 
         export_split(app, out_dir=out_dir, assets_src="assets")
     else:
-        if hasattr(mod, "router"):
-            app.export_all(out_dir=out_dir)
-        else:
-            out_path = Path(out_dir) / "index.html"
-            out_path.parent.mkdir(parents=True, exist_ok=True)
-            app.export(str(out_path))
+        from martin.exporter import export_html
+
+        export_html(app, out_dir=out_dir)
 
 
 def cmd_version(args):

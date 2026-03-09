@@ -488,3 +488,35 @@ def export_split(app, out_dir: str = "dist", assets_src: str = "assets"):
     print(
         f"      {len(routes)} página(s)  ·  base.css  ·  nav.css  ·  select.js  ·  nav.js"
     )
+
+
+def export_html(app, out_dir: str = "dist"):
+    """
+    Exporta el sitio como HTML autocontenido (un archivo por página).
+    Aplica reescritura de rutas para que los hrefs sean relativos (.html).
+    """
+    import re
+    from pathlib import Path
+
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+
+    routes = app._router.paths() if app._router else ["/"]
+    route_map = {r: _route_to_file(r) for r in routes}
+    app._export_mode = True
+
+    print()
+    for route in routes:
+        slug = _slugify(route)
+        _reset_widget_counters()
+        raw = app._render(route)
+        # Quitar live-reload
+        raw = re.sub(r"<script[^>]*>.*?/__ping__.*?</script>", "", raw, flags=re.DOTALL)
+        # Reescribir rutas absolutas → relativas
+        raw = _rewrite_paths(raw, route_map)
+        fname = route_map[route]
+        (out / fname).write_text(raw, encoding="utf-8")
+        print(f"  📄  {fname}")
+
+    print(f"\n  ✅  Exportado en '{out_dir}/'")
+    print(f"      {len(routes)} página(s)")
