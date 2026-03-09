@@ -145,7 +145,7 @@ HTML = r"""<!DOCTYPE html>
         ]
     )
 
-<span class="cls">App</span>(build=build, title=<span class="str">"Mi App"</span>).run() <span class="cm"># → localhost:309</span>
+<span class="cls">App</span>(build=build, title=<span class="str">"Mi App"</span>).run() <span class="cm"># → localhost:3908</span>
       </div>
     </div>
   </div>
@@ -154,7 +154,7 @@ HTML = r"""<!DOCTYPE html>
     <div class="stat"><div class="stat-val gradient-text">0</div><div class="stat-label">líneas de HTML escritas</div></div>
     <div class="stat"><div class="stat-val gradient-text">0</div><div class="stat-label">ficheros CSS</div></div>
     <div class="stat"><div class="stat-val gradient-text">100%</div><div class="stat-label">Python puro</div></div>
-    <div class="stat"><div class="stat-val gradient-text">309</div><div class="stat-label">puerto por defecto ♥</div></div>
+    <div class="stat"><div class="stat-val gradient-text">3908</div><div class="stat-label">puerto por defecto ♥</div></div>
   </div>
 
   <section>
@@ -225,13 +225,13 @@ HTML = r"""<!DOCTYPE html>
     </div>
   </section>
 
-  <footer>Hecho con 💜 en Python &nbsp;·&nbsp; Puerto <span>309</span> &nbsp;·&nbsp; 03 de septiembre</footer>
+  <footer>Hecho con 💜 en Python &nbsp;·&nbsp; Puerto <span>3908</span> &nbsp;·&nbsp; 03 de septiembre</footer>
 </div>
 </body>
 </html>"""
 
 if __name__ == "__main__":
-    port = 309
+    port = 3908
 
     class Handler(http.server.BaseHTTPRequestHandler):
         def do_GET(self):

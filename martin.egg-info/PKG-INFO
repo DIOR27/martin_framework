@@ -31,15 +31,15 @@ martin run
 
 ## CLI
 
-| Comando                              | Descripción                      |
-| ------------------------------------ | -------------------------------- |
-| `martin new <nombre>`                | Crea un nuevo proyecto           |
-| `martin run`                         | Inicia servidor en localhost:309 |
-| `martin run --port 8080`             | Puerto personalizado             |
-| `martin run --no-reload`             | Sin hot reload                   |
-| `martin export`                      | Exporta a `dist/index.html`      |
-| `martin export --out web/index.html` | Exporta a ruta personalizada     |
-| `martin version`                     | Muestra la versión               |
+| Comando                              | Descripción                       |
+| ------------------------------------ | --------------------------------- |
+| `martin new <nombre>`                | Crea un nuevo proyecto            |
+| `martin run`                         | Inicia servidor en localhost:3908 |
+| `martin run --port 8080`             | Puerto personalizado              |
+| `martin run --no-reload`             | Sin hot reload                    |
+| `martin export`                      | Exporta a `dist/index.html`       |
+| `martin export --out web/index.html` | Exporta a ruta personalizada      |
+| `martin version`                     | Muestra la versión                |
 
 ## Ejemplo
 

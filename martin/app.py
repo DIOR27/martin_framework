@@ -280,11 +280,60 @@ class App:
 
     # ── Nav ───────────────────────────────────────────────────────────────────
 
+    _NAV_CSS = """<style id="_martin_nav_css">
+nav.martin-nav{display:flex;align-items:center;padding:0 24px;height:56px;
+  background:var(--nav-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--nav-border);position:sticky;top:0;z-index:200;}
+nav.martin-nav .mn-logo{display:flex;align-items:center;gap:8px;text-decoration:none;
+  font-weight:800;font-size:17px;letter-spacing:-0.3px;color:var(--text);
+  flex-shrink:0;margin-right:auto;}
+nav.martin-nav .mn-logo img{height:28px;width:28px;object-fit:contain;border-radius:6px;}
+nav.martin-nav .mn-links{display:flex;align-items:center;gap:4px;}
+nav.martin-nav .mn-links a{text-decoration:none;font-size:14px;font-weight:500;
+  color:var(--nav-text);padding:6px 12px;border-radius:8px;transition:color .2s,background .2s;}
+nav.martin-nav .mn-links a:hover{color:var(--text);background:rgba(128,128,128,0.08);}
+nav.martin-nav .mn-links a.mn-active{color:var(--accent);font-weight:600;background:rgba(99,102,241,0.10);}
+nav.martin-nav .mn-burger{display:none;flex-direction:column;justify-content:center;
+  align-items:center;gap:5px;width:40px;height:40px;background:none;border:none;
+  cursor:pointer;padding:4px;border-radius:8px;transition:background .2s;flex-shrink:0;}
+nav.martin-nav .mn-burger:hover{background:rgba(128,128,128,0.1);}
+nav.martin-nav .mn-burger span{display:block;width:22px;height:2px;background:var(--text);
+  border-radius:2px;transition:transform .25s,opacity .25s;}
+nav.martin-nav.mn-open .mn-burger span:nth-child(1){transform:translateY(7px) rotate(45deg);}
+nav.martin-nav.mn-open .mn-burger span:nth-child(2){opacity:0;transform:scaleX(0);}
+nav.martin-nav.mn-open .mn-burger span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
+nav.martin-nav .mn-drawer{display:none;position:fixed;top:56px;left:0;right:0;
+  background:var(--nav-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--nav-border);padding:12px 16px 16px;
+  flex-direction:column;gap:4px;z-index:199;box-shadow:0 8px 32px rgba(0,0,0,0.15);}
+nav.martin-nav.mn-open .mn-drawer{display:flex;}
+nav.martin-nav .mn-drawer a{text-decoration:none;font-size:15px;font-weight:500;
+  color:var(--nav-text);padding:10px 14px;border-radius:10px;transition:color .15s,background .15s;}
+nav.martin-nav .mn-drawer a:hover{color:var(--text);background:rgba(128,128,128,0.08);}
+nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;background:rgba(99,102,241,0.10);}
+@media(max-width:640px){
+  nav.martin-nav .mn-links{display:none;}
+  nav.martin-nav .mn-burger{display:flex;}
+}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  var nav=document.querySelector('nav.martin-nav');
+  var burger=nav&&nav.querySelector('.mn-burger');
+  if(!burger)return;
+  burger.addEventListener('click',function(e){e.stopPropagation();nav.classList.toggle('mn-open');});
+  var drawer=nav.querySelector('.mn-drawer');
+  if(drawer)drawer.querySelectorAll('a').forEach(function(a){
+    a.addEventListener('click',function(){nav.classList.remove('mn-open');});
+  });
+  document.addEventListener('click',function(e){if(!nav.contains(e.target))nav.classList.remove('mn-open');});
+});
+</script>"""
+
     def _nav_html(self, current_path):
         if not self._router or len(self._router.paths()) <= 1:
             return ""
 
-        # Buscar icono en assets/ — icon.* tiene prioridad, luego logo.*
         icon_html = ""
         for name_ext in (
             "icon.png",
@@ -297,49 +346,35 @@ class App:
         ):
             if os.path.exists(os.path.join(self.assets_dir, name_ext)):
                 _pfx = "assets/" if self._export_mode else "/assets/"
-                icon_html = (
-                    f'<img src="{_pfx}{name_ext}" '
-                    f'style="height:28px;width:28px;object-fit:contain;border-radius:6px;flex-shrink:0">'
-                )
+                icon_html = f'<img src="{_pfx}{name_ext}" alt="">'
                 break
 
-        # Siempre muestra título; con icono a la izquierda si existe
-        inner = icon_html
-        inner += (
-            f'<span style="font-weight:800;font-size:17px;letter-spacing:-0.3px;'
-            f'color:var(--text)">{self.title}</span>'
-        )
         _home_href = "index.html" if self._export_mode else "/"
-        logo_html = (
-            f'<a href="{_home_href}" style="display:flex;align-items:center;gap:8px;'
-            f'text-decoration:none;margin-right:16px;flex-shrink:0">{inner}</a>'
-        )
+        logo_html = f'<a href="{_home_href}" class="mn-logo">{icon_html}<span>{self.title}</span></a>'
 
-        links = []
+        links_html = ""
         for path in self._router.paths():
             _, title = self._router.resolve(path)
             label = title or path.strip("/").capitalize() or "Inicio"
             is_active = path == current_path
-            color = (
-                "color:var(--accent);font-weight:600"
-                if is_active
-                else "color:var(--nav-text)"
-            )
-            links.append(
-                f'<a href="{(path.lstrip("/") + ".html").replace("//","/") if self._export_mode and path != "/" else ("index.html" if self._export_mode else path)}"'
-                f' style="text-decoration:none;font-size:14px;'
-                f'font-weight:500;transition:color 0.2s;{color}"'
-                f" onmouseover=\"this.style.color='var(--text)'\""
-                f' onmouseout="this.style.color=\'{("var(--accent)" if is_active else "var(--nav-text)")}\'">{ label}</a>'
-            )
+            act_cls = ' class="mn-active"' if is_active else ""
+            if self._export_mode:
+                href = "index.html" if path == "/" else (path.lstrip("/") + ".html")
+            else:
+                href = path
+            links_html += f'<a href="{href}"{act_cls}>{label}</a>'
+
+        burger = '<button class="mn-burger" aria-label="Menú"><span></span><span></span><span></span></button>'
+        drawer = f'<div class="mn-drawer">{links_html}</div>'
 
         return (
-            f'<nav style="display:flex;align-items:center;gap:28px;padding:0 32px;'
-            f"height:56px;background:var(--nav-bg);"
-            f"backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);"
-            f"border-bottom:1px solid var(--nav-border);"
-            f'position:sticky;top:0;z-index:100">'
-            f'{logo_html}{"".join(links)}</nav>'
+            self._NAV_CSS
+            + f'<nav class="martin-nav">'
+            + logo_html
+            + f'<div class="mn-links">{links_html}</div>'
+            + burger
+            + drawer
+            + "</nav>"
         )
 
     # ── Render header/footer ──────────────────────────────────────────────────

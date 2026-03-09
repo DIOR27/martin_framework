@@ -145,7 +145,7 @@ nav.martin-nav .mn-drawer a.active { color: var(--accent); font-weight: 600; bac
 
 NAV_JS = """\
 /* Martin — nav.js */
-(function () {
+document.addEventListener('DOMContentLoaded', function () {
   var file = window.location.pathname.split('/').pop() || 'index.html';
   if (!file.endsWith('.html')) file = 'index.html';
   document.querySelectorAll('nav.martin-nav a').forEach(function (a) {
@@ -169,7 +169,7 @@ NAV_JS = """\
       if (!nav.contains(e.target)) nav.classList.remove('mn-open');
     });
   }
-})();
+});
 """
 
 SELECT_JS = """\
@@ -387,6 +387,10 @@ def _assemble_page(raw_html, app, current_route, route_map, slug):
     html = re.sub(
         r"<script[^>]*>.*?/__ping__.*?</script>", "", raw_html, flags=re.DOTALL
     )
+
+    # Quitar el <style>+<script> inline del nav (app.py los inyecta para dev/html);
+    # en split mode el nav.css estático los sustituye.
+    html = re.sub(r'<style id="_martin_nav_css">.*?</style>', "", html, flags=re.DOTALL)
 
     nav = _build_nav(app, current_route, route_map)
     if nav:
