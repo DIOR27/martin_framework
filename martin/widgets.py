@@ -1599,3 +1599,307 @@ class WordCloud(Widget):
             )
             + "})()</script>"
         )
+
+
+class Map(Widget):
+    """
+    Mapa interactivo basado en Leaflet + OpenStreetMap. Sin API key.
+
+    Map(center=(40.4168, -3.7038), zoom=13, height=480)
+
+    Parámetros:
+        center          (lat, lon) — centro del mapa. Auto si hay markers.
+        zoom            int        — nivel de zoom 1-19 (default 13)
+        height          int        — alto en px (default 480)
+        markers         list[dict] — lista de marcadores
+        search          bool       — barra de búsqueda Nominatim (default True)
+        geolocation     bool       — botón mi-ubicación (default True)
+        route           bool       — línea entre markers en orden (default False)
+        route_color     str        — color de la ruta (default "#6366f1")
+        route_weight    int        — grosor de la ruta px (default 4)
+        tile            str        — "osm"|"dark"|"topo"|"cycle" (default "osm")
+        on_marker_click str        — JS al click en marker. Variable: `marker` dict.
+
+    Marcador mínimo:
+        {"lat": 0.0, "lon": 0.0}
+
+    Marcador completo:
+        {"lat": 0.0, "lon": 0.0, "title": "Nombre", "popup": "HTML",
+         "color": "#6366f1", "icon": "🏠"}
+    """
+
+    _id_counter = 0
+
+    _TILES = {
+        "osm": (
+            "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            "&copy; OpenStreetMap contributors",
+        ),
+        "dark": (
+            "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png",
+            "&copy; Stadia Maps, OpenStreetMap contributors",
+        ),
+        "topo": (
+            "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+            "&copy; OpenTopoMap contributors",
+        ),
+        "cycle": (
+            "https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png",
+            "&copy; CyclOSM contributors",
+        ),
+    }
+
+    def __init__(
+        self,
+        center=None,
+        zoom=13,
+        height=480,
+        markers=None,
+        search=True,
+        geolocation=True,
+        route=False,
+        route_color="#6366f1",
+        route_weight=4,
+        tile="osm",
+        on_marker_click=None,
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.center = center
+        self.zoom = zoom
+        self.height = height
+        self.markers = markers or []
+        self.search = search
+        self.geolocation = geolocation
+        self.route = route
+        self.route_color = route_color
+        self.route_weight = route_weight
+        self.tile = tile
+        self.on_marker_click = on_marker_click
+        Map._id_counter += 1
+        self.uid = "map_" + str(Map._id_counter)
+
+    def _build_js(self):
+        import json as _j
+
+        uid = self.uid
+        J = _j.dumps
+
+        tile_url, tile_attr = self._TILES.get(self.tile, self._TILES["osm"])
+        if self.tile not in self._TILES:
+            tile_url, tile_attr = self.tile, "&copy; Map contributors"
+
+        # center
+        if self.center:
+            center_js = J(list(self.center))
+        elif self.markers:
+            lats = [m["lat"] for m in self.markers if "lat" in m]
+            lons = [m["lon"] for m in self.markers if "lon" in m]
+            center_js = (
+                J([sum(lats) / len(lats), sum(lons) / len(lons)]) if lats else "[0,0]"
+            )
+        else:
+            center_js = "[40.4168,-3.7038]"
+
+        # ── icon helper (builds DOM to avoid escaping hell) ──────────────────
+        icon_fn = (
+            "function _mkIcon(color,icon){"
+            "var d=document.createElement('div');"
+            "d.style.cssText='width:32px;height:32px;background:'+color+';'"
+            "+'border-radius:50% 50% 50% 0;border:3px solid white;'"
+            "+'box-shadow:0 2px 8px rgba(0,0,0,0.3);transform:rotate(-45deg);'"
+            "+'display:flex;align-items:center;justify-content:center';"
+            "var s=document.createElement('span');"
+            "s.style.cssText='transform:rotate(45deg);font-size:14px';"
+            "s.textContent=icon;"
+            "d.appendChild(s);"
+            "return d.outerHTML;"
+            "}"
+        )
+
+        # ── search ───────────────────────────────────────────────────────────
+        search_js = ""
+        if self.search:
+            search_js = (
+                "var _sq=document.getElementById(" + J(uid + "_q") + ");"
+                "var _sb=document.getElementById(" + J(uid + "_btn") + ");"
+                "var _sm=null;"
+                "function _doSearch(){"
+                "var q=_sq.value.trim();if(!q)return;"
+                "_sb.textContent='\u23f3';"
+                "fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='"
+                "+encodeURIComponent(q),{headers:{'Accept-Language':'es,en'}})"
+                ".then(function(r){return r.json();})"
+                ".then(function(data){"
+                "_sb.textContent='\U0001f50d';"
+                "if(!data.length){alert('No se encontr\u00f3: '+q);return;}"
+                "var r=data[0];"
+                "var lat=parseFloat(r.lat),lon=parseFloat(r.lon);"
+                "if(_sm)_map.removeLayer(_sm);"
+                "var name=r.display_name.split(',')[0];"
+                "_sm=L.marker([lat,lon])"
+                ".addTo(_map)"
+                ".bindPopup('<b>'+name+'</b><br><small>'+r.display_name+'</small>')"
+                ".openPopup();"
+                "_map.flyTo([lat,lon],15,{duration:1.2});"
+                "})"
+                ".catch(function(){_sb.textContent='\U0001f50d';alert('Error al buscar.');});"
+                "}"
+                "_sb.addEventListener('click',_doSearch);"
+                "_sq.addEventListener('keydown',function(e){if(e.key==='Enter')_doSearch();});"
+            )
+
+        # ── geolocation ──────────────────────────────────────────────────────
+        geo_js = ""
+        if self.geolocation:
+            geo_js = (
+                "var _gb=document.getElementById(" + J(uid + "_geo") + ");"
+                "var _gm=null;"
+                "_gb.addEventListener('click',function(){"
+                "if(!navigator.geolocation){alert('Geolocalizaci\u00f3n no disponible.');return;}"
+                "_gb.textContent='\u23f3';"
+                "navigator.geolocation.getCurrentPosition(function(pos){"
+                "var lat=pos.coords.latitude,lon=pos.coords.longitude;"
+                "if(_gm)_map.removeLayer(_gm);"
+                "_gm=L.circleMarker([lat,lon],"
+                "{radius:10,fillColor:'#6366f1',color:'white',weight:3,fillOpacity:0.9})"
+                ".addTo(_map).bindPopup('<b>Tu ubicaci\u00f3n</b>').openPopup();"
+                "_map.flyTo([lat,lon],16,{duration:1.2});"
+                "_gb.textContent='\U0001f3af';"
+                "},function(){"
+                "alert('No se pudo obtener la ubicaci\u00f3n.');"
+                "_gb.textContent='\U0001f3af';"
+                "});"
+                "});"
+            )
+
+        # ── click handler ────────────────────────────────────────────────────
+        click_fn = ""
+        click_bind = ""
+        if self.on_marker_click:
+            click_fn = "function _onMk(marker){" + self.on_marker_click + "}"
+            click_bind = "_mk.on('click',function(){_onMk(m);});"
+
+        # ── route ─────────────────────────────────────────────────────────────
+        route_js = ""
+        if self.route:
+            route_js = (
+                "if(_lls.length>1){"
+                "L.polyline(_lls,{"
+                "color:" + J(self.route_color) + ","
+                "weight:" + str(self.route_weight) + ","
+                "opacity:0.85,lineJoin:'round'"
+                "}).addTo(_map);"
+                "}"
+            )
+
+        # ── autofit ───────────────────────────────────────────────────────────
+        autofit = ""
+        if not self.center and len(self.markers) > 1:
+            autofit = "if(_lls.length>1){_map.fitBounds(_lls,{padding:[40,40]});}"
+
+        return (
+            "(function _im(){"
+            "if(typeof L==='undefined'){setTimeout(_im,50);return;}"
+            "var el=document.getElementById(" + J(uid) + ");"
+            "if(!el||el._mi)return;"
+            "el._mi=true;"
+            "var _map=L.map(el,{zoomControl:true}).setView("
+            + center_js
+            + ","
+            + str(self.zoom)
+            + ");"
+            "L.tileLayer("
+            + J(tile_url)
+            + ",{attribution:"
+            + J(tile_attr)
+            + ",maxZoom:19}).addTo(_map);"
+            + icon_fn
+            + click_fn
+            + "var _markers="
+            + J(self.markers)
+            + ";"
+            "var _lls=[];"
+            "_markers.forEach(function(m){"
+            "var color=m.color||'#6366f1';"
+            "var icon=m.icon||'';"
+            "var _lIcon=L.divIcon({"
+            "html:_mkIcon(color,icon),"
+            "className:'',iconSize:[32,32],iconAnchor:[16,32],popupAnchor:[0,-36]"
+            "});"
+            "var _mk=L.marker([m.lat,m.lon],{icon:_lIcon}).addTo(_map);"
+            "var _ph='<b>'+(m.title||'')+'</b>';"
+            "if(m.popup)_ph+='<br>'+m.popup;"
+            "if(m.title||m.popup)_mk.bindPopup(_ph);"
+            + click_bind
+            + "_lls.push([m.lat,m.lon]);"
+            "});" + route_js + autofit + search_js + geo_js + "})();"
+        )
+
+    def render(self):
+        uid = self.uid
+        height = str(self.height)
+        extra = self._resolve_props()
+
+        wrapper_style = (
+            "position:relative;border-radius:12px;overflow:hidden;"
+            "width:100%;height:" + height + "px"
+        )
+        if extra:
+            wrapper_style += ";" + extra
+
+        search_html = ""
+        if self.search:
+            search_html = (
+                '<div style="position:absolute;top:10px;left:50%;'
+                "transform:translateX(-50%);z-index:1000;"
+                'display:flex;gap:6px;width:min(360px,80%)">'
+                '<input id="' + uid + '_q" type="text"'
+                ' placeholder="Buscar lugar..." style="flex:1;padding:8px 12px;'
+                "border:none;border-radius:8px;font-size:14px;color:#111;"
+                'box-shadow:0 2px 12px rgba(0,0,0,0.15);outline:none"/>'
+                '<button id="' + uid + '_btn" style="padding:8px 14px;'
+                "background:#6366f1;color:white;border:none;border-radius:8px;"
+                "cursor:pointer;font-size:18px;line-height:1;"
+                'box-shadow:0 2px 12px rgba(0,0,0,0.15)">&#128269;</button>'
+                "</div>"
+            )
+
+        geo_html = ""
+        if self.geolocation:
+            geo_html = (
+                '<button id="' + uid + '_geo" title="Mi ubicaci\u00f3n" style="'
+                "position:absolute;bottom:80px;right:10px;z-index:1000;"
+                "width:34px;height:34px;background:white;"
+                "border:2px solid rgba(0,0,0,0.2);border-radius:6px;cursor:pointer;"
+                "font-size:18px;line-height:1;"
+                "display:flex;align-items:center;justify-content:center;"
+                'box-shadow:0 1px 5px rgba(0,0,0,0.2)">&#127919;</button>'
+            )
+
+        leaflet_css = (
+            '<link rel="stylesheet" '
+            'href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" '
+            'crossorigin=""/>'
+        )
+        leaflet_js_tag = (
+            '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" '
+            'crossorigin=""></script>'
+        )
+
+        return (
+            leaflet_css
+            + '<div style="'
+            + wrapper_style
+            + '">'
+            + '<div id="'
+            + uid
+            + '" style="width:100%;height:100%"></div>'
+            + search_html
+            + geo_html
+            + "</div>"
+            + leaflet_js_tag
+            + "<script>"
+            + self._build_js()
+            + "</script>"
+        )

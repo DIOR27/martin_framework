@@ -53,6 +53,7 @@ from .widgets import (
     Ref,
     ResultBox,
     WordCloud,
+    Map,
 )
 
 __all__ = [

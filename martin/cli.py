@@ -214,6 +214,7 @@ PAGE_COMPONENTS = """\
 from martin import (
     Column, Row, Divider, Heading, Text, Badge, Icon,
     Button, TextField, Select, MultiSelect, Checkbox,
+    WordCloud, Map,
     Border, Shadow, TextStyle, Glass, GradientText, MeshBackground, Colors,
 )
 
@@ -294,6 +295,53 @@ def components():
                     Heading("Rose Gold", level=3, style=[GradientText.rose_gold(),
                             TextStyle(size=28, weight="800")]),
                 ]),
+            ]),
+
+            _section("WordCloud", [
+                Text(
+                    "Nube de palabras interactiva. Hover para resaltar, click para interactuar.",
+                    style=TextStyle(size=13, color="var(--text-muted)", line_height=1.6),
+                ),
+                WordCloud(
+                    words={
+                        "Python": 10, "Martin": 9, "Web": 7, "Widgets": 8,
+                        "OpenSource": 6, "Backend": 5, "Frontend": 6,
+                        "Hot Reload": 4, "Router": 4, "Estilos": 5,
+                        "Export": 3, "API": 4, "Flask": 3, "HTML": 2,
+                    },
+                    width=640, height=240,
+                    min_size=13, max_size=58,
+                    on_click="alert(word + ' \u00b7 peso: ' + weight)",
+                ),
+            ]),
+
+            _section("Map", [
+                Text(
+                    "Mapa interactivo con Leaflet + OpenStreetMap. "
+                    "Busqueda, geolocalizacion y rutas incluidas.",
+                    style=TextStyle(size=13, color="var(--text-muted)", line_height=1.6),
+                ),
+                Map(
+                    zoom=5,
+                    height=420,
+                    route=True,
+                    route_color="#818cf8",
+                    route_weight=3,
+                    search=True,
+                    geolocation=True,
+                    tile="osm",
+                    markers=[
+                        {"lat": 40.4168, "lon": -3.7038, "title": "Madrid",
+                         "popup": "Capital de Espana", "icon": "\U0001f3db\ufe0f", "color": "#6366f1"},
+                        {"lat": 41.3851, "lon":  2.1734, "title": "Barcelona",
+                         "popup": "Ciudad Condal",     "icon": "\U0001f3d6\ufe0f", "color": "#34d399"},
+                        {"lat": 37.3886, "lon": -5.9823, "title": "Sevilla",
+                         "popup": "La ciudad de la luz","icon": "\U0001f338", "color": "#fb923c"},
+                        {"lat": 43.2630, "lon": -2.9350, "title": "Bilbao",
+                         "popup": "Capital del Pais Vasco","icon": "\U0001f3d4\ufe0f", "color": "#f472b6"},
+                    ],
+                    on_marker_click="alert('\u2192 ' + marker.title)",
+                ),
             ]),
 
             Divider(color="var(--border)"),
