@@ -54,6 +54,8 @@ from .widgets import (
     ResultBox,
     WordCloud,
     Map,
+    Timeline,
+    TimelineItem,
 )
 
 __all__ = [
@@ -103,4 +105,6 @@ __all__ = [
     "Avatar",
     "Raw",
     "ThemeToggle",
+    "Timeline",
+    "TimelineItem",
 ]

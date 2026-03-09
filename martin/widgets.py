@@ -1908,3 +1908,195 @@ class Map(Widget):
             + self._build_js()
             + "</script>"
         )
+
+
+class Timeline(Widget):
+    """
+    Widget de línea de tiempo vertical.
+
+    Uso básico:
+        Timeline(items=[
+            TimelineItem(
+                title="Lanzamiento v1.0",
+                date="Enero 2024",
+                description="Primera versión pública del framework.",
+                icon="🚀",
+                color="#6366f1",
+            ),
+            TimelineItem(
+                title="Nuevo widget Map",
+                date="Marzo 2024",
+                description="Integración con Leaflet y OpenStreetMap.",
+                image="/assets/map.png",
+                icon="🗺️",
+                color="#34d399",
+            ),
+        ])
+
+    Opciones Timeline:
+        items       list[TimelineItem]   elementos de la línea de tiempo
+        line_color  str                  color de la línea vertical  (default: var(--border))
+        alt         bool                 alterna lados izq/der en desktop (default: False)
+
+    Opciones TimelineItem:
+        title       str     título del evento              (requerido)
+        date        str     fecha o período                (opcional)
+        description str     texto descriptivo              (opcional)
+        icon        str     emoji o texto para el nodo     (default: "●")
+        image       str     URL de imagen                  (opcional)
+        color       str     color del nodo y acento        (default: var(--accent))
+        tag         str     etiqueta pequeña sobre título  (opcional)
+    """
+
+    def __init__(self, items=None, line_color=None, alt=False, **kwargs):
+        self._props = Widget._extract_props(kwargs)
+        self.items = items or []
+        self.line_color = line_color or "var(--border)"
+        self.alt = alt
+
+    def render(self):
+        extra = self._resolve_props()
+        line_color = self.line_color
+        alt = self.alt
+
+        # Wrapper CSS
+        wrapper_style = (
+            f"position:relative;display:flex;flex-direction:column;gap:0;" f"{extra}"
+        )
+
+        # Línea vertical central (o izquierda si no es alt)
+        line_left = "50%" if alt else "20px"
+        line_html = (
+            f'<div style="position:absolute;top:0;bottom:0;left:{line_left};'
+            f"width:2px;background:{line_color};transform:translateX(-50%);z-index:0;"
+            f'border-radius:2px"></div>'
+        )
+
+        items_html = ""
+        for i, item in enumerate(self.items):
+            if not isinstance(item, TimelineItem):
+                continue
+            items_html += item._render(index=i, alt=alt, line_color=line_color)
+
+        return f'<div style="{wrapper_style}">' + line_html + items_html + "</div>"
+
+
+class TimelineItem:
+    """Elemento individual de un Timeline. Ver Timeline para documentación."""
+
+    def __init__(
+        self,
+        title,
+        date=None,
+        description=None,
+        icon="●",
+        image=None,
+        color=None,
+        tag=None,
+    ):
+        self.title = title
+        self.date = date
+        self.description = description
+        self.icon = icon
+        self.image = image
+        self.color = color or "var(--accent)"
+        self.tag = tag
+
+    def _render(self, index=0, alt=False, line_color="var(--border)"):
+        import json as _json
+
+        color = self.color
+        # En modo alt, los pares van a la derecha, impares a la izquierda
+        go_right = (not alt) or (index % 2 == 0)
+
+        # ── Nodo (círculo en la línea) ──────────────────────────────────────
+        node_left = "50%" if alt else "20px"
+        node_html = (
+            f'<div style="position:absolute;left:{node_left};top:24px;'
+            f"transform:translate(-50%,-0%);z-index:1;"
+            f"width:36px;height:36px;border-radius:50%;"
+            f"background:{color};"
+            f"border:3px solid var(--bg);"
+            f"box-shadow:0 0 0 2px {color},0 2px 8px rgba(0,0,0,0.15);"
+            f"display:flex;align-items:center;justify-content:center;"
+            f'font-size:16px;line-height:1;flex-shrink:0;">'
+            f"{self.icon}</div>"
+        )
+
+        # ── Tarjeta de contenido ────────────────────────────────────────────
+        if alt:
+            if go_right:
+                card_margin = "margin-left:calc(50% + 28px);margin-right:0;"
+            else:
+                card_margin = (
+                    "margin-right:calc(50% + 28px);margin-left:0;text-align:right;"
+                )
+        else:
+            card_margin = "margin-left:52px;margin-right:0;"
+
+        # Imagen
+        img_html = ""
+        if self.image:
+            img_html = (
+                f'<img src="{self.image}" alt="{self.title}" '
+                f'style="width:100%;max-height:180px;object-fit:cover;'
+                f'border-radius:8px;margin-bottom:12px;display:block;">'
+            )
+
+        # Tag
+        tag_html = ""
+        if self.tag:
+            tag_html = (
+                f'<span style="display:inline-block;font-size:10px;font-weight:700;'
+                f"letter-spacing:1px;text-transform:uppercase;"
+                f"color:{color};background:rgba(99,102,241,0.10);"
+                f'padding:2px 8px;border-radius:999px;margin-bottom:6px;">'
+                f"{self.tag}</span><br>"
+            )
+
+        # Fecha
+        date_html = ""
+        if self.date:
+            date_html = (
+                f'<span style="font-size:12px;font-weight:600;'
+                f'color:{color};opacity:0.9;margin-bottom:4px;display:block;">'
+                f"{self.date}</span>"
+            )
+
+        # Título
+        title_html = (
+            f'<div style="font-size:15px;font-weight:700;'
+            f'color:var(--text);margin-bottom:6px;line-height:1.3;">'
+            f"{self.title}</div>"
+        )
+
+        # Descripción
+        desc_html = ""
+        if self.description:
+            desc_html = (
+                f'<div style="font-size:13px;color:var(--text-muted);'
+                f'line-height:1.6;">{self.description}</div>'
+            )
+
+        card_html = (
+            f'<div style="{card_margin}flex:1;'
+            f"background:var(--surface);border:1px solid var(--border);"
+            f"border-radius:12px;padding:16px;"
+            f"box-shadow:0 2px 8px rgba(0,0,0,0.06);"
+            f'border-left:3px solid {color};">'
+            + img_html
+            + tag_html
+            + date_html
+            + title_html
+            + desc_html
+            + "</div>"
+        )
+
+        # ── Fila completa ───────────────────────────────────────────────────
+        return (
+            f'<div style="position:relative;display:flex;'
+            f'align-items:flex-start;padding-bottom:24px;min-height:64px;">'
+            + node_html
+            + card_html
+            + "</div>"
+        )
