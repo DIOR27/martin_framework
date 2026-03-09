@@ -1,38 +1,72 @@
-# Martin
+<p align="center">
+  <img src="martin/assets/default_icon.webp" width="140" alt="MARTIN logo">
+</p>
 
-Build webs with Python, Flutter-style.
+<h1 align="center">MARTIN Framework</h1>
+<p align="center">
+<img src="https://img.shields.io/badge/status-pre--alpha-orange">
+</p>
 
-## Instalación
+<p align="center">
+Build beautiful, modern and responsive websites using Python.
+</p>
 
-```bash
+------------------------------------------------------------------------
+
+## Overview
+
+MARTIN is a Python framework for building web interfaces through
+**composable UI components**.
+
+Instead of writing HTML and CSS manually, you construct your interface
+using Python objects that represent layout structures, visual elements,
+and styling primitives.
+
+This approach allows you to focus on **structure, clarity, and design**,
+while MARTIN handles the rendering layer.
+
+MARTIN is designed to make web development:
+
+-   **Simple** -- clear, readable Python code\
+-   **Fast** -- build interfaces quickly with reusable components\
+-   **Modern** -- create visually polished interfaces out of the box\
+-   **Responsive** -- layouts adapt naturally to different screens
+
+------------------------------------------------------------------------
+
+## Installation
+
+``` bash
 pip install martin
-# Con hot reload mejorado:
+```
+
+For development with enhanced hot-reload support:
+
+``` bash
 pip install martin[dev]
 ```
 
-## Uso rápido
+------------------------------------------------------------------------
 
-```bash
-martin new mi_proyecto
-cd mi_proyecto
+## Quick Start
+
+Create a new project:
+
+``` bash
+martin new my_project
+cd my_project
 martin run
 ```
 
-## CLI
+Your application will be available at:
 
-| Comando                              | Descripción                       |
-| ------------------------------------ | --------------------------------- |
-| `martin new <nombre>`                | Crea un nuevo proyecto            |
-| `martin run`                         | Inicia servidor en localhost:3908 |
-| `martin run --port 8080`             | Puerto personalizado              |
-| `martin run --no-reload`             | Sin hot reload                    |
-| `martin export`                      | Exporta a `dist/index.html`       |
-| `martin export --out web/index.html` | Exporta a ruta personalizada      |
-| `martin version`                     | Muestra la versión                |
+    http://localhost:3908
 
-## Ejemplo
+------------------------------------------------------------------------
 
-```python
+## Example
+
+``` python
 from martin import App, Card, Column, Text, Heading, Button
 from martin import Border, Padding, Shadow, Colors
 
@@ -42,11 +76,124 @@ def build():
         radius=16,
         shadow=Shadow.md(),
         children=[
-            Heading("Hola Martin", level=1, color=Colors.indigo),
-            Text("Build webs con Python puro", color=Colors.gray_500),
-            Button("Empezar", background=Colors.indigo, color="white", radius=8),
+            Heading("Hello MARTIN", level=1, color=Colors.indigo),
+            Text("Build modern web interfaces using pure Python", color=Colors.gray_500),
+            Button(
+                "Get Started",
+                background=Colors.indigo,
+                color="white",
+                radius=8
+            ),
         ]
     )
 
-App(build=build, title="Mi App").run()
+App(
+    build=build,
+    title="My MARTIN App"
+).run()
 ```
+
+------------------------------------------------------------------------
+
+## Command Line Interface
+
+  Command                                Description
+  -------------------------------------- -----------------------------------------
+  `martin new <name>`                    Create a new project
+  `martin run`                           Start development server
+  `martin run --port 8080`               Run server on custom port
+  `martin run --no-reload`               Disable hot reload
+  `martin export`                        Export static site to `dist/index.html`
+  `martin export --out web/index.html`   Export to custom path
+  `martin version`                       Show installed version
+
+------------------------------------------------------------------------
+
+## Philosophy
+
+MARTIN focuses on a few core principles:
+
+**Readable code**\
+Interfaces should be understandable at a glance.
+
+**Composable UI**\
+Complex layouts are built from small reusable components.
+
+**Design-first approach**\
+Modern visual elements like cards, grids, shadows, gradients, and
+responsive layouts are first-class features.
+
+**Python-native**\
+No template languages. No mixing multiple syntaxes. Just Python.
+
+------------------------------------------------------------------------
+
+## Built-in Components
+
+MARTIN ships with a growing set of UI primitives:
+
+-   Layout: `Row`, `Column`, `Grid`, `Stack`, `Spacer`
+-   Containers: `Container`, `Card`
+-   Typography: `Heading`, `Text`, `Paragraph`
+-   Media: `Image`, `Video`, `Icon`
+-   Forms: `TextField`, `Checkbox`, `Select`, `MultiSelect`
+-   UI Elements: `Button`, `Badge`, `Avatar`, `Divider`
+-   Data Visuals: `WordCloud`, `Map`, `Timeline`
+
+------------------------------------------------------------------------
+
+## Styling System
+
+MARTIN includes a lightweight styling system designed to keep UI
+definitions concise.
+
+Examples:
+
+-   `Padding`
+-   `Margin`
+-   `Border`
+-   `Shadow`
+-   `Background`
+-   `TextStyle`
+-   `GradientText`
+-   `MeshBackground`
+
+And a built-in color palette via:
+
+``` python
+Colors.indigo
+Colors.gray_500
+```
+
+------------------------------------------------------------------------
+
+## Exporting Static Sites
+
+MARTIN can generate static HTML output for deployment.
+
+``` bash
+martin export
+```
+
+This will produce:
+
+    dist/index.html
+
+You can deploy the generated output to any static hosting service.
+
+------------------------------------------------------------------------
+
+## Project Status
+
+MARTIN is currently in **early development**.
+
+The goal is to evolve into a powerful yet minimal framework for building
+modern web interfaces using Python.
+
+Contributions, feedback, and experimentation are welcome.
+
+------------------------------------------------------------------------
+
+## License
+
+MIT License
