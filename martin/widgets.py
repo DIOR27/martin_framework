@@ -3148,8 +3148,6 @@ class Carousel(Widget):
         # ── render slides ─────────────────────────────────────────────────────
 
     def _render_slides(self):
-        import json as _json
-
         uid = self.uid
         items = [i for i in self.items if isinstance(i, CarouselItem)]
         n = len(items)
@@ -3160,156 +3158,268 @@ class Carousel(Widget):
         arrows = self.arrows
         dots = self.dots
         radius_val = self._props.get("radius") or 0
-        radius_css = f"border-radius:{radius_val}px;" if radius_val else ""
+        radius_css = "border-radius:" + str(radius_val) + "px;" if radius_val else ""
         extra = self._resolve_props()
 
-        # Track: cada slide ocupa 100/visible %
-        slide_width = f"calc((100% - {gap*(visible-1)}px) / {visible})"
+        # Número de posiciones navegables
+        positions = max(n - visible + 1, 1)  # dots count = positions
 
+        slide_width = (
+            "calc((100% - " + str(gap * (visible - 1)) + "px) / " + str(visible) + ")"
+        )
+
+        # Slides normales
         slides_html = ""
         for idx, item in enumerate(items):
-            content = self._render_item_content(item, radius_css)
+            content_s = self._render_item_content(item, radius_css)
             slides_html += (
-                f'<div id="{uid}_s{idx}" style="'
-                f"flex-shrink:0;width:{slide_width};"
-                f"background:var(--surface);"
-                f"border:1px solid var(--border);"
-                f"overflow:hidden;{radius_css}"
-                f'transition:opacity .3s;">' + content + "</div>"
+                '<div id="' + uid + "_s" + str(idx) + '" style="'
+                "flex-shrink:0;width:" + slide_width + ";"
+                "background:var(--surface);"
+                "border:1px solid var(--border);"
+                "overflow:hidden;" + radius_css + '">' + content_s + "</div>"
             )
 
-        # Flechas
+        # Si loop=True, clonamos los primeros `visible` slides al final
+        # y los últimos `visible` al inicio → infinite clone technique
+        clones_after = ""
+        clones_before = ""
+        if loop:
+            for idx in range(min(visible, n)):
+                content_s = self._render_item_content(items[idx], radius_css)
+                clones_after += (
+                    '<div data-clone="after" style="'
+                    "flex-shrink:0;width:" + slide_width + ";"
+                    "background:var(--surface);"
+                    "border:1px solid var(--border);"
+                    "overflow:hidden;" + radius_css + '">' + content_s + "</div>"
+                )
+            for idx in range(n - min(visible, n), n):
+                content_s = self._render_item_content(items[idx], radius_css)
+                clones_before += (
+                    '<div data-clone="before" style="'
+                    "flex-shrink:0;width:" + slide_width + ";"
+                    "background:var(--surface);"
+                    "border:1px solid var(--border);"
+                    "overflow:hidden;" + radius_css + '">' + content_s + "</div>"
+                )
+
+        # Dots: one per navigable position
+        dots_html = ""
+        if dots and positions > 1:
+            dot_items = ""
+            for i in range(positions):
+                active = "var(--accent)" if i == 0 else "var(--border)"
+                scale = "transform:scale(1.3);" if i == 0 else ""
+                dot_items += (
+                    '<button id="' + uid + "_dot" + str(i) + '" style="'
+                    "width:8px;height:8px;border-radius:50%;border:none;cursor:pointer;"
+                    "transition:all .25s;padding:0;background:"
+                    + active
+                    + ";"
+                    + scale
+                    + '"></button>'
+                )
+            dots_html = (
+                '<div style="display:flex;justify-content:center;gap:8px;margin-top:16px;">'
+                + dot_items
+                + "</div>"
+            )
+
+        # Arrows — fuera del viewport con overflow:hidden, dentro del wrapper con overflow:visible
         btn_base = (
             "position:absolute;top:50%;transform:translateY(-50%);"
             "background:var(--surface);border:1px solid var(--border);"
             "color:var(--text);width:40px;height:40px;border-radius:50%;"
-            "cursor:pointer;font-size:20px;display:flex;align-items:center;"
-            "justify-content:center;z-index:2;transition:background .2s;"
-            "box-shadow:0 2px 8px rgba(0,0,0,0.15);"
+            "cursor:pointer;font-size:22px;display:flex;align-items:center;"
+            "justify-content:center;z-index:4;transition:background .2s;"
+            "box-shadow:0 2px 12px rgba(0,0,0,0.2);"
         )
         arrows_html = ""
         if arrows:
             arrows_html = (
-                f'<button id="{uid}_prev" style="{btn_base}left:-20px;" '
-                f"onmouseover=\"this.style.background='var(--surface-2)'\" "
-                f"onmouseout=\"this.style.background='var(--surface)'\">‹</button>"
-                f'<button id="{uid}_next" style="{btn_base}right:-20px;" '
-                f"onmouseover=\"this.style.background='var(--surface-2)'\" "
-                f"onmouseout=\"this.style.background='var(--surface)'\">›</button>"
+                '<button id="'
+                + uid
+                + '_prev" style="'
+                + btn_base
+                + 'left:-20px;"></button>'
+                '<button id="'
+                + uid
+                + '_next" style="'
+                + btn_base
+                + 'right:-20px;"></button>'
             )
 
-        # Dots
-        dots_html = ""
-        if dots and n > 1:
-            dot_items = "".join(
-                f'<button id="{uid}_dot{i}" onclick="_car[\'{uid}\'].go({i})" style="'
-                f"width:8px;height:8px;border-radius:50%;border:none;cursor:pointer;"
-                f"transition:all .25s;padding:0;"
-                f'background:{"var(--accent)" if i==0 else "var(--border)"};'
-                f'{"transform:scale(1.3);" if i==0 else ""}"></button>'
-                for i in range(n)
-            )
-            dots_html = (
-                f'<div style="display:flex;justify-content:center;'
-                f'gap:8px;margin-top:16px;">{dot_items}</div>'
-            )
-
-        wrapper_style = f"position:relative;{extra}"
-        track_style = (
-            f"display:flex;gap:{gap}px;"
-            f"overflow:hidden;"
-            f"transition:transform .4s cubic-bezier(.4,0,.2,1);"
-        )
+        # Layout: wrapper has overflow:visible so arrows aren't clipped
+        # viewport clips the slides track
+        wrapper_style = "position:relative;overflow:visible;" + extra
+        track_style = "display:flex;gap:" + str(gap) + "px;will-change:transform;"
 
         html = (
-            f'<div style="{wrapper_style}">'
-            + f'<div id="{uid}_viewport" style="overflow:hidden;position:relative;">'
-            + f'<div id="{uid}_track" style="{track_style}">'
+            '<div style="'
+            + wrapper_style
+            + '">'
+            + '<div id="'
+            + uid
+            + '_viewport" style="overflow:hidden;position:relative;">'
+            + '<div id="'
+            + uid
+            + '_track" style="'
+            + track_style
+            + '">'
+            + (clones_before if loop else "")
             + slides_html
+            + (clones_after if loop else "")
+            + "</div>"
             + "</div>"
             + arrows_html
-            + "</div>"
             + dots_html
             + "</div>"
         )
 
-        # JS
+        # JS — offset calculation accounts for clone padding when loop=True
+        clone_offset = "vis" if loop else "0"
+
         js = (
-            f";(function(){{"
-            f"if(!window._car)window._car={{}};"
-            f'var uid="{uid}",n={n},vis={visible},gap={gap},'
-            f'loop={"true" if loop else "false"},'
-            f"autoplay={autoplay};"
-            f"var cur=0;"
-            f'var track=document.getElementById(uid+"_track");'
-            f"function _width(){{"
-            f'  var vp=document.getElementById(uid+"_viewport");'
-            f"  return vp?(vp.offsetWidth-gap*(vis-1))/vis:0;"
-            f"}}"
-            f"function _move(){{"
-            f"  var sw=_width();"
-            f'  track.style.transform="translateX(-"+(cur*(sw+gap))+"px)";'
-            f"  for(var i=0;i<n;i++){{"
-            f'    var d=document.getElementById(uid+"_dot"+i);'
-            f'    if(d){{d.style.background=i===cur?"var(--accent)":"var(--border)";'
-            f'         d.style.transform=i===cur?"scale(1.3)":"scale(1)";}}'
-            f"  }}"
-            f"}}"
-            f"window._car[uid]={{"
-            f"  go:function(i){{"
-            f"    cur=(i+n)%n; _move();"
-            f"  }},"
-            f"  next:function(){{"
-            f"    if(!loop&&cur===n-vis)return;"
-            f"    cur=loop?(cur+1)%n:Math.min(cur+1,n-vis);"
-            f"    _move();"
-            f"  }},"
-            f"  prev:function(){{"
-            f"    if(!loop&&cur===0)return;"
-            f"    cur=loop?(cur-1+n)%n:Math.max(cur-1,0);"
-            f"    _move();"
-            f"  }}"
-            f"}};"
-            # Arrow buttons
-            f'var bp=document.getElementById(uid+"_prev");'
-            f'var bn=document.getElementById(uid+"_next");'
-            f'if(bp)bp.addEventListener("click",function(){{window._car[uid].prev();}});'
-            f'if(bn)bn.addEventListener("click",function(){{window._car[uid].next();}});'
-            # Keyboard nav (solo cuando el carrusel está en foco o hover)
-            f'var root=track&&track.closest("[style*=position:relative]");'
-            f'if(root)root.setAttribute("tabindex","0");'
-            f'document.addEventListener("keydown",function(e){{'
-            f'  if(!root||!root.matches(":hover,:focus-within"))return;'
-            f'  if(e.key==="ArrowLeft")window._car[uid].prev();'
-            f'  if(e.key==="ArrowRight")window._car[uid].next();'
-            f"}});"
-            # Touch / swipe
-            f"var tx=0;"
-            f'var vp2=document.getElementById(uid+"_viewport");'
-            f"if(vp2){{"
-            f'  vp2.addEventListener("touchstart",function(e){{tx=e.touches[0].clientX;}},{{passive:true}});'
-            f'  vp2.addEventListener("touchend",function(e){{'
-            f"    var dx=tx-e.changedTouches[0].clientX;"
-            f"    if(Math.abs(dx)>40){{if(dx>0)window._car[uid].next();else window._car[uid].prev();}}"
-            f"  }});"
-            f"}}"
+            ";(function(){"
+            "if(!window._car)window._car={};"
+            'var uid="'
+            + uid
+            + '",n='
+            + str(n)
+            + ",vis="
+            + str(visible)
+            + ",gap="
+            + str(gap)
+            + ","
+            "loop=" + ("true" if loop else "false") + ","
+            "positions=" + str(positions) + ","
+            "autoplay=" + str(autoplay) + ";"
+            "var cur=0;"  # cur = index into real slides (0..n-1)
+            "var transitioning=false;"
+            'var track=document.getElementById(uid+"_track");'
+            'var vp=document.getElementById(uid+"_viewport");'
+            "function _sw(){"
+            "  return vp?(vp.offsetWidth-gap*(vis-1))/vis:0;"
+            "}"
+            # offset: if loop, track starts with `vis` clone slides before real slides
+            "function _offset(idx){"
+            "  var sw=_sw();"
+            "  var base=loop?vis:0;"
+            "  return (base+idx)*(sw+gap);"
+            "}"
+            "function _updateDots(){"
+            "  for(var i=0;i<positions;i++){"
+            '    var d=document.getElementById(uid+"_dot"+i);'
+            "    if(d){"
+            "      var active=i===cur;"
+            '      d.style.background=active?"var(--accent)":"var(--border)";'
+            '      d.style.transform=active?"scale(1.3)":"scale(1)";'
+            "    }"
+            "  }"
+            "}"
+            "function _moveTo(idx,animate){"
+            '  track.style.transition=animate?"transform .4s cubic-bezier(.4,0,.2,1)":"none";'
+            '  track.style.transform="translateX(-"+_offset(idx)+"px)";'
+            "}"
+            "function _go(idx){"
+            "  cur=((idx%n)+n)%n;"
+            "  _moveTo(cur,true);"
+            "  _updateDots();"
+            "}"
+            # After transition ends, if loop, silently jump when at clone boundary
+            'track.addEventListener("transitionend",function(){'
+            "  if(!loop)return;"
+            "  var sw=_sw();"
+            '  var x=parseFloat(track.style.transform.replace("translateX(-","").replace("px)",""))||0;'
+            "  var atEnd=x>=_offset(n);"  # past last real slide
+            "  var atStart=x<=_offset(-1);"  # before first real slide
+            "  if(atEnd||atStart){"
+            "    _moveTo(cur,false);"  # instant jump to correct real position
+            "  }"
+            "  transitioning=false;"
+            "});"
+            "window._car[uid]={"
+            "  go:function(i){_go(i);},"
+            "  next:function(){"
+            "    if(transitioning)return;"
+            "    transitioning=true;"
+            "    if(!loop&&cur>=n-vis){transitioning=false;return;}"
+            "    var next=cur+1;"
+            "    if(loop&&next>=n){"
+            "      cur=next;"  # temporarily go to clone
+            "      _moveTo(cur,true);"
+            "      _updateDots();"
+            "    } else {"
+            "      _go(Math.min(next,n-vis));"
+            "    }"
+            "  },"
+            "  prev:function(){"
+            "    if(transitioning)return;"
+            "    transitioning=true;"
+            "    if(!loop&&cur<=0){transitioning=false;return;}"
+            "    var prev=cur-1;"
+            "    if(loop&&prev<0){"
+            "      cur=prev;"  # temporarily go to before-clone
+            "      _moveTo(cur,true);"
+            "      _updateDots();"
+            "    } else {"
+            "      _go(Math.max(prev,0));"
+            "    }"
+            "  }"
+            "};"
+            # Wire arrows
+            'var bp=document.getElementById(uid+"_prev");'
+            'var bn=document.getElementById(uid+"_next");'
+            'if(bp)bp.addEventListener("click",function(){window._car[uid].prev();});'
+            'if(bn)bn.addEventListener("click",function(){window._car[uid].next();});'
+            # Wire dots
+            "(function(){"
+            "  for(var i=0;i<positions;i++){"
+            "    (function(idx){"
+            '      var d=document.getElementById(uid+"_dot"+idx);'
+            '      if(d)d.addEventListener("click",function(){_go(idx);});'
+            "    })(i);"
+            "  }"
+            "})();"
+            # Keyboard
+            'var root=document.getElementById(uid+"_viewport");'
+            'if(root)root.addEventListener("keydown",function(e){'
+            '  if(e.key==="ArrowLeft")window._car[uid].prev();'
+            '  if(e.key==="ArrowRight")window._car[uid].next();'
+            "});"
+            # Swipe
+            "var tx=0;"
+            "if(vp){"
+            '  vp.addEventListener("touchstart",function(e){tx=e.touches[0].clientX;},{passive:true});'
+            '  vp.addEventListener("touchend",function(e){'
+            "    var dx=tx-e.changedTouches[0].clientX;"
+            "    if(Math.abs(dx)>40){if(dx>0)window._car[uid].next();else window._car[uid].prev();}"
+            "  });"
+            "}"
             # Autoplay
-            f"if(autoplay>0){{"
-            f"  var t=setInterval(function(){{window._car[uid].next();}},autoplay);"
-            f'  var el=document.getElementById(uid+"_viewport");'
-            f"  if(el){{"
-            f'    el.addEventListener("mouseenter",function(){{clearInterval(t);}});'
-            f'    el.addEventListener("mouseleave",function(){{'
-            f"      t=setInterval(function(){{window._car[uid].next();}},autoplay);"
-            f"    }});"
-            f"  }}"
-            f"}}"
-            # Resize
-            f'window.addEventListener("resize",function(){{_move();}});'
-            f"}})();"
+            "if(autoplay>0){"
+            "  var t=setInterval(function(){window._car[uid].next();},autoplay);"
+            "  if(vp){"
+            '    vp.addEventListener("mouseenter",function(){clearInterval(t);});'
+            '    vp.addEventListener("mouseleave",function(){'
+            "      t=setInterval(function(){window._car[uid].next();},autoplay);"
+            "    });"
+            "  }"
+            "}"
+            # Init position (accounting for clones at start)
+            "function _init(){"
+            "  _moveTo(0,false);"
+            "  _updateDots();"
+            "}"
+            'if(document.readyState==="loading"){'
+            '  document.addEventListener("DOMContentLoaded",_init);'
+            "} else {_init();}"
+            'window.addEventListener("resize",function(){_moveTo(cur,false);});'
+            "})();"
         )
 
-        return self._wrap_url(html + f"<script>{js}</script>")
+        return self._wrap_url(html + "<script>" + js + "</script>")
 
     # ── render ────────────────────────────────────────────────────────────
 
