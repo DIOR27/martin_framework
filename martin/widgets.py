@@ -3242,12 +3242,12 @@ class Carousel(Widget):
                 + uid
                 + '_prev" style="'
                 + btn_base
-                + 'left:-20px;"></button>'
+                + 'left:-20px;">&#8249;</button>'
                 '<button id="'
                 + uid
                 + '_next" style="'
                 + btn_base
-                + 'right:-20px;"></button>'
+                + 'right:-20px;">&#8250;</button>'
             )
 
         # Layout: wrapper has overflow:visible so arrows aren't clipped
@@ -3309,10 +3309,12 @@ class Carousel(Widget):
             "  return (base+idx)*(sw+gap);"
             "}"
             "function _updateDots(){"
+            "  var disp=((cur%n)+n)%n;"
+            "  var dotIdx=Math.min(disp,positions-1);"
             "  for(var i=0;i<positions;i++){"
             '    var d=document.getElementById(uid+"_dot"+i);'
             "    if(d){"
-            "      var active=i===cur;"
+            "      var active=i===dotIdx;"
             '      d.style.background=active?"var(--accent)":"var(--border)";'
             '      d.style.transform=active?"scale(1.3)":"scale(1)";'
             "    }"
@@ -3329,43 +3331,29 @@ class Carousel(Widget):
             "}"
             # After transition ends, if loop, silently jump when at clone boundary
             'track.addEventListener("transitionend",function(){'
-            "  if(!loop)return;"
-            "  var sw=_sw();"
-            '  var x=parseFloat(track.style.transform.replace("translateX(-","").replace("px)",""))||0;'
-            "  var atEnd=x>=_offset(n);"  # past last real slide
-            "  var atStart=x<=_offset(-1);"  # before first real slide
-            "  if(atEnd||atStart){"
-            "    _moveTo(cur,false);"  # instant jump to correct real position
-            "  }"
+            "  if(!loop){transitioning=false;return;}"
+            "  if(cur>=n){cur=cur%n;_moveTo(cur,false);}"
+            "  else if(cur<0){cur=((cur%n)+n)%n;_moveTo(cur,false);}"
+            "  _updateDots();"
             "  transitioning=false;"
             "});"
             "window._car[uid]={"
             "  go:function(i){_go(i);},"
             "  next:function(){"
             "    if(transitioning)return;"
+            "    if(!loop&&cur>=n-vis)return;"
             "    transitioning=true;"
-            "    if(!loop&&cur>=n-vis){transitioning=false;return;}"
-            "    var next=cur+1;"
-            "    if(loop&&next>=n){"
-            "      cur=next;"  # temporarily go to clone
-            "      _moveTo(cur,true);"
-            "      _updateDots();"
-            "    } else {"
-            "      _go(Math.min(next,n-vis));"
-            "    }"
+            "    cur=cur+1;"
+            "    _moveTo(cur,true);"
+            "    _updateDots();"
             "  },"
             "  prev:function(){"
             "    if(transitioning)return;"
+            "    if(!loop&&cur<=0)return;"
             "    transitioning=true;"
-            "    if(!loop&&cur<=0){transitioning=false;return;}"
-            "    var prev=cur-1;"
-            "    if(loop&&prev<0){"
-            "      cur=prev;"  # temporarily go to before-clone
-            "      _moveTo(cur,true);"
-            "      _updateDots();"
-            "    } else {"
-            "      _go(Math.max(prev,0));"
-            "    }"
+            "    cur=cur-1;"
+            "    _moveTo(cur,true);"
+            "    _updateDots();"
             "  }"
             "};"
             # Wire arrows
