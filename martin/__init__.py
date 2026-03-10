@@ -56,6 +56,7 @@ from .widgets import (
     Map,
     Timeline,
     TimelineItem,
+    Hero,
 )
 
 __all__ = [
@@ -107,4 +108,5 @@ __all__ = [
     "ThemeToggle",
     "Timeline",
     "TimelineItem",
+    "Hero",
 ]

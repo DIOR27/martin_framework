@@ -182,7 +182,7 @@ def about():
                 _card("🔧", "Stack",
                       "Python puro · stdlib · Sin dependencias · watchdog opcional."),
                 _card("📅", "Puerto",
-                      "El puerto por defecto es 3908, en honor al 03 de septiembre."),
+                      "El puerto por defecto es 309, en honor al 03 de septiembre."),
             ]),
 
             Link("<- Volver al inicio", href="/",
@@ -212,9 +212,9 @@ def _card(icon, title, desc):
 
 PAGE_COMPONENTS = """\
 from martin import (
-    Column, Row, Divider, Heading, Text, Badge, Icon,
+    Column, Row, Grid, Divider, Heading, Text, Paragraph, Badge, Icon, Image, Avatar,
     Button, TextField, Select, MultiSelect, Checkbox,
-    WordCloud, Map,
+    WordCloud, Map, Timeline, TimelineItem, Hero,
     Border, Shadow, TextStyle, Glass, GradientText, MeshBackground, Colors,
 )
 
@@ -227,7 +227,60 @@ def components():
             Heading("Componentes",
                     style=[GradientText.aurora(), TextStyle(size=48, weight="800")]),
 
-            _section("Buttons", [
+            # ── Hero ──────────────────────────────────────────────────────
+            _section("Hero", "Banner principal con imagen, acciones y fondo.", [
+                Hero(
+                    badge="✨ Nuevo widget",
+                    title=Heading("Hero Banner", level=2,
+                                  style=[GradientText.aurora(),
+                                         TextStyle(size=40, weight="800")]),
+                    subtitle=Paragraph(
+                        "Banner de pagina completa. Soporta imagen, video de fondo, "
+                        "overlay, layout split o centrado y cualquier widget como contenido.",
+                        style=TextStyle(size=15, color="var(--text-muted)"),
+                    ),
+                    actions=[
+                        Button("Accion principal", background=Colors.indigo,
+                               color="white", radius=10, padding=12),
+                        Button("Secundario", radius=10, padding=12),
+                    ],
+                    image=Image("/assets/icon.webp", radius=16,
+                                style="width:160px;height:160px;object-fit:contain;"
+                                      "box-shadow:0 16px 48px rgba(99,102,241,0.25)"),
+                    background=MeshBackground.themed(),
+                    layout="split", align="left", min_height=320,
+                ),
+            ]),
+
+            # ── Timeline ──────────────────────────────────────────────────
+            _section("Timeline", "Linea de tiempo con icono, imagen, fecha y descripcion.", [
+                Timeline(items=[
+                    TimelineItem(
+                        title="Lanzamiento v1.0",
+                        date="Enero 2024",
+                        description="Primera version publica del framework con widgets basicos.",
+                        icon="🌱", color=Colors.green, tag="Origen",
+                    ),
+                    TimelineItem(
+                        title="Sistema de temas",
+                        date="Febrero 2024",
+                        description="Soporte dark/light/auto con CSS variables y ThemeToggle.",
+                        icon="🎨", color=Colors.indigo, tag="Feature",
+                    ),
+                    TimelineItem(
+                        title="Hero + Timeline",
+                        date="Hoy",
+                        description="Nuevos widgets de alto nivel para landing pages completas.",
+                        icon="⏱️", color=Colors.blue, tag="Nuevo",
+                        image=Image("/assets/icon.webp",
+                                    style="width:100%;max-height:120px;object-fit:contain;"
+                                          "padding:12px;"),
+                    ),
+                ]),
+            ]),
+
+            # ── Buttons ───────────────────────────────────────────────────
+            _section("Buttons", "Variantes y estilos de boton.", [
                 Row(gap=12, style="flex-wrap:wrap", children=[
                     Button("Primary",   variant="primary",   radius=8),
                     Button("Secondary", variant="secondary", radius=8),
@@ -236,36 +289,71 @@ def components():
                     Button("Custom",
                            background="linear-gradient(135deg,#7c3aed,#a855f7)",
                            color="white", radius=999, padding=14,
-                           style="border:none; font-weight:700"),
+                           style="border:none;font-weight:700"),
                     Button("Glass",
                            style=[Glass.dark(opacity=0.08), Border(radius=8),
-                                  "color:var(--accent); padding:8px 16px"]),
+                                  "color:var(--accent);padding:8px 16px"]),
                 ]),
             ]),
 
-            _section("Badges", [
-                Row(gap=8, style="flex-wrap:wrap", children=[
-                    Badge("Python",     background=Colors.indigo, color="white"),
-                    Badge("v0.1.0",     background=Colors.purple, color="white"),
-                    Badge("Nuevo",      background=Colors.green,  color="white"),
-                    Badge("Beta",       background=Colors.orange, color="white"),
-                    Badge("Deprecated", background=Colors.red,    color="white"),
+            # ── Badges ────────────────────────────────────────────────────
+            _section("Badges & Avatar", "Etiquetas y avatares.", [
+                Row(gap=16, style="flex-wrap:wrap;align-items:center", children=[
+                    Row(gap=8, style="flex-wrap:wrap", children=[
+                        Badge("Python",     background=Colors.indigo, color="white"),
+                        Badge("v1.0",       background=Colors.purple, color="white"),
+                        Badge("Nuevo",      background=Colors.green,  color="white"),
+                        Badge("Beta",       background=Colors.orange, color="white"),
+                        Badge("Deprecated", background=Colors.red,    color="white"),
+                    ]),
+                    Divider(vertical=True, color="var(--border)", thickness=1),
+                    Row(gap=8, children=[
+                        Avatar(src="/assets/icon.webp", width=40, height=40),
+                        Avatar(initials="MA", background=Colors.indigo,
+                               color="white", width=40, height=40),
+                        Avatar(initials="PY", background=Colors.purple,
+                               color="white", width=48, height=48),
+                    ]),
                 ]),
             ]),
 
-            _section("Inputs", [
+            # ── Image ─────────────────────────────────────────────────────
+            _section("Image", "Imagenes con estilos y bordes.", [
+                Row(gap=20, style="flex-wrap:wrap;align-items:flex-end", children=[
+                    Column(gap=8, children=[
+                        Text("Sin estilo", style=TextStyle(size=12, color="var(--text-muted)")),
+                        Image("/assets/icon.webp", width=80, height=80),
+                    ]),
+                    Column(gap=8, children=[
+                        Text("radius=16", style=TextStyle(size=12, color="var(--text-muted)")),
+                        Image("/assets/icon.webp", width=80, height=80, radius=16),
+                    ]),
+                    Column(gap=8, children=[
+                        Text("radius=999 (circulo)", style=TextStyle(size=12, color="var(--text-muted)")),
+                        Image("/assets/icon.webp", width=80, height=80, radius=999),
+                    ]),
+                    Column(gap=8, children=[
+                        Text("shadow", style=TextStyle(size=12, color="var(--text-muted)")),
+                        Image("/assets/icon.webp", width=80, height=80,
+                              radius=12, shadow=Shadow(y=8, blur=20, color="rgba(99,102,241,0.4)")),
+                    ]),
+                ]),
+            ]),
+
+            # ── Inputs ────────────────────────────────────────────────────
+            _section("Inputs", "Controles de formulario.", [
                 Column(gap=12, children=[
                     Row(gap=12, children=[
-                        TextField(placeholder="Nombre", radius=8, style="flex:1"),
+                        TextField(placeholder="Nombre",  radius=8, style="flex:1"),
                         TextField(placeholder="Email", type="email", radius=8, style="flex:1"),
                     ]),
                     Select(
-                        options=[("py", "Python"), ("js", "JavaScript"), ("rs", "Rust")],
+                        options=[("py","Python"),("js","JavaScript"),("rs","Rust"),("go","Go")],
                         value="py", search=True, radius=8,
                     ),
                     MultiSelect(
-                        options=["Diseno", "Frontend", "Backend", "DevOps", "Testing"],
-                        values=["Diseno", "Frontend"],
+                        options=["Diseno","Frontend","Backend","DevOps","Testing"],
+                        values=["Diseno","Frontend"],
                         placeholder="Anadir area...",
                         tag_color="rgba(99,102,241,0.15)",
                         tag_border="rgba(99,102,241,0.3)",
@@ -276,7 +364,8 @@ def components():
                 ]),
             ]),
 
-            _section("Glass", [
+            # ── Glass ─────────────────────────────────────────────────────
+            _section("Glass", "Efectos glassmorphism.", [
                 Row(gap=16, style="flex-wrap:wrap", children=[
                     _glass("🌑", "Glass.dark()",          Glass.dark()),
                     _glass("💜", "Glass.colored(indigo)", Glass.colored("#6366f1", 0.2)),
@@ -284,7 +373,8 @@ def components():
                 ]),
             ]),
 
-            _section("GradientText", [
+            # ── GradientText ──────────────────────────────────────────────
+            _section("GradientText", "Textos con gradiente.", [
                 Column(gap=8, children=[
                     Heading("Aurora",    level=3, style=[GradientText.aurora(),
                             TextStyle(size=28, weight="800")]),
@@ -297,48 +387,43 @@ def components():
                 ]),
             ]),
 
-            _section("WordCloud", [
+            # ── WordCloud ─────────────────────────────────────────────────
+            _section("WordCloud", "Nube de palabras interactiva.", [
                 Text(
-                    "Nube de palabras interactiva. Hover para resaltar, click para interactuar.",
-                    style=TextStyle(size=13, color="var(--text-muted)", line_height=1.6),
+                    "Hover para resaltar, click para interactuar.",
+                    style=TextStyle(size=13, color="var(--text-muted)"),
                 ),
                 WordCloud(
                     words={
-                        "Python": 10, "Martin": 9, "Web": 7, "Widgets": 8,
-                        "OpenSource": 6, "Backend": 5, "Frontend": 6,
-                        "Hot Reload": 4, "Router": 4, "Estilos": 5,
-                        "Export": 3, "API": 4, "Flask": 3, "HTML": 2,
+                        "Python":10,"Martin":9,"Web":7,"Widgets":8,
+                        "OpenSource":6,"Backend":5,"Frontend":6,
+                        "Hot Reload":4,"Router":4,"Estilos":5,
+                        "Export":3,"API":4,"Hero":5,"Timeline":4,
                     },
-                    width=640, height=240,
-                    min_size=13, max_size=58,
-                    on_click="alert(word + ' \u00b7 peso: ' + weight)",
+                    width=640, height=220, min_size=13, max_size=58,
+                    on_click="alert(word + ' · peso: ' + weight)",
                 ),
             ]),
 
-            _section("Map", [
+            # ── Map ───────────────────────────────────────────────────────
+            _section("Map", "Mapa interactivo Leaflet + OpenStreetMap.", [
                 Text(
-                    "Mapa interactivo con Leaflet + OpenStreetMap. "
                     "Busqueda, geolocalizacion y rutas incluidas.",
-                    style=TextStyle(size=13, color="var(--text-muted)", line_height=1.6),
+                    style=TextStyle(size=13, color="var(--text-muted)"),
                 ),
                 Map(
-                    zoom=5,
-                    height=420,
-                    route=True,
-                    route_color="#818cf8",
-                    route_weight=3,
-                    search=True,
-                    geolocation=True,
-                    tile="osm",
+                    zoom=5, height=420, route=True,
+                    route_color="#818cf8", route_weight=3,
+                    search=True, geolocation=True, tile="osm",
                     markers=[
-                        {"lat": 40.4168, "lon": -3.7038, "title": "Madrid",
-                         "popup": "Capital de Espana", "icon": "\U0001f3db\ufe0f", "color": "#6366f1"},
-                        {"lat": 41.3851, "lon":  2.1734, "title": "Barcelona",
-                         "popup": "Ciudad Condal",     "icon": "\U0001f3d6\ufe0f", "color": "#34d399"},
-                        {"lat": 37.3886, "lon": -5.9823, "title": "Sevilla",
-                         "popup": "La ciudad de la luz","icon": "\U0001f338", "color": "#fb923c"},
-                        {"lat": 43.2630, "lon": -2.9350, "title": "Bilbao",
-                         "popup": "Capital del Pais Vasco","icon": "\U0001f3d4\ufe0f", "color": "#f472b6"},
+                        {"lat":40.4168,"lon":-3.7038,"title":"Madrid",
+                         "popup":"Capital de Espana","icon":"\U0001f3db\ufe0f","color":"#6366f1"},
+                        {"lat":41.3851,"lon": 2.1734,"title":"Barcelona",
+                         "popup":"Ciudad Condal",   "icon":"\U0001f3d6\ufe0f","color":"#34d399"},
+                        {"lat":37.3886,"lon":-5.9823,"title":"Sevilla",
+                         "popup":"La ciudad de la luz","icon":"\U0001f338","color":"#fb923c"},
+                        {"lat":43.2630,"lon":-2.9350,"title":"Bilbao",
+                         "popup":"Capital del Pais Vasco","icon":"\U0001f3d4\ufe0f","color":"#f472b6"},
                     ],
                     on_marker_click="alert('\u2192 ' + marker.title)",
                 ),
@@ -348,27 +433,30 @@ def components():
             Row(justify="space-between", children=[
                 Text("Martin Framework",
                      style=TextStyle(size=13, color="var(--text-muted)")),
-                Text("Puerto 3908 · 03 de septiembre",
+                Text("Puerto 309 · 03 de septiembre",
                      style=TextStyle(size=13, color="var(--text-muted)")),
             ]),
         ]
     )
 
 
-def _section(title, children):
-    from martin import Column, Heading, TextStyle, Border, Shadow
+def _section(title, subtitle, children):
+    from martin import Column, Heading, Text, TextStyle, Border, Shadow
     return Column(
         gap=16, padding=28,
         style=[
-            "background:var(--surface); border:1px solid var(--border)",
+            "background:var(--surface);border:1px solid var(--border)",
             Border(radius=16),
             Shadow(y=2, blur=8, color="rgba(0,0,0,0.06)"),
         ],
         children=[
-            Heading(title, level=2,
-                    style=TextStyle(size=12, weight="700",
-                                    color="var(--text-muted)",
-                                    letter_spacing=2, transform="uppercase")),
+            Column(gap=4, children=[
+                Heading(title, level=2,
+                        style=TextStyle(size=12, weight="700",
+                                        color="var(--text-muted)",
+                                        letter_spacing=2, transform="uppercase")),
+                Text(subtitle, style=TextStyle(size=13, color="var(--text-muted)")),
+            ]),
             *children,
         ]
     )
@@ -378,7 +466,7 @@ def _glass(icon, label, glass_style):
     from martin import Column, Text, Icon, Border, Shadow, TextStyle
     return Column(
         gap=8, padding=20,
-        style=[glass_style, Border(radius=12), Shadow.md(), "flex:1; min-width:160px"],
+        style=[glass_style, Border(radius=12), Shadow.md(), "flex:1;min-width:160px"],
         children=[
             Icon(icon, size=24),
             Text(label, style=TextStyle(size=13, color="var(--text)")),
@@ -445,7 +533,7 @@ def cmd_new(args):
     print("  " + "─" * 38)
 
     title = _prompt("Título del proyecto", default=name)
-    desc = _prompt("Descripción", default="Let's build an incredible idea!")
+    desc = _prompt("Descripción", default="An amazing idea")
 
     print("")
 
@@ -540,7 +628,7 @@ def cmd_run(args):
     if hasattr(mod, "app") and isinstance(mod.app, App):
         app = mod.app
         app.hot_reload = hot
-        if args.port != 3908:  # solo sobreescribir si se pasó explícito
+        if args.port != 309:  # solo sobreescribir si se pasó explícito
             app.port = args.port
     elif hasattr(mod, "router"):
         app = App(
@@ -650,7 +738,7 @@ def main():
     p_new.add_argument("name", help="Nombre del proyecto")
 
     p_run = sub.add_parser("run", help="Inicia el servidor de desarrollo")
-    p_run.add_argument("--port", type=int, default=3908, help="Puerto (default: 3908)")
+    p_run.add_argument("--port", type=int, default=309, help="Puerto (default: 309)")
     p_run.add_argument("--file", default="main.py", help="Fichero de entrada")
     p_run.add_argument("--no-reload", action="store_true", help="Desactiva hot reload")
 
