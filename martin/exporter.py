@@ -240,11 +240,18 @@ def _route_to_file(route: str) -> str:
 def _reset_widget_counters():
     """Resetea contadores de UID antes de cada render para que HTML y JS coincidan."""
     try:
-        from martin.widgets import Select, MultiSelect, WordCloud, Map
+        from martin.widgets import (
+            Select,
+            MultiSelect,
+            WordCloud,
+            Map,
+            Gallery,
+            Carousel,
+        )
 
-        Select._id_counter = MultiSelect._id_counter = WordCloud._id_counter = (
-            Map._id_counter
-        ) = 0
+        Select._id_counter = MultiSelect._id_counter = 0
+        WordCloud._id_counter = Map._id_counter = 0
+        Gallery._id_counter = Carousel._id_counter = 0
     except Exception:
         pass
 

@@ -59,6 +59,8 @@ from .widgets import (
     Hero,
     Gallery,
     GalleryItem,
+    Carousel,
+    CarouselItem,
 )
 
 __all__ = [
@@ -113,4 +115,6 @@ __all__ = [
     "Hero",
     "Gallery",
     "GalleryItem",
+    "Carousel",
+    "CarouselItem",
 ]

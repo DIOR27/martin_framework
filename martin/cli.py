@@ -215,6 +215,7 @@ from martin import (
     Column, Row, Grid, Divider, Heading, Text, Paragraph, Badge, Icon, Image, Avatar,
     Button, TextField, Select, MultiSelect, Checkbox,
     WordCloud, Map, Timeline, TimelineItem, Hero, Gallery, GalleryItem,
+    Carousel, CarouselItem,
     Border, Shadow, TextStyle, Glass, GradientText, MeshBackground, Colors,
 )
 
@@ -446,6 +447,50 @@ def components():
                     },
                     width=640, height=220, min_size=13, max_size=58,
                     on_click="alert(word + ' · peso: ' + weight)",
+                ),
+            ]),
+
+            # ── Carousel (slides) ─────────────────────────────────────────
+            _section("Carousel · Slides", "Carrusel de tarjetas con flechas, dots y swipe.", [
+                Carousel(
+                    items=[
+                        CarouselItem(image="/assets/icon.webp", title="Slide 1",
+                                     subtitle="Descripcion del primer slide."),
+                        CarouselItem(image="/assets/icon.webp", title="Slide 2",
+                                     subtitle="Descripcion del segundo slide."),
+                        CarouselItem(image="/assets/icon.webp", title="Slide 3",
+                                     subtitle="Con link al hacer clic.",
+                                     url="https://github.com", url_target="_blank"),
+                        CarouselItem(image="/assets/icon.webp", title="Slide 4",
+                                     subtitle="Descripcion del cuarto slide."),
+                    ],
+                    mode="slides", visible=3, gap=16, loop=True,
+                    autoplay=3500, arrows=True, dots=True,
+                    img_height=200, radius=12,
+                ),
+            ]),
+
+            # ── Carousel (brands) ─────────────────────────────────────────
+            _section("Carousel · Brands", "Cinta infinita de logos con filtro y hover.", [
+                Text(
+                    "Filtro gris por defecto. Hover para ver en color completo. "
+                    "Pausa al pasar el cursor sobre la cinta.",
+                    style=TextStyle(size=13, color="var(--text-muted)"),
+                ),
+                Carousel(
+                    items=[
+                        CarouselItem(image="/assets/icon.webp", title="Marca A",
+                                     url="https://example.com"),
+                        CarouselItem(image="/assets/icon.webp", title="Marca B"),
+                        CarouselItem(image="/assets/icon.webp", title="Marca C",
+                                     url="https://example.com"),
+                        CarouselItem(image="/assets/icon.webp", title="Marca D"),
+                        CarouselItem(image="/assets/icon.webp", title="Marca E"),
+                        CarouselItem(image="/assets/icon.webp", title="Marca F"),
+                    ],
+                    mode="brands", brand_height=48, brand_gap=64, speed=25,
+                    brand_filter="grayscale(100%) opacity(0.5)",
+                    brand_filter_hover=None,
                 ),
             ]),
 
