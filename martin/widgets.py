@@ -3005,100 +3005,147 @@ class Carousel(Widget):
             self.brand_filter_hover if self.brand_filter_hover is not None else "none"
         )
         extra = self._resolve_props()
-        pad = 24  # padding vertical de la cinta
 
         def _logo(item):
-            img_style = (
-                f"height:{h}px;width:auto;max-width:160px;"
-                f"object-fit:contain;display:block;"
-                f"filter:{flt};transition:filter .35s ease;"
+            img_s = (
+                "height:"
+                + str(h)
+                + "px;width:auto;max-width:180px;"
+                + "object-fit:contain;display:block;"
+                + "filter:"
+                + flt
+                + ";transition:filter .35s ease;"
             )
-            hover_js = (
-                f" onmouseenter=\"this.querySelector('img').style.filter='{flt_h}'\""
-                f" onmouseleave=\"this.querySelector('img').style.filter='{flt}'\""
+            me = (
+                "onmouseenter=\"this.querySelector('img').style.filter='"
+                + flt_h
+                + "'\""
             )
-            inner = (
-                f'<img src="{item.image}" alt="{item.title or ""}" style="{img_style}">'
+            ml = "onmouseleave=\"this.querySelector('img').style.filter='" + flt + "'\""
+            hjs = " " + me + " " + ml
+            img = (
+                '<img src="'
+                + item.image
+                + '" alt="'
+                + (item.title or "")
+                + '" style="'
+                + img_s
+                + '">'
             )
-            item_style = (
-                f"display:inline-flex;align-items:center;flex-shrink:0;"
-                f"padding:0 {gap//2}px;"
+            s = (
+                "display:inline-flex;align-items:center;flex-shrink:0;padding:0 "
+                + str(gap // 2)
+                + "px;"
             )
             if item.url:
                 rel = (
                     ' rel="noopener noreferrer"' if item.url_target == "_blank" else ""
                 )
                 return (
-                    f'<a href="{item.url}" target="{item.url_target}"{rel}'
-                    f' style="{item_style}text-decoration:none;"{hover_js}>{inner}</a>'
+                    '<a href="'
+                    + item.url
+                    + '" target="'
+                    + item.url_target
+                    + '"'
+                    + rel
+                    + ' style="'
+                    + s
+                    + 'text-decoration:none;"'
+                    + hjs
+                    + ">"
+                    + img
+                    + "</a>"
                 )
-            return f'<div style="{item_style}"{hover_js}>{inner}</div>'
+            return '<div style="' + s + '"' + hjs + ">" + img + "</div>"
 
-        logos_html = "".join(_logo(i) for i in items)
+        logos = "".join(_logo(i) for i in items)
+        wrapper_style = "width:100%;overflow:hidden;position:relative;" + extra
 
-        # Estrategia: dos grupos idénticos en un flex row.
-        # El keyframe mueve el primer grupo de 0 → -100% de su propio ancho.
-        # Cuando llega al final, el segundo grupo ocupa exactamente su lugar → loop perfecto.
-        # CSS custom property --w se calcula en JS para que funcione con cualquier cantidad de logos.
-        kf = f"_carbrand_{uid}"
-        css = (
-            f"<style>"
-            f"@keyframes {kf}{{"
-            f"0%{{transform:translateX(0)}}"
-            f"100%{{transform:translateX(calc(var(--{uid}-w,0) * -1px))}}"
-            f"}}"
-            f"#{uid}_inner{{"
-            f"display:flex;align-items:center;width:max-content;"
-            f"animation:{kf} {speed}s linear infinite;"
-            f"will-change:transform;"
-            f"}}"
-            f"#{uid}:hover ##{uid}_inner{{animation-play-state:paused;}}"
-            f"#{uid}:hover #{uid}_inner{{animation-play-state:paused;}}"
-            f"</style>"
-        )
-
-        # JS: mide el primer grupo y setea la CSS custom property
-        js = (
-            f"<script>(function(){{"
-            f'  var el=document.getElementById("{uid}_g1");'
-            f"  if(!el)return;"
-            f"  function _set(){{document.documentElement.style"
-            f'.setProperty("--{uid}-w", el.offsetWidth);}}  '
-            f"  _set();"
-            f'  window.addEventListener("resize",_set);'
-            f"}})();</script>"
-        )
-
-        wrapper_style = f"overflow:hidden;position:relative;{extra}"
         fade = (
-            f'<div style="position:absolute;top:0;left:0;bottom:0;width:80px;'
-            f"background:linear-gradient(to right,var(--bg,#0d1117),transparent);"
-            f'z-index:2;pointer-events:none;"></div>'
-            f'<div style="position:absolute;top:0;right:0;bottom:0;width:80px;'
-            f"background:linear-gradient(to left,var(--bg,#0d1117),transparent);"
-            f'z-index:2;pointer-events:none;"></div>'
+            '<div style="position:absolute;top:0;left:0;bottom:0;width:60px;'
+            + "background:linear-gradient(to right,var(--bg,#0d1117),transparent);"
+            + 'z-index:2;pointer-events:none;"></div>'
+            + '<div style="position:absolute;top:0;right:0;bottom:0;width:60px;'
+            + "background:linear-gradient(to left,var(--bg,#0d1117),transparent);"
+            + 'z-index:2;pointer-events:none;"></div>'
+        )
+
+        # JS: starts with g1 only, then clones groups until track fills 2x wrapper width.
+        # rAF resets pos when it reaches g1.offsetWidth => seamless loop regardless of count.
+        js = (
+            "<script>(function(){"
+            + 'var uid="'
+            + uid
+            + '";'
+            + "var secs="
+            + str(speed)
+            + ";"
+            + 'var track=document.getElementById(uid+"_track");'
+            + 'var g1=document.getElementById(uid+"_g1");'
+            + "if(!track||!g1)return;"
+            + "var paused=false,pos=0,last=null,w=0;"
+            + "function fill(){"
+            + "w=g1.offsetWidth;"
+            + "if(w<4)return;"
+            + 'var old=track.querySelectorAll("[data-clone]");'
+            + "for(var i=0;i<old.length;i++)old[i].remove();"
+            + "var needed=(track.parentElement?track.parentElement.offsetWidth:800)*2+w;"
+            + "var total=w;"
+            + "while(total<needed){"
+            + "var c=g1.cloneNode(true);"
+            + 'c.removeAttribute("id");'
+            + 'c.setAttribute("aria-hidden","true");'
+            + 'c.setAttribute("data-clone","1");'
+            + "track.appendChild(c);"
+            + "total+=w;"
+            + "}"
+            + "}"
+            + "function step(ts){"
+            + "if(!last)last=ts;"
+            + "var dt=Math.min(ts-last,100);"
+            + "if(!paused&&w>0){"
+            + "pos+=dt/1000*(w/secs);"
+            + "if(pos>=w)pos-=w;"
+            + 'track.style.transform="translateX(-"+pos.toFixed(2)+"px)";'
+            + "}"
+            + "last=ts;"
+            + "requestAnimationFrame(step);"
+            + "}"
+            + "var wrap=document.getElementById(uid);"
+            + "if(wrap){"
+            + 'wrap.addEventListener("mouseenter",function(){paused=true;});'
+            + 'wrap.addEventListener("mouseleave",function(){paused=false;last=null;});'
+            + "}"
+            + "function start(){fill();requestAnimationFrame(step);}"
+            + 'if(document.readyState==="loading"){'
+            + 'document.addEventListener("DOMContentLoaded",start);'
+            + "}else{start();}"
+            + 'window.addEventListener("load",function(){fill();});'
+            + 'window.addEventListener("resize",function(){pos=0;fill();});'
+            + "})();</script>"
         )
 
         html = (
-            css
-            + f'<div id="{uid}" style="{wrapper_style}">'
+            '<div id="'
+            + uid
+            + '" style="'
+            + wrapper_style
+            + '">'
             + fade
-            + f'<div id="{uid}_inner" style="padding:{pad}px 0;">'
-            # Grupo 1 — el que se mide y anima
-            + f'<div id="{uid}_g1" style="display:inline-flex;align-items:center;">'
-            + logos_html
+            + '<div id="'
+            + uid
+            + '_track" style="display:flex;align-items:center;padding:20px 0;will-change:transform;">'
+            + '<div id="'
+            + uid
+            + '_g1" style="display:flex;align-items:center;flex-shrink:0;">'
+            + logos
             + "</div>"
-            # Grupo 2 — copia aria-hidden que rellena el hueco
-            + f'<div aria-hidden="true" style="display:inline-flex;align-items:center;">'
-            + logos_html
-            + "</div>"
-            + "</div>"
-            + "</div>"
+            + "</div></div>"
             + js
         )
         return self._wrap_url(html)
 
-    # ── render slides ─────────────────────────────────────────────────────
+        # ── render slides ─────────────────────────────────────────────────────
 
     def _render_slides(self):
         import json as _json
