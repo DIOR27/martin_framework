@@ -182,7 +182,7 @@ def about():
                 _card("🔧", "Stack",
                       "Python puro · stdlib · Sin dependencias · watchdog opcional."),
                 _card("📅", "Puerto",
-                      "El puerto por defecto es 309, en honor al 03 de septiembre."),
+                      "El puerto por defecto es 3908, en honor al 03 de septiembre."),
             ]),
 
             Link("<- Volver al inicio", href="/",
@@ -477,7 +477,7 @@ def components():
             Row(justify="space-between", children=[
                 Text("Martin Framework",
                      style=TextStyle(size=13, color="var(--text-muted)")),
-                Text("Puerto 309 · 03 de septiembre",
+                Text("Puerto 3908 · 03 de septiembre",
                      style=TextStyle(size=13, color="var(--text-muted)")),
             ]),
         ]
@@ -672,7 +672,7 @@ def cmd_run(args):
     if hasattr(mod, "app") and isinstance(mod.app, App):
         app = mod.app
         app.hot_reload = hot
-        if args.port != 309:  # solo sobreescribir si se pasó explícito
+        if args.port != 3908:  # solo sobreescribir si se pasó explícito
             app.port = args.port
     elif hasattr(mod, "router"):
         app = App(
@@ -782,7 +782,7 @@ def main():
     p_new.add_argument("name", help="Nombre del proyecto")
 
     p_run = sub.add_parser("run", help="Inicia el servidor de desarrollo")
-    p_run.add_argument("--port", type=int, default=309, help="Puerto (default: 309)")
+    p_run.add_argument("--port", type=int, default=3908, help="Puerto (default: 3908)")
     p_run.add_argument("--file", default="main.py", help="Fichero de entrada")
     p_run.add_argument("--no-reload", action="store_true", help="Desactiva hot reload")
 
