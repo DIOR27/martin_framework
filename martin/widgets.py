@@ -2034,14 +2034,23 @@ class TimelineItem:
         else:
             card_margin = "margin-left:52px;margin-right:0;"
 
-        # Imagen
+        # Imagen — acepta string URL o widget Image (o cualquier Widget con .render())
         img_html = ""
-        if self.image:
-            img_html = (
-                f'<img src="{self.image}" alt="{self.title}" '
-                f'style="width:100%;max-height:180px;object-fit:cover;'
-                f'border-radius:8px;margin-bottom:12px;display:block;">'
-            )
+        if self.image is not None:
+            if hasattr(self.image, "render"):
+                # Widget (Image, Container, etc.) — se renderiza directamente
+                img_html = (
+                    '<div style="margin-bottom:12px;border-radius:8px;overflow:hidden;">'
+                    + self.image.render()
+                    + "</div>"
+                )
+            else:
+                # String URL — comportamiento por defecto
+                img_html = (
+                    f'<img src="{self.image}" alt="{self.title}" '
+                    f'style="width:100%;max-height:180px;object-fit:cover;'
+                    f'border-radius:8px;margin-bottom:12px;display:block;">'
+                )
 
         # Tag
         tag_html = ""
