@@ -57,6 +57,8 @@ from .widgets import (
     Timeline,
     TimelineItem,
     Hero,
+    Gallery,
+    GalleryItem,
 )
 
 __all__ = [
@@ -109,4 +111,6 @@ __all__ = [
     "Timeline",
     "TimelineItem",
     "Hero",
+    "Gallery",
+    "GalleryItem",
 ]

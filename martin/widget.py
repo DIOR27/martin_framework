@@ -13,6 +13,8 @@ Every widget automatically accepts:
     shadow     — bool | Shadow(...)
     opacity    — float (0.0 – 1.0)
     hidden     — bool (display: none)
+    url        — str  wrap widget in <a href="..."> (optional)
+    url_target — str  "_self" same tab | "_blank" new tab (default)
 
 These are merged on top of the widget's own base styles automatically.
 """
@@ -37,8 +39,20 @@ class Widget:
             "shadow",
             "opacity",
             "hidden",
+            "url",
+            "url_target",
         )
         return {k: kwargs.pop(k, None) for k in keys}
+
+    def _wrap_url(self, html: str) -> str:
+        """If url prop is set, wraps rendered HTML in an <a> tag."""
+        props = getattr(self, "_props", {})
+        url = props.get("url")
+        if not url:
+            return html
+        target = props.get("url_target") or "_blank"
+        rel = ' rel="noopener noreferrer"' if target == "_blank" else ""
+        return f'<a href="{url}" target="{target}"{rel} style="display:contents;text-decoration:none;">{html}</a>'
 
     def _resolve_props(self, base_css: str = "") -> str:
         """Merge base_css + any universal props into a single inline CSS string."""

@@ -214,7 +214,7 @@ PAGE_COMPONENTS = """\
 from martin import (
     Column, Row, Grid, Divider, Heading, Text, Paragraph, Badge, Icon, Image, Avatar,
     Button, TextField, Select, MultiSelect, Checkbox,
-    WordCloud, Map, Timeline, TimelineItem, Hero,
+    WordCloud, Map, Timeline, TimelineItem, Hero, Gallery, GalleryItem,
     Border, Shadow, TextStyle, Glass, GradientText, MeshBackground, Colors,
 )
 
@@ -387,6 +387,50 @@ def components():
                 ]),
             ]),
 
+            # ── Gallery ──────────────────────────────────────────────────
+            _section("Gallery", "Galeria de imagenes con lightbox y soporte masonry.", [
+                Text("Clic en cualquier imagen para abrir el lightbox. "
+                     "Navega con las flechas o el teclado.",
+                     style=TextStyle(size=13, color="var(--text-muted)")),
+                Row(gap=24, style="flex-wrap:wrap", children=[
+                    Column(gap=8, children=[
+                        Text("Grid 3 columnas + lightbox",
+                             style=TextStyle(size=12, weight="600", color="var(--text-muted)")),
+                        Gallery(
+                            items=[
+                                GalleryItem("/assets/icon.webp", title="Imagen 1",
+                                            description="Descripcion de la primera imagen."),
+                                GalleryItem("/assets/icon.webp", title="Imagen 2",
+                                            description="Descripcion de la segunda imagen."),
+                                GalleryItem("/assets/icon.webp", title="Imagen 3",
+                                            description="Descripcion de la tercera imagen."),
+                                GalleryItem("/assets/icon.webp", title="Imagen 4"),
+                                GalleryItem("/assets/icon.webp", title="Imagen 5"),
+                                GalleryItem("/assets/icon.webp", title="Imagen 6"),
+                            ],
+                            columns=3, gap=8, img_height=160, radius=10, lightbox=True,
+                            style="max-width:480px",
+                        ),
+                    ]),
+                    Column(gap=8, children=[
+                        Text("Masonry + sin lightbox (url externo)",
+                             style=TextStyle(size=12, weight="600", color="var(--text-muted)")),
+                        Gallery(
+                            items=[
+                                GalleryItem("/assets/icon.webp", title="Link externo",
+                                            url="https://github.com", url_target="_blank"),
+                                GalleryItem("/assets/icon.webp", title="Imagen B"),
+                                GalleryItem("/assets/icon.webp", title="Imagen C"),
+                                GalleryItem("/assets/icon.webp", title="Imagen D"),
+                            ],
+                            columns=2, gap=8, radius=10,
+                            masonry=True, lightbox=False,
+                            style="max-width:320px",
+                        ),
+                    ]),
+                ]),
+            ]),
+
             # ── WordCloud ─────────────────────────────────────────────────
             _section("WordCloud", "Nube de palabras interactiva.", [
                 Text(
@@ -533,7 +577,7 @@ def cmd_new(args):
     print("  " + "─" * 38)
 
     title = _prompt("Título del proyecto", default=name)
-    desc = _prompt("Descripción", default="An amazing idea")
+    desc = _prompt("Descripción", default="Let's build an incredible idea!")
 
     print("")
 
@@ -601,9 +645,9 @@ def cmd_run(args):
     main_file = Path(args.file)
     if not main_file.exists():
         print(
-            "ERROR: No se encuentra '"
+            "ERROR: file '"
             + args.file
-            + "'. Estas en la carpeta del proyecto?"
+            + "' not found. Make sure you are in the correct directory"
         )
         sys.exit(1)
 
