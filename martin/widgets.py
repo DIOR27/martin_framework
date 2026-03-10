@@ -2996,7 +2996,7 @@ class Carousel(Widget):
 
     def _render_brands(self):
         uid = self.uid
-        items = self.items
+        items = [i for i in self.items if isinstance(i, CarouselItem) and i.image]
         h = self.brand_height
         gap = self.brand_gap
         speed = self.speed
@@ -3005,13 +3005,13 @@ class Carousel(Widget):
             self.brand_filter_hover if self.brand_filter_hover is not None else "none"
         )
         extra = self._resolve_props()
+        pad = 24  # padding vertical de la cinta
 
-        # Generamos los logos. Duplicamos la lista para el loop infinito continuo.
         def _logo(item):
             img_style = (
                 f"height:{h}px;width:auto;max-width:160px;"
                 f"object-fit:contain;display:block;"
-                f"filter:{flt};transition:filter .3s;"
+                f"filter:{flt};transition:filter .35s ease;"
             )
             hover_js = (
                 f" onmouseenter=\"this.querySelector('img').style.filter='{flt_h}'\""
@@ -3020,61 +3020,81 @@ class Carousel(Widget):
             inner = (
                 f'<img src="{item.image}" alt="{item.title or ""}" style="{img_style}">'
             )
+            item_style = (
+                f"display:inline-flex;align-items:center;flex-shrink:0;"
+                f"padding:0 {gap//2}px;"
+            )
             if item.url:
                 rel = (
                     ' rel="noopener noreferrer"' if item.url_target == "_blank" else ""
                 )
                 return (
                     f'<a href="{item.url}" target="{item.url_target}"{rel}'
-                    f' style="display:inline-flex;align-items:center;flex-shrink:0;'
-                    f'margin:0 {gap//2}px;text-decoration:none;"{hover_js}>{inner}</a>'
+                    f' style="{item_style}text-decoration:none;"{hover_js}>{inner}</a>'
                 )
-            return (
-                f'<div style="display:inline-flex;align-items:center;flex-shrink:0;'
-                f'margin:0 {gap//2}px;"{hover_js}>{inner}</div>'
-            )
+            return f'<div style="{item_style}"{hover_js}>{inner}</div>'
 
-        logos_html = "".join(
-            _logo(i) for i in items if isinstance(i, CarouselItem) and i.image
-        )
-        # Duplicate for seamless loop
-        track_html = logos_html + logos_html
+        logos_html = "".join(_logo(i) for i in items)
 
-        keyframe_name = f"_car_scroll_{uid}"
-
+        # Estrategia: dos grupos idénticos en un flex row.
+        # El keyframe mueve el primer grupo de 0 → -100% de su propio ancho.
+        # Cuando llega al final, el segundo grupo ocupa exactamente su lugar → loop perfecto.
+        # CSS custom property --w se calcula en JS para que funcione con cualquier cantidad de logos.
+        kf = f"_carbrand_{uid}"
         css = (
             f"<style>"
-            f"@keyframes {keyframe_name}{{"
+            f"@keyframes {kf}{{"
             f"0%{{transform:translateX(0)}}"
-            f"100%{{transform:translateX(-50%)}}"
+            f"100%{{transform:translateX(calc(var(--{uid}-w,0) * -1px))}}"
             f"}}"
-            f"#{uid}_track{{"
-            f"display:inline-flex;align-items:center;"
-            f"animation:{keyframe_name} {speed}s linear infinite;"
+            f"#{uid}_inner{{"
+            f"display:flex;align-items:center;width:max-content;"
+            f"animation:{kf} {speed}s linear infinite;"
             f"will-change:transform;"
             f"}}"
-            f"#{uid}_track:hover{{animation-play-state:paused;}}"
+            f"#{uid}:hover ##{uid}_inner{{animation-play-state:paused;}}"
+            f"#{uid}:hover #{uid}_inner{{animation-play-state:paused;}}"
             f"</style>"
         )
 
-        wrapper_style = f"overflow:hidden;position:relative;{extra}"
+        # JS: mide el primer grupo y setea la CSS custom property
+        js = (
+            f"<script>(function(){{"
+            f'  var el=document.getElementById("{uid}_g1");'
+            f"  if(!el)return;"
+            f"  function _set(){{document.documentElement.style"
+            f'.setProperty("--{uid}-w", el.offsetWidth);}}  '
+            f"  _set();"
+            f'  window.addEventListener("resize",_set);'
+            f"}})();</script>"
+        )
 
-        # Fade edges
+        wrapper_style = f"overflow:hidden;position:relative;{extra}"
         fade = (
             f'<div style="position:absolute;top:0;left:0;bottom:0;width:80px;'
-            f'background:linear-gradient(to right,var(--bg),transparent);z-index:1;pointer-events:none;"></div>'
+            f"background:linear-gradient(to right,var(--bg,#0d1117),transparent);"
+            f'z-index:2;pointer-events:none;"></div>'
             f'<div style="position:absolute;top:0;right:0;bottom:0;width:80px;'
-            f'background:linear-gradient(to left,var(--bg),transparent);z-index:1;pointer-events:none;"></div>'
+            f"background:linear-gradient(to left,var(--bg,#0d1117),transparent);"
+            f'z-index:2;pointer-events:none;"></div>'
         )
 
         html = (
             css
             + f'<div id="{uid}" style="{wrapper_style}">'
             + fade
-            + f'<div id="{uid}_track" style="padding:{self._props.get("padding") or 16}px 0;">'
-            + track_html
+            + f'<div id="{uid}_inner" style="padding:{pad}px 0;">'
+            # Grupo 1 — el que se mide y anima
+            + f'<div id="{uid}_g1" style="display:inline-flex;align-items:center;">'
+            + logos_html
+            + "</div>"
+            # Grupo 2 — copia aria-hidden que rellena el hueco
+            + f'<div aria-hidden="true" style="display:inline-flex;align-items:center;">'
+            + logos_html
             + "</div>"
             + "</div>"
+            + "</div>"
+            + js
         )
         return self._wrap_url(html)
 
