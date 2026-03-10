@@ -215,7 +215,7 @@ from martin import (
     Column, Row, Grid, Divider, Heading, Text, Paragraph, Badge, Icon, Image, Avatar,
     Button, TextField, Select, MultiSelect, Checkbox,
     WordCloud, Map, Timeline, TimelineItem, Hero, Gallery, GalleryItem,
-    Carousel, CarouselItem,
+    Carousel, CarouselItem, CookieBanner, CookieCategory,
     Border, Shadow, TextStyle, Glass, GradientText, MeshBackground, Colors,
 )
 
@@ -518,11 +518,51 @@ def components():
                 ),
             ]),
 
+            # ── CookieBanner ──────────────────────────────────────────────
+            _section("CookieBanner", "Banner de cookies GDPR con persistencia localStorage.", [
+                Text(
+                    "Acepta, rechaza o personaliza. La decision se guarda en localStorage. "
+                    "En modo incognito siempre aparece.",
+                    style=TextStyle(size=13, color="var(--text-muted)"),
+                ),
+                Row(gap=16, style="flex-wrap:wrap", children=[
+                    Column(gap=8, style="flex:1;min-width:280px", children=[
+                        Text("Banner inferior (position=bottom)",
+                             style=TextStyle(size=12, weight="600", color="var(--text-muted)")),
+                        Text(
+                            "Se muestra abajo de la pantalla. "
+                            'Usa martin_cookie_consent_demo como clave para no interferir con otros banners.',
+                            style=TextStyle(size=12, color="var(--text-muted)"),
+                        ),
+                    ]),
+                ]),
+                CookieBanner(
+                    title="Este sitio usa cookies",
+                    description="Usamos cookies propias y de terceros para mejorar tu experiencia, "
+                                "analizar el trafico y personalizar el contenido.",
+                    categories=[
+                        CookieCategory("necessary", "Necesarias",
+                                       "Imprescindibles para el funcionamiento del sitio.",
+                                       default=True, required=True),
+                        CookieCategory("analytics", "Analiticas",
+                                       "Nos ayudan a entender como navegas por el sitio.",
+                                       default=False),
+                        CookieCategory("marketing", "Marketing",
+                                       "Permiten mostrarte publicidad relevante.",
+                                       default=False),
+                    ],
+                    position="bottom",
+                    storage_key="martin_cookie_consent_demo",
+                    privacy_url="/about",
+                    privacy_label="Ver politica de privacidad",
+                ),
+            ]),
+
             Divider(color="var(--border)"),
             Row(justify="space-between", children=[
                 Text("Martin Framework",
                      style=TextStyle(size=13, color="var(--text-muted)")),
-                Text("Puerto 3908 · 03 de septiembre",
+                Text("Puerto 309 · 03 de septiembre",
                      style=TextStyle(size=13, color="var(--text-muted)")),
             ]),
         ]

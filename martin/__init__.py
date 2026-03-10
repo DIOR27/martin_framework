@@ -61,6 +61,8 @@ from .widgets import (
     GalleryItem,
     Carousel,
     CarouselItem,
+    CookieBanner,
+    CookieCategory,
 )
 
 __all__ = [
@@ -117,4 +119,6 @@ __all__ = [
     "GalleryItem",
     "Carousel",
     "CarouselItem",
+    "CookieBanner",
+    "CookieCategory",
 ]
