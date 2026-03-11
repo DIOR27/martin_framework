@@ -1,6 +1,6 @@
 """Martin — Build webs with Python, Flutter-style."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from .app import App, Router, PageConfig
 from .response import Response, Request
@@ -24,34 +24,53 @@ from .styles import (
     Colors,
 )
 from .widgets import (
+    # Layout
     Container,
     Row,
     Column,
-    Card,
-    Stack,
     Grid,
+    Stack,
+    Card,
+    Section,
     Spacer,
     Divider,
+    # Text
     Text,
     Heading,
     Paragraph,
     Link,
     Code,
+    # Media
     Image,
     Video,
     Icon,
+    Avatar,
+    # Interaction
     Button,
     TextField,
     Checkbox,
     Select,
     MultiSelect,
+    # Feedback
     Badge,
-    Avatar,
+    Alert,
+    # Navigation
+    NavBar,
+    Footer,
+    Breadcrumb,
+    Tabs,
+    # Data
+    Table,
+    # Overlay
+    Modal,
+    # Utility
     Raw,
     ThemeToggle,
+    # API
     ApiCall,
     Ref,
     ResultBox,
+    # Compound
     WordCloud,
     Map,
     Timeline,
@@ -90,9 +109,10 @@ __all__ = [
     "Container",
     "Row",
     "Column",
-    "Card",
-    "Stack",
     "Grid",
+    "Stack",
+    "Card",
+    "Section",
     "Spacer",
     "Divider",
     "Text",
@@ -103,15 +123,27 @@ __all__ = [
     "Image",
     "Video",
     "Icon",
+    "Avatar",
     "Button",
     "TextField",
     "Checkbox",
     "Select",
     "MultiSelect",
     "Badge",
-    "Avatar",
+    "Alert",
+    "NavBar",
+    "Footer",
+    "Breadcrumb",
+    "Tabs",
+    "Table",
+    "Modal",
     "Raw",
     "ThemeToggle",
+    "ApiCall",
+    "Ref",
+    "ResultBox",
+    "WordCloud",
+    "Map",
     "Timeline",
     "TimelineItem",
     "Hero",

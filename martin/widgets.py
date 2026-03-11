@@ -1,146 +1,273 @@
 """
 Martin — Widgets
-Every widget accepts universal style props:
+
+Filosofia: todo es un Widget. Cada widget acepta props universales:
     style, padding, margin, width, height,
-    color, background, radius, shadow, opacity, hidden
+    color, background, radius, shadow, opacity, hidden,
+    url, url_target, id, class_name
+
+Widgets pilar (bloques base para componer cualquier UI):
+    Contenedores : Container, Row, Column, Grid, Stack, Card, Section
+    Texto        : Text, Heading, Paragraph, Link, Code
+    Media        : Image, Video, Icon, Avatar
+    Interaccion  : Button, TextField, Checkbox, Select, MultiSelect
+    Feedback     : Badge, Alert
+    Navegacion   : NavBar, Footer, Tabs, Breadcrumb
+    Datos        : Table
+    Overlay      : Modal
+    Layout util  : Spacer, Divider
+    Especiales   : Raw, ThemeToggle, CookieBanner
+    Compuestos   : Hero, Timeline, Gallery, Carousel, WordCloud, Map
 """
 from .widget import Widget
 from .styles import resolve_styles, Border, Padding, Margin, Shadow, Size, Background
 
 
-# ══════════════════════════════════════════════════════════
-# LAYOUT
-# ══════════════════════════════════════════════════════════
+# =============================================================================
+# LAYOUT — los contenedores son la columna vertebral de cualquier pagina
+# =============================================================================
 
 class Container(Widget):
     """
-    Container(child=Text("hi"), padding=16, radius=8, background="#fff")
-    Container(child=Text("hi"), style=[Border(radius=8), Shadow.md()])
+    El contenedor mas basico. Cualquier cosa dentro de un div.
+
+        Container(Text("Hola"), padding=16, radius=8, background="var(--surface)")
+
+    Acepta un hijo o lista de hijos:
+        Container(child=Text("Solo uno"))
+        Container(children=[Text("A"), Text("B")])
+
+    Util para darle estilos a un bloque sin semántica adicional.
     """
-    def __init__(self, child=None, children=None, tag="div", id=None, class_name=None, **kwargs):
-        self._props = Widget._extract_props(kwargs)
-        if child and not children:
+    def __init__(self, *args, child=None, children=None,
+                 tag="div", id=None, class_name=None, **kwargs):
+        self._props     = Widget._extract_props(kwargs)
+        self.id         = id
+        self.class_name = class_name
+        self.tag        = tag
+        # Primer arg posicional se trata como child
+        if args:
+            child = args[0] if len(args) == 1 else None
+            if len(args) > 1:
+                children = list(args)
+        if child is not None and children is None:
             children = [child]
         self.children = children or []
-        self.tag = tag
-        self.id = id
-        self.class_name = class_name
 
     def render(self):
         inline = self._resolve_props()
-        inner = self._render_children(self.children)
-        attrs = self._attrs(style=inline or None, id=self.id, **{"class": self.class_name})
+        inner  = self._render_children(self.children)
+        attrs  = self._attrs(style=inline or None, id=self.id, **{"class": self.class_name})
         return self._wrap_url(f"<{self.tag}{attrs}>{inner}</{self.tag}>")
 
 
 class Row(Widget):
     """
-    Row(children=[...], gap=8, align="center", padding=16, background="#f0f0f0")
+    Coloca hijos en fila horizontal (flexbox row).
+
+        Row([Button("A"), Button("B")], gap=12, align="center")
+        Row([...], justify="space-between", wrap=True)
+
+    Parametros clave:
+        gap       int    espacio entre hijos (px)
+        align     str    align-items: "center" | "flex-start" | "flex-end" | "stretch"
+        justify   str    justify-content: "flex-start" | "space-between" | "center" | ...
+        wrap      bool   flex-wrap: permite que los hijos salten de linea
     """
     def __init__(self, children=None, gap=8, align="center",
                  justify="flex-start", wrap=False, id=None, class_name=None, **kwargs):
-        self._props = Widget._extract_props(kwargs)
-        self.children = children or []
-        self.gap = gap
-        self.align = align
-        self.justify = justify
-        self.wrap = wrap
-        self.id = id
+        self._props     = Widget._extract_props(kwargs)
+        self.children   = children or []
+        self.gap        = gap
+        self.align      = align
+        self.justify    = justify
+        self.wrap       = wrap
+        self.id         = id
         self.class_name = class_name
 
     def render(self):
-        base = (f"display: flex; flex-direction: row; gap: {self.gap}px; "
-                f"align-items: {self.align}; justify-content: {self.justify}"
-                + ("; flex-wrap: wrap" if self.wrap else ""))
+        base = (f"display:flex; flex-direction:row; gap:{self.gap}px; "
+                f"align-items:{self.align}; justify-content:{self.justify}"
+                + ("; flex-wrap:wrap" if self.wrap else ""))
         inline = self._resolve_props(base)
-        inner = self._render_children(self.children)
-        attrs = self._attrs(style=inline, id=self.id, **{"class": self.class_name})
+        inner  = self._render_children(self.children)
+        attrs  = self._attrs(style=inline, id=self.id, **{"class": self.class_name})
         return self._wrap_url(f"<div{attrs}>{inner}</div>")
 
 
 class Column(Widget):
     """
-    Column(children=[...], gap=12, padding=24, background="#fff", radius=12)
+    Coloca hijos en columna vertical (flexbox column).
+
+        Column([Heading("Titulo"), Text("Desc"), Button("CTA")], gap=16, padding=32)
+
+    Parametros clave:
+        gap       int    espacio entre hijos (px)
+        align     str    align-items: "stretch" | "center" | "flex-start" | "flex-end"
+        justify   str    justify-content: "flex-start" | "center" | "space-between" | ...
     """
     def __init__(self, children=None, gap=8, align="stretch",
                  justify="flex-start", id=None, class_name=None, **kwargs):
-        self._props = Widget._extract_props(kwargs)
-        self.children = children or []
-        self.gap = gap
-        self.align = align
-        self.justify = justify
-        self.id = id
+        self._props     = Widget._extract_props(kwargs)
+        self.children   = children or []
+        self.gap        = gap
+        self.align      = align
+        self.justify    = justify
+        self.id         = id
         self.class_name = class_name
 
     def render(self):
-        base = (f"display: flex; flex-direction: column; gap: {self.gap}px; "
-                f"align-items: {self.align}; justify-content: {self.justify}")
+        base = (f"display:flex; flex-direction:column; gap:{self.gap}px; "
+                f"align-items:{self.align}; justify-content:{self.justify}")
         inline = self._resolve_props(base)
-        inner = self._render_children(self.children)
-        attrs = self._attrs(style=inline, id=self.id, **{"class": self.class_name})
+        inner  = self._render_children(self.children)
+        attrs  = self._attrs(style=inline, id=self.id, **{"class": self.class_name})
         return self._wrap_url(f"<div{attrs}>{inner}</div>")
 
 
-class Card(Widget):
+class Grid(Widget):
     """
-    Card(children=[...], padding=24, radius=16, shadow=True)
-    Card(children=[...], background="#1e1e2e", radius=12, shadow=Shadow.lg())
+    Cuadricula de elementos (CSS grid).
+
+        Grid([Card(...), Card(...), Card(...)], columns=3, gap=24)
+        Grid([...], columns="repeat(auto-fill, minmax(280px, 1fr))", gap=16)
+
+    Parametros clave:
+        columns   int | str   numero de columnas o string CSS
+        gap       int         espacio entre celdas (px)
     """
-    def __init__(self, children=None, child=None, id=None, class_name=None, **kwargs):
-        self._props = Widget._extract_props(kwargs)
-        if child and not children:
-            children = [child]
-        self.children = children or []
-        self.id = id
+    def __init__(self, children=None, columns=2, gap=16, id=None, class_name=None, **kwargs):
+        self._props     = Widget._extract_props(kwargs)
+        self.children   = children or []
+        self.columns    = columns
+        self.gap        = gap
+        self.id         = id
         self.class_name = class_name
 
     def render(self):
-        base = "background: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.12)"
+        cols   = self.columns if isinstance(self.columns, str) else f"repeat({self.columns}, 1fr)"
+        base   = f"display:grid; grid-template-columns:{cols}; gap:{self.gap}px"
         inline = self._resolve_props(base)
-        inner = self._render_children(self.children)
-        attrs = self._attrs(style=inline, id=self.id, **{"class": self.class_name})
-        return self._wrap_url(f"<div{attrs}>{inner}</div>")
+        inner  = self._render_children(self.children)
+        attrs  = self._attrs(style=inline, id=self.id, **{"class": self.class_name})
+        return f"<div{attrs}>{inner}</div>"
 
 
 class Stack(Widget):
-    def __init__(self, children=None, **kwargs):
-        self._props = Widget._extract_props(kwargs)
-        self.children = children or []
+    """
+    Apila hijos uno encima del otro (position: absolute).
+    El primer hijo define el tamanio; los siguientes se superponen.
+
+        Stack([
+            Image("fondo.jpg"),
+            Column([Heading("Texto encima")], style="justify-content:center"),
+        ])
+    """
+    def __init__(self, children=None, id=None, class_name=None, **kwargs):
+        self._props     = Widget._extract_props(kwargs)
+        self.children   = children or []
+        self.id         = id
+        self.class_name = class_name
 
     def render(self):
-        inline = self._resolve_props("position: relative")
-        parts = []
+        inline = self._resolve_props("position:relative")
+        parts  = []
         for i, child in enumerate(self.children):
             rendered = child.render() if isinstance(child, Widget) else str(child)
             if i == 0:
                 parts.append(rendered)
             else:
-                parts.append(f'<div style="position:absolute;top:0;left:0;width:100%;height:100%">{rendered}</div>')
-        return f'<div style="{inline}">{"".join(parts)}</div>'
+                parts.append(
+                    f'<div style="position:absolute;top:0;left:0;width:100%;height:100%">'
+                    f'{rendered}</div>'
+                )
+        attrs = self._attrs(style=inline, id=self.id, **{"class": self.class_name})
+        return f'<div{attrs}>{"".join(parts)}</div>'
 
 
-class Grid(Widget):
+class Card(Widget):
     """
-    Grid(children=[...], columns=3, gap=16, padding=24)
+    Tarjeta con fondo, borde y sombra. Base para cualquier bloque destacado.
+    Usa variables CSS del tema (funciona en dark y light mode).
+
+        Card([
+            Heading("Titulo"),
+            Text("Descripcion"),
+            Button("Ver mas"),
+        ], padding=24, radius=16)
+
+        Card([...], shadow=True, background="var(--surface-2)")
+
+    Por defecto:
+        background  var(--surface)    — se adapta al tema
+        border      var(--border)     — se adapta al tema
+        radius      12px
+        padding     ninguno (agrega el que necesites)
     """
-    def __init__(self, children=None, columns=2, gap=16, **kwargs):
-        self._props = Widget._extract_props(kwargs)
+    def __init__(self, children=None, child=None, id=None, class_name=None, **kwargs):
+        self._props     = Widget._extract_props(kwargs)
+        self.id         = id
+        self.class_name = class_name
+        if child is not None and children is None:
+            children = [child]
         self.children = children or []
-        self.columns = columns
-        self.gap = gap
 
     def render(self):
-        cols = self.columns if isinstance(self.columns, str) else f"repeat({self.columns}, 1fr)"
-        base = f"display: grid; grid-template-columns: {cols}; gap: {self.gap}px"
+        base   = ("background:var(--surface); border:1px solid var(--border); "
+                  "border-radius:12px; overflow:hidden")
         inline = self._resolve_props(base)
-        inner = self._render_children(self.children)
-        return f'<div style="{inline}">{inner}</div>'
+        inner  = self._render_children(self.children)
+        attrs  = self._attrs(style=inline, id=self.id, **{"class": self.class_name})
+        return self._wrap_url(f"<div{attrs}>{inner}</div>")
+
+
+class Section(Widget):
+    """
+    Bloque de seccion de pagina. La unidad natural para estructurar contenido.
+    Equivale a <section> con padding vertical generoso.
+
+        Section([
+            Heading("Caracteristicas", level=2),
+            Grid([Card(...), Card(...), Card(...)], columns=3),
+        ], id="features", padding=80)
+
+        Section([...], background="var(--surface)", id="pricing")
+
+    Parametros clave:
+        id          str   anchor de la seccion (para navegacion)
+        background  str   color o gradiente de fondo
+
+    Por defecto tiene padding vertical de 80px y es ancho completo.
+    """
+    def __init__(self, children=None, child=None, id=None, class_name=None, **kwargs):
+        self._props     = Widget._extract_props(kwargs)
+        self.id         = id
+        self.class_name = class_name
+        if child is not None and children is None:
+            children = [child]
+        self.children = children or []
+        # Default vertical padding
+        if self._props.get("padding") is None:
+            self._props["padding"] = 80
+
+    def render(self):
+        base   = "width:100%; box-sizing:border-box"
+        inline = self._resolve_props(base)
+        inner  = self._render_children(self.children)
+        attrs  = self._attrs(style=inline, id=self.id, **{"class": self.class_name})
+        return f"<section{attrs}>{inner}</section>"
 
 
 class Spacer(Widget):
+    """
+    Espacio flexible o fijo entre widgets.
+
+        Row([Text("izq"), Spacer(), Text("der")])   # empuja al extremo
+        Column([...], children=[..., Spacer(32)])    # 32px fijo
+    """
     def __init__(self, size=None):
         self._props = {}
-        self.size = size
+        self.size   = size
 
     def render(self):
         if self.size:
@@ -149,29 +276,43 @@ class Spacer(Widget):
 
 
 class Divider(Widget):
-    def __init__(self, color="#e5e7eb", thickness=1, vertical=False, **kwargs):
-        self._props = Widget._extract_props(kwargs)
-        self.color = color
+    """
+    Linea separadora horizontal o vertical.
+
+        Divider()                         # horizontal, color del tema
+        Divider(vertical=True, margin=8)  # vertical
+        Divider(color="var(--border)", thickness=2)
+    """
+    def __init__(self, color=None, thickness=1, vertical=False, **kwargs):
+        self._props    = Widget._extract_props(kwargs)
+        self.color     = color or "var(--border)"
         self.thickness = thickness
-        self.vertical = vertical
+        self.vertical  = vertical
 
     def render(self):
         if self.vertical:
-            base = f"width:{self.thickness}px;height:100%;background:{self.color};flex-shrink:0"
+            base = (f"width:{self.thickness}px; height:100%; "
+                    f"background:{self.color}; flex-shrink:0")
         else:
-            base = f"height:{self.thickness}px;width:100%;background:{self.color};margin:4px 0"
+            base = (f"height:{self.thickness}px; width:100%; "
+                    f"background:{self.color}; margin:4px 0")
         inline = self._resolve_props(base)
         return f'<div style="{inline}"></div>'
 
 
-# ══════════════════════════════════════════════════════════
-# TEXT
-# ══════════════════════════════════════════════════════════
+# =============================================================================
+# TEXT — para todo lo que sea palabras
+# =============================================================================
 
 class Text(Widget):
     """
-    Text("Hola", color="#333", padding=8)
-    Text("Hola", style=TextStyle(size=18, weight="bold"))
+    Texto en linea (span). El widget de texto mas comun.
+
+        Text("Hola mundo")
+        Text("Subtitulo", color="var(--text-muted)", style=TextStyle(size=14))
+
+    Para parrafos largos usa Paragraph.
+    Para titulos usa Heading.
     """
     def __init__(self, content=None, id=None, child=None, children=None, **kwargs):
         self._props   = Widget._extract_props(kwargs)
@@ -189,7 +330,14 @@ class Text(Widget):
 
 class Heading(Widget):
     """
-    Heading("Título", level=1, color="#111", margin=16)
+    Titulo semantico. Usa level para jerarquia (h1-h6).
+
+        Heading("Bienvenido")              # h1 por defecto
+        Heading("Seccion", level=2)        # h2
+        Heading("Subtitulo", level=3, color="var(--text-muted)")
+
+    Combina con GradientText para titulos llamativos:
+        Heading(GradientText.aurora("Titulo"), level=1)
     """
     def __init__(self, content=None, level=1, id=None, child=None, children=None, **kwargs):
         self._props   = Widget._extract_props(kwargs)
@@ -201,13 +349,19 @@ class Heading(Widget):
 
     def render(self):
         inline = self._resolve_props()
-        attrs  = self._attrs(style=inline or None, id=self.id)
         tag    = f"h{self.level}"
+        attrs  = self._attrs(style=inline or None, id=self.id)
         inner  = self._resolve_inner(self.content, self.child, self.children)
         return self._wrap_url(f"<{tag}{attrs}>{inner}</{tag}>")
 
 
 class Paragraph(Widget):
+    """
+    Parrafo de texto (<p>). Para bloques de texto de una o varias lineas.
+
+        Paragraph("Esta es una descripcion mas larga del producto...")
+        Paragraph("Texto", style=TextStyle(size=16, leading=1.8), color="var(--text-muted)")
+    """
     def __init__(self, content=None, id=None, child=None, children=None, **kwargs):
         self._props   = Widget._extract_props(kwargs)
         self.content  = content
@@ -216,7 +370,7 @@ class Paragraph(Widget):
         self.children = children
 
     def render(self):
-        inline = self._resolve_props()
+        inline = self._resolve_props("margin:0; line-height:1.6")
         attrs  = self._attrs(style=inline or None, id=self.id)
         inner  = self._resolve_inner(self.content, self.child, self.children)
         return self._wrap_url(f"<p{attrs}>{inner}</p>")
@@ -224,7 +378,11 @@ class Paragraph(Widget):
 
 class Link(Widget):
     """
-    Link("Click", href="/page", color="#3b82f6")
+    Enlace (<a>). Para navegacion interna o externa.
+
+        Link("Ver mas", href="/productos")
+        Link("GitHub", href="https://github.com", target="_blank")
+        Link(Button("Ir"), href="/ruta")    # cualquier widget como hijo
     """
     def __init__(self, content=None, href="#", target=None, child=None, children=None, **kwargs):
         self._props   = Widget._extract_props(kwargs)
@@ -235,71 +393,95 @@ class Link(Widget):
         self.children = children
 
     def render(self):
-        inline = self._resolve_props()
-        attrs = self._attrs(href=self.href, target=self.target, style=inline or None)
-        inner = self._resolve_inner(self.content, self.child, self.children)
+        inline = self._resolve_props("color:var(--accent); text-decoration:underline")
+        attrs  = self._attrs(href=self.href, target=self.target, style=inline or None)
+        inner  = self._resolve_inner(self.content, self.child, self.children)
         return f"<a{attrs}>{inner}</a>"
 
 
 class Code(Widget):
-    def __init__(self, content, block=False, language=None, **kwargs):
-        self._props = Widget._extract_props(kwargs)
-        self.content = content
-        self.block = block
+    """
+    Codigo inline o en bloque.
+
+        Code("print('hola')")                        # inline
+        Code("def fn():\\n    pass", block=True)     # bloque <pre><code>
+        Code("x = 1", block=True, language="python") # con lenguaje
+    """
+    def __init__(self, content="", block=False, language=None, **kwargs):
+        self._props   = Widget._extract_props(kwargs)
+        self.content  = content
+        self.block    = block
         self.language = language
 
     def render(self):
         inline = self._resolve_props()
         if self.block:
             attrs = self._attrs(style=inline or None)
-            lang = f' class="language-{self.language}"' if self.language else ""
+            lang  = f' class="language-{self.language}"' if self.language else ""
             return f"<pre{attrs}><code{lang}>{self.content}</code></pre>"
         attrs = self._attrs(style=inline or None)
         return f"<code{attrs}>{self.content}</code>"
 
 
-# ══════════════════════════════════════════════════════════
+# =============================================================================
 # MEDIA
-# ══════════════════════════════════════════════════════════
+# =============================================================================
 
 class Image(Widget):
     """
-    Image("foto.jpg", radius=12, width=200, height=150)
-    Image("foto.jpg", style=[Border(radius=8), Shadow.md()])
+    Imagen responsive.
+
+        Image("/foto.jpg")
+        Image("/foto.jpg", radius=12, width=300, height=200)
+        Image("/foto.jpg", url="/galeria", url_target="_self")
+
+    Acepta cualquier prop universal: shadow, radius, width, height, etc.
     """
     def __init__(self, src, alt="", id=None, class_name=None, **kwargs):
-        self._props = Widget._extract_props(kwargs)
-        self.src = src
-        self.alt = alt
-        self.id = id
+        self._props     = Widget._extract_props(kwargs)
+        self.src        = src
+        self.alt        = alt
+        self.id         = id
         self.class_name = class_name
 
     def render(self):
         inline = self._resolve_props()
-        attrs = self._attrs(src=self.src, alt=self.alt,
-                            style=inline or None, id=self.id,
-                            **{"class": self.class_name})
+        attrs  = self._attrs(src=self.src, alt=self.alt,
+                             style=inline or None, id=self.id,
+                             **{"class": self.class_name})
         return self._wrap_url(f"<img{attrs}>")
 
 
 class Video(Widget):
+    """
+    Video HTML5.
+
+        Video("/clip.mp4")
+        Video("/clip.mp4", autoplay=True, muted=True, loop=True)
+    """
     def __init__(self, src, controls=True, autoplay=False, loop=False, muted=False, **kwargs):
-        self._props = Widget._extract_props(kwargs)
-        self.src = src
-        self.controls = controls
-        self.autoplay = autoplay
-        self.loop = loop
-        self.muted = muted
+        self._props    = Widget._extract_props(kwargs)
+        self.src       = src
+        self.controls  = controls
+        self.autoplay  = autoplay
+        self.loop      = loop
+        self.muted     = muted
 
     def render(self):
         inline = self._resolve_props()
-        attrs = self._attrs(controls=self.controls, autoplay=self.autoplay,
-                            loop=self.loop, muted=self.muted, style=inline or None)
+        attrs  = self._attrs(controls=self.controls, autoplay=self.autoplay,
+                             loop=self.loop, muted=self.muted, style=inline or None)
         return f'<video{attrs}><source src="{self.src}"></video>'
 
 
 class Icon(Widget):
-    """Icon("🚀", size=24, margin=8)"""
+    """
+    Icono (emoji, caracter especial, SVG inline, etc.)
+
+        Icon("🚀")
+        Icon("🚀", size=32, margin=8)
+        Icon("<svg ...>", size=24)
+    """
     def __init__(self, icon=None, size=20, child=None, children=None, **kwargs):
         self._props   = Widget._extract_props(kwargs)
         self.icon     = icon
@@ -308,68 +490,123 @@ class Icon(Widget):
         self.children = children
 
     def render(self):
-        base   = f"font-size: {self.size}px; line-height: 1; display:inline-flex; align-items:center"
+        base   = (f"font-size:{self.size}px; line-height:1; "
+                  f"display:inline-flex; align-items:center")
         inline = self._resolve_props(base)
         inner  = self._resolve_inner(self.icon, self.child, self.children)
         return f'<span style="{inline}" aria-hidden="true">{inner}</span>'
 
 
-# ══════════════════════════════════════════════════════════
-# INPUT / INTERACTIVE
-# ══════════════════════════════════════════════════════════
+class Avatar(Widget):
+    """
+    Avatar circular con imagen o iniciales.
+
+        Avatar("/user.jpg")                                    # con imagen
+        Avatar(initials="JD")                                  # con iniciales
+        Avatar(initials="AB", background="#6366f1", color="#fff", width=48)
+
+    Por defecto: 40x40px, circular.
+    """
+    def __init__(self, src=None, initials=None, **kwargs):
+        self._props = Widget._extract_props(kwargs)
+        self.src      = src
+        self.initials = initials
+        if not self._props.get("width"):           self._props["width"]  = 40
+        if not self._props.get("height"):          self._props["height"] = 40
+        if self._props.get("radius") is None:      self._props["radius"] = 999
+
+    def render(self):
+        base   = ("overflow:hidden; display:inline-flex; align-items:center; "
+                  "justify-content:center; flex-shrink:0")
+        inline = self._resolve_props(base)
+        w      = self._props.get("width", 40)
+        if self.src:
+            return (f'<div style="{inline}">'
+                    f'<img src="{self.src}" alt="" '
+                    f'style="width:100%;height:100%;object-fit:cover"></div>')
+        fs  = (w // 3) if isinstance(w, (int, float)) else 14
+        bg  = self._props.get("background") or "var(--surface-2)"
+        col = self._props.get("color") or "var(--text)"
+        return (f'<div style="{inline};background:{bg};color:{col};'
+                f'font-weight:600;font-size:{fs}px">'
+                f'{self.initials or "?"}</div>')
+
+
+# =============================================================================
+# INTERACTION — botones e inputs
+# =============================================================================
 
 class Button(Widget):
     """
-    Button("Guardar")
-    Button("Guardar", background="#e11d48", color="white", radius=12, padding=16)
-    Button("Cancelar", variant="ghost", margin=8)
+    Boton interactivo. El widget de accion principal.
+
+        Button("Guardar")
+        Button("Cancelar", variant="ghost")
+        Button("Eliminar", variant="danger", radius=8)
+
+        # Con enlace:
+        Button("Ver docs", href="/docs")
+
+        # Con accion JS directa:
+        Button("Click", on_click="alert('hola')")
+
+        # Con llamada a API:
+        Button("Enviar", on_click=ApiCall("/api/datos", body={"key": Ref("campo")}))
+
+    Variantes: "primary" | "secondary" | "danger" | "ghost" | "link"
     """
     VARIANTS = {
-        "primary":   "background: #3b82f6; color: #fff; border: none",
-        "secondary": "background: #f3f4f6; color: #374151; border: 1px solid #d1d5db",
-        "danger":    "background: #ef4444; color: #fff; border: none",
-        "ghost":     "background: transparent; color: #374151; border: 1px solid #d1d5db",
-        "link":      "background: transparent; color: #3b82f6; border: none; text-decoration: underline",
+        "primary":   "background:var(--accent); color:#fff; border:none",
+        "secondary": "background:var(--surface-2); color:var(--text); border:1px solid var(--border)",
+        "danger":    "background:var(--danger,#ef4444); color:#fff; border:none",
+        "ghost":     "background:transparent; color:var(--text); border:1px solid var(--border)",
+        "link":      "background:transparent; color:var(--accent); border:none; text-decoration:underline",
     }
 
-    def __init__(self, label, variant="primary", href=None, disabled=False,
+    def __init__(self, label="", variant="primary", href=None, disabled=False,
                  id=None, class_name=None, on_click=None, **kwargs):
-        self._props = Widget._extract_props(kwargs)
-        self.label    = label
-        self.variant  = variant
-        self.href     = href
-        self.disabled = disabled
-        self.id       = id
+        self._props     = Widget._extract_props(kwargs)
+        self.label      = label
+        self.variant    = variant
+        self.href       = href
+        self.disabled   = disabled
+        self.id         = id
         self.class_name = class_name
-        self.on_click = on_click   # ApiCall(...) instance
+        self.on_click   = on_click  # str JS | ApiCall
 
     def render(self):
         import uuid as _uuid
-        base = (self.VARIANTS.get(self.variant, self.VARIANTS["primary"]) +
-                "; padding: 8px 16px; border-radius: 6px; cursor: pointer; "
-                "font-size: 14px; font-weight: 500; display: inline-flex; "
-                "align-items: center; gap: 6px; text-decoration: none")
+        base   = (self.VARIANTS.get(self.variant, self.VARIANTS["primary"])
+                  + "; padding:8px 16px; border-radius:6px; cursor:pointer; "
+                    "font-size:14px; font-weight:500; display:inline-flex; "
+                    "align-items:center; gap:6px; text-decoration:none; "
+                    "transition:opacity .2s")
         inline = self._resolve_props(base)
         inner  = self.label.render() if isinstance(self.label, Widget) else self.label
 
-        # Generate stable id if on_click needs it and none was given
         btn_id = self.id or (
             "btn_" + _uuid.uuid4().hex[:8] if self.on_click else None
         )
 
         if self.href:
-            attrs = self._attrs(href=self.href, style=inline, id=btn_id, **{"class": self.class_name})
+            attrs = self._attrs(href=self.href, style=inline, id=btn_id,
+                                **{"class": self.class_name})
             return self._wrap_url(f"<a{attrs}>{inner}</a>")
 
-        attrs = self._attrs(style=inline, disabled=self.disabled, id=btn_id, **{"class": self.class_name})
+        attrs = self._attrs(style=inline, disabled=self.disabled,
+                            id=btn_id, **{"class": self.class_name})
         html  = f"<button{attrs}>{inner}</button>"
 
         if self.on_click and btn_id:
-            js = self.on_click.to_js(btn_id)
+            # on_click puede ser string JS o ApiCall
+            if isinstance(self.on_click, str):
+                js_body = self.on_click
+            else:
+                js_body = self.on_click.to_js(btn_id)
             html += (
                 "<script>"
                 "document.getElementById(" + repr(btn_id) + ").addEventListener('click',function(){"
-                + js +
+                + js_body +
                 "});"
                 "</script>"
             )
@@ -379,46 +616,638 @@ class Button(Widget):
 
 class TextField(Widget):
     """
-    TextField(placeholder="Nombre", radius=8, padding=12, width="100%")
+    Campo de texto.
+
+        TextField(placeholder="Tu nombre")
+        TextField(placeholder="Email", type="email", name="email", width="100%")
+        TextField(placeholder="Buscar", id="search_input", radius=999)
     """
     def __init__(self, placeholder="", value="", type="text",
                  name=None, id=None, disabled=False, **kwargs):
-        self._props = Widget._extract_props(kwargs)
+        self._props      = Widget._extract_props(kwargs)
         self.placeholder = placeholder
-        self.value = value
-        self.type = type
-        self.name = name
-        self.id = id
-        self.disabled = disabled
+        self.value       = value
+        self.type        = type
+        self.name        = name
+        self.id          = id
+        self.disabled    = disabled
 
     def render(self):
-        base = ("padding: 8px 12px; border: 1px solid var(--border-input); border-radius: 6px; "
-                "font-size: 14px; outline: none; width: 100%; box-sizing: border-box; "
-                "background: var(--input-bg); color: var(--input-color)")
+        base  = ("padding:8px 12px; border:1px solid var(--border); border-radius:6px; "
+                 "font-size:14px; outline:none; width:100%; box-sizing:border-box; "
+                 "background:var(--input-bg,var(--surface)); color:var(--text); "
+                 "transition:border-color .2s")
         inline = self._resolve_props(base)
-        attrs = self._attrs(type=self.type, placeholder=self.placeholder,
-                            value=self.value or None, name=self.name,
-                            style=inline, id=self.id, disabled=self.disabled)
+        attrs  = self._attrs(type=self.type, placeholder=self.placeholder,
+                             value=self.value or None, name=self.name,
+                             style=inline, id=self.id, disabled=self.disabled)
         return f"<input{attrs}>"
 
 
 class Checkbox(Widget):
-    """Checkbox(label="Aceptar", checked=False, margin=8)"""
-    def __init__(self, label="", checked=False, name=None, **kwargs):
-        self._props = Widget._extract_props(kwargs)
-        self.label = label
+    """
+    Casilla de verificacion con etiqueta.
+
+        Checkbox("Aceptar terminos")
+        Checkbox("Activo", checked=True, name="active")
+    """
+    def __init__(self, label="", checked=False, name=None, id=None, **kwargs):
+        self._props  = Widget._extract_props(kwargs)
+        self.label   = label
         self.checked = checked
-        self.name = name
+        self.name    = name
+        self.id      = id
 
     def render(self):
-        base = "display: flex; align-items: center; gap: 8px; color: var(--text)"
-        inline = self._resolve_props(base)
-        checked_attr = " checked" if self.checked else ""
-        name_attr = f' name="{self.name}"' if self.name else ""
+        base     = "display:flex; align-items:center; gap:8px; color:var(--text); cursor:pointer"
+        inline   = self._resolve_props(base)
+        checked  = " checked" if self.checked else ""
+        name_a   = f' name="{self.name}"' if self.name else ""
+        id_a     = f' id="{self.id}"' if self.id else ""
         return (f'<label style="{inline}">'
-                f'<input type="checkbox"{checked_attr}{name_attr}>'
+                f'<input type="checkbox"{checked}{name_a}{id_a}>'
                 f'<span>{self.label}</span></label>')
 
+
+# =============================================================================
+# FEEDBACK — comunicar estado al usuario
+# =============================================================================
+
+class Badge(Widget):
+    """
+    Etiqueta de estado o categoria. Pequena y llamativa.
+
+        Badge("Nuevo")
+        Badge("Pro", background="var(--accent)", color="#fff")
+        Badge("Beta", background="#f59e0b", radius=4)
+
+    Por defecto usa el color de acento del tema.
+    """
+    def __init__(self, label=None, child=None, children=None, **kwargs):
+        self._props   = Widget._extract_props(kwargs)
+        self.label    = label
+        self.child    = child
+        self.children = children
+        if not self._props.get("background"): self._props["background"] = "var(--accent)"
+        if not self._props.get("color"):      self._props["color"]      = "#ffffff"
+
+    def render(self):
+        base   = ("display:inline-block; padding:2px 10px; border-radius:9999px; "
+                  "font-size:12px; font-weight:600; white-space:nowrap")
+        inline = self._resolve_props(base)
+        inner  = self._resolve_inner(self.label, self.child, self.children)
+        return self._wrap_url(f'<span style="{inline}">{inner}</span>')
+
+
+class Alert(Widget):
+    """
+    Mensaje de alerta o notificacion inline.
+
+        Alert("Guardado correctamente.", variant="success")
+        Alert("Email invalido.", variant="error")
+        Alert("Recuerda completar todos los campos.", variant="warning")
+        Alert("Tienes 3 mensajes nuevos.", variant="info")
+
+    Variantes: "info" | "success" | "warning" | "error"
+    Acepta title para mayor claridad:
+        Alert("El archivo fue eliminado.", variant="error", title="Error")
+    """
+    VARIANTS = {
+        "info":    {"bg": "rgba(59,130,246,0.1)",  "border": "rgba(59,130,246,0.3)",  "icon": "ℹ️",  "color": "#3b82f6"},
+        "success": {"bg": "rgba(34,197,94,0.1)",   "border": "rgba(34,197,94,0.3)",   "icon": "✅", "color": "#22c55e"},
+        "warning": {"bg": "rgba(234,179,8,0.1)",   "border": "rgba(234,179,8,0.3)",   "icon": "⚠️", "color": "#eab308"},
+        "error":   {"bg": "rgba(239,68,68,0.1)",   "border": "rgba(239,68,68,0.3)",   "icon": "❌", "color": "#ef4444"},
+    }
+
+    def __init__(self, message="", variant="info", title=None, icon=None, **kwargs):
+        self._props  = Widget._extract_props(kwargs)
+        self.message = message
+        self.variant = variant
+        self.title   = title
+        self.icon    = icon
+
+    def render(self):
+        v      = self.VARIANTS.get(self.variant, self.VARIANTS["info"])
+        ico    = self.icon if self.icon is not None else v["icon"]
+        base   = (f"display:flex; align-items:flex-start; gap:12px; "
+                  f"padding:14px 16px; border-radius:10px; "
+                  f"background:{v['bg']}; border:1px solid {v['border']}")
+        inline = self._resolve_props(base)
+        title_html = (
+            f'<div style="font-weight:700;font-size:14px;color:{v["color"]};'
+            f'margin-bottom:4px;">{self.title}</div>'
+            if self.title else ""
+        )
+        return (
+            f'<div style="{inline}">'
+            f'<span style="font-size:18px;flex-shrink:0;margin-top:1px">{ico}</span>'
+            f'<div style="font-size:14px;color:var(--text);line-height:1.5">'
+            f'{title_html}{self.message}</div>'
+            f'</div>'
+        )
+
+
+# =============================================================================
+# NAVIGATION — estructura de la pagina
+# =============================================================================
+
+class NavBar(Widget):
+    """
+    Barra de navegacion superior. Un pilar de cualquier sitio.
+
+        NavBar(
+            brand=Heading("MiSitio", level=3),
+            links=[
+                Link("Inicio",    href="/"),
+                Link("Productos", href="/productos"),
+                Link("Contacto",  href="/contacto"),
+            ],
+            actions=[
+                Button("Login",    href="/login",    variant="ghost"),
+                Button("Registro", href="/registro"),
+            ],
+        )
+
+    Parametros:
+        brand      Widget  logo o nombre del sitio (izquierda)
+        links      list    lista de Link o cualquier widget (centro)
+        actions    list    botones o widgets (derecha)
+        sticky     bool    fija el header al scroll (default: True)
+        bordered   bool    borde inferior (default: True)
+    """
+    def __init__(self, brand=None, links=None, actions=None,
+                 sticky=True, bordered=True, **kwargs):
+        self._props  = Widget._extract_props(kwargs)
+        self.brand   = brand
+        self.links   = links   or []
+        self.actions = actions or []
+        self.sticky  = sticky
+        self.bordered = bordered
+
+    def render(self):
+        sticky_css = "position:sticky; top:0; z-index:100; " if self.sticky else ""
+        border_css = "border-bottom:1px solid var(--border); " if self.bordered else ""
+        base = (f"{sticky_css}{border_css}"
+                f"background:var(--surface); "
+                f"display:flex; align-items:center; "
+                f"padding:0 32px; height:64px; gap:32px; "
+                f"backdrop-filter:blur(12px); "
+                f"-webkit-backdrop-filter:blur(12px)")
+        inline = self._resolve_props(base)
+
+        brand_html = ""
+        if self.brand:
+            b = self.brand.render() if isinstance(self.brand, Widget) else self.brand
+            brand_html = f'<div style="flex-shrink:0">{b}</div>'
+
+        links_html = ""
+        if self.links:
+            items = "".join(
+                (lk.render() if isinstance(lk, Widget) else str(lk))
+                for lk in self.links
+            )
+            links_html = (f'<nav style="display:flex;align-items:center;gap:24px;'
+                          f'flex:1;justify-content:center">{items}</nav>')
+
+        actions_html = ""
+        if self.actions:
+            items = "".join(
+                (a.render() if isinstance(a, Widget) else str(a))
+                for a in self.actions
+            )
+            actions_html = (f'<div style="display:flex;align-items:center;'
+                            f'gap:8px;flex-shrink:0">{items}</div>')
+
+        return f'<header style="{inline}">{brand_html}{links_html}{actions_html}</header>'
+
+
+class Footer(Widget):
+    """
+    Pie de pagina. Cierre natural de cualquier pagina.
+
+        Footer(
+            left=Text("© 2025 MiEmpresa"),
+            right=Row([
+                Link("Privacidad", href="/privacidad"),
+                Link("Terminos",   href="/terminos"),
+            ], gap=16),
+        )
+
+        # Solo texto centrado:
+        Footer(center=Text("Hecho con Martin Framework"))
+
+    Parametros:
+        left    Widget  contenido izquierdo
+        center  Widget  contenido central
+        right   Widget  contenido derecho
+        bordered bool   borde superior (default: True)
+    """
+    def __init__(self, left=None, center=None, right=None,
+                 bordered=True, **kwargs):
+        self._props  = Widget._extract_props(kwargs)
+        self.left    = left
+        self.center  = center
+        self.right   = right
+        self.bordered = bordered
+
+    def render(self):
+        border_css = "border-top:1px solid var(--border); " if self.bordered else ""
+        base = (f"{border_css}padding:24px 32px; "
+                f"display:flex; align-items:center; justify-content:space-between; "
+                f"background:var(--surface); gap:16px; flex-wrap:wrap")
+        inline = self._resolve_props(base)
+
+        def _r(w):
+            return (w.render() if isinstance(w, Widget) else str(w)) if w else ""
+
+        left_html   = f'<div>{_r(self.left)}</div>'   if self.left   else '<div></div>'
+        center_html = (f'<div style="text-align:center">{_r(self.center)}</div>'
+                       if self.center else "")
+        right_html  = f'<div>{_r(self.right)}</div>'  if self.right  else '<div></div>'
+
+        return f'<footer style="{inline}">{left_html}{center_html}{right_html}</footer>'
+
+
+class Breadcrumb(Widget):
+    """
+    Ruta de navegacion. Muestra donde esta el usuario en la jerarquia.
+
+        Breadcrumb([
+            ("Inicio",    "/"),
+            ("Productos", "/productos"),
+            ("Zapatillas",None),           # ultimo item, sin link
+        ])
+
+        # O con widgets directos:
+        Breadcrumb([Link("Inicio","/"), Text(" / "), Text("Actual")])
+
+    Separador por defecto: "/"
+    """
+    def __init__(self, items=None, separator="/", **kwargs):
+        self._props    = Widget._extract_props(kwargs)
+        self.items     = items or []
+        self.separator = separator
+
+    def render(self):
+        base   = "display:flex; align-items:center; gap:8px; flex-wrap:wrap"
+        inline = self._resolve_props(base)
+        sep    = (f'<span style="color:var(--text-muted);font-size:13px">'
+                  f'{self.separator}</span>')
+        parts  = []
+        for i, item in enumerate(self.items):
+            if isinstance(item, Widget):
+                parts.append(item.render())
+            elif isinstance(item, (tuple, list)):
+                label, href = item[0], (item[1] if len(item) > 1 else None)
+                is_last = (i == len(self.items) - 1)
+                if href and not is_last:
+                    parts.append(
+                        f'<a href="{href}" style="color:var(--accent);'
+                        f'font-size:13px;text-decoration:none;">{label}</a>'
+                    )
+                else:
+                    parts.append(
+                        f'<span style="color:var(--text);font-size:13px;'
+                        f'font-weight:{"600" if is_last else "400"}">{label}</span>'
+                    )
+            else:
+                parts.append(f'<span style="font-size:13px;color:var(--text)">{item}</span>')
+        html = sep.join(parts)
+        return f'<nav aria-label="breadcrumb" style="{inline}">{html}</nav>'
+
+
+class Tabs(Widget):
+    """
+    Navegacion por pestanas. Muestra un contenido a la vez.
+
+        Tabs([
+            ("General",  Column([Text("Contenido general...")])),
+            ("Avanzado", Column([Text("Opciones avanzadas...")])),
+            ("Sobre mi", Column([Avatar(initials="JD"), Text("Juan Diaz")])),
+        ])
+
+    Cada item es una tupla (label, widget_contenido).
+    El primer tab esta activo por defecto.
+    """
+    _id_counter = 0
+
+    def __init__(self, tabs=None, default=0, **kwargs):
+        self._props  = Widget._extract_props(kwargs)
+        self.tabs    = tabs or []
+        self.default = default
+        Tabs._id_counter += 1
+        self.uid = f"tabs_{Tabs._id_counter}"
+
+    def render(self):
+        uid    = self.uid
+        extra  = self._resolve_props()
+        n      = len(self.tabs)
+
+        # Tab buttons
+        btn_base = ("padding:8px 20px; border:none; cursor:pointer; font-size:14px; "
+                    "font-weight:500; border-radius:8px 8px 0 0; transition:all .2s")
+        btns = ""
+        panels = ""
+        for i, (label, content) in enumerate(self.tabs):
+            tid   = f"{uid}_t{i}"
+            pid   = f"{uid}_p{i}"
+            active = i == self.default
+            active_style = (f"background:var(--surface); color:var(--text); "
+                            f"border-bottom:2px solid var(--accent)")
+            inactive_style = ("background:transparent; color:var(--text-muted); "
+                              "border-bottom:2px solid transparent")
+            lbl_html = label.render() if isinstance(label, Widget) else label
+            btns += (
+                f'<button id="{tid}" onclick="{uid}_go({i})" '
+                f'style="{btn_base};{active_style if active else inactive_style}">'
+                f'{lbl_html}</button>'
+            )
+            content_html = content.render() if isinstance(content, Widget) else str(content)
+            display = "block" if active else "none"
+            panels += (
+                f'<div id="{pid}" style="display:{display};padding-top:16px">'
+                f'{content_html}</div>'
+            )
+
+        wrapper_style = extra or "width:100%"
+        tabs_bar = (f'<div style="display:flex;border-bottom:1px solid var(--border);'
+                    f'gap:4px">{btns}</div>')
+
+        js = (
+            f'<script>(function(){{'
+            f'window.{uid}_go=function(i){{'
+            f'  for(var j=0;j<{n};j++){{'
+            f'    var b=document.getElementById("{uid}_t"+j);'
+            f'    var p=document.getElementById("{uid}_p"+j);'
+            f'    var active=j===i;'
+            f'    if(b){{b.style.color=active?"var(--text)":"var(--text-muted)";'
+            f'           b.style.background=active?"var(--surface)":"transparent";'
+            f'           b.style.borderBottom=active?"2px solid var(--accent)":"2px solid transparent";}}'
+            f'    if(p)p.style.display=active?"block":"none";'
+            f'  }}'
+            f'}};'
+            f'}})();</script>'
+        )
+
+        return f'<div style="{wrapper_style}">{tabs_bar}{panels}{js}</div>'
+
+
+# =============================================================================
+# DATA — para mostrar informacion estructurada
+# =============================================================================
+
+class Table(Widget):
+    """
+    Tabla de datos. Limpia, legible y adaptada al tema.
+
+        Table(
+            headers=["Nombre", "Email", "Rol"],
+            rows=[
+                ["Ana Garcia",   "ana@email.com",   "Admin"],
+                ["Pedro Lopez",  "pedro@email.com", "Editor"],
+            ],
+        )
+
+        # Con widgets en las celdas:
+        Table(
+            headers=["Usuario", "Estado", "Accion"],
+            rows=[
+                [Row([Avatar(initials="AG"), Text("Ana")]), Badge("Activo"), Button("Ver")],
+            ],
+        )
+
+    Parametros:
+        headers    list    cabeceras de columnas
+        rows       list    filas de datos (lista de listas)
+        striped    bool    filas alternadas (default: True)
+        bordered   bool    bordes (default: True)
+    """
+    def __init__(self, headers=None, rows=None, striped=True, bordered=True, **kwargs):
+        self._props  = Widget._extract_props(kwargs)
+        self.headers = headers or []
+        self.rows    = rows    or []
+        self.striped = striped
+        self.bordered = bordered
+
+    def render(self):
+        border_cell = "border:1px solid var(--border);" if self.bordered else ""
+        base = "width:100%; border-collapse:collapse; font-size:14px"
+        extra = self._resolve_props()
+        wrapper_style = "width:100%;overflow-x:auto"
+        if extra:
+            wrapper_style += ";" + extra
+
+        # Header
+        th_style = (f"{border_cell}padding:10px 16px; text-align:left; "
+                    f"background:var(--surface-2,var(--surface)); "
+                    f"color:var(--text); font-weight:600; white-space:nowrap")
+        thead = ""
+        if self.headers:
+            ths = "".join(f'<th style="{th_style}">{h}</th>' for h in self.headers)
+            thead = f"<thead><tr>{ths}</tr></thead>"
+
+        # Rows
+        td_style = f"{border_cell}padding:10px 16px; color:var(--text); vertical-align:middle"
+        tbody_rows = ""
+        for i, row in enumerate(self.rows):
+            stripe = ("background:var(--surface-2,rgba(0,0,0,0.03))"
+                      if self.striped and i % 2 == 1 else "")
+            cells = "".join(
+                f'<td style="{td_style};{stripe}">'
+                + (cell.render() if isinstance(cell, Widget) else str(cell))
+                + '</td>'
+                for cell in row
+            )
+            tbody_rows += f"<tr>{cells}</tr>"
+        tbody = f"<tbody>{tbody_rows}</tbody>"
+
+        return (f'<div style="{wrapper_style}">'
+                f'<table style="{base}">{thead}{tbody}</table></div>')
+
+
+# =============================================================================
+# OVERLAY — contenido encima de la pagina
+# =============================================================================
+
+class Modal(Widget):
+    """
+    Ventana modal (overlay). Para confirmaciones, formularios y detalles.
+
+        Modal(
+            id="confirm_modal",
+            title="Confirmar accion",
+            children=[
+                Text("¿Estas seguro de que quieres eliminar este elemento?"),
+                Row([
+                    Button("Cancelar", variant="ghost",
+                           on_click="closeModal('confirm_modal')"),
+                    Button("Eliminar", variant="danger",
+                           on_click="closeModal('confirm_modal')"),
+                ], justify="flex-end", gap=8),
+            ],
+        )
+
+        # Para abrirlo:
+        Button("Abrir", on_click="openModal('confirm_modal')")
+
+    Se incluyen las funciones JS globales openModal(id) y closeModal(id).
+
+    Parametros:
+        id           str   (requerido) identificador unico del modal
+        title        str | Widget  titulo del modal
+        children     list  contenido del modal
+        close_on_backdrop  bool  cierra al hacer clic fuera (default: True)
+        max_width    int   ancho maximo en px (default: 520)
+    """
+    def __init__(self, id, title=None, children=None, child=None,
+                 close_on_backdrop=True, max_width=520, **kwargs):
+        self._props         = Widget._extract_props(kwargs)
+        self.modal_id       = id
+        self.title          = title
+        self.close_on_backdrop = close_on_backdrop
+        self.max_width      = max_width
+        if child is not None and children is None:
+            children = [child]
+        self.children = children or []
+
+    def render(self):
+        mid        = self.modal_id
+        max_w      = self.max_width
+        extra      = self._resolve_props()
+
+        title_html = ""
+        if self.title:
+            t = self.title.render() if isinstance(self.title, Widget) else self.title
+            title_html = (
+                f'<div style="display:flex;align-items:center;justify-content:space-between;'
+                f'margin-bottom:20px">'
+                f'<div style="font-size:18px;font-weight:700;color:var(--text)">{t}</div>'
+                f'<button onclick="closeModal(\'{mid}\')" '
+                f'style="background:none;border:none;cursor:pointer;font-size:20px;'
+                f'color:var(--text-muted);line-height:1;padding:4px">&#x2715;</button>'
+                f'</div>'
+            )
+
+        inner = self._render_children(self.children)
+
+        backdrop_click = (f' onclick="if(event.target===this)closeModal(\'{mid}\')"'
+                          if self.close_on_backdrop else "")
+        box_extra = (f";{extra}" if extra else "")
+
+        html = (
+            f'<div id="{mid}" style="display:none;position:fixed;top:0;left:0;'
+            f'width:100%;height:100%;background:rgba(0,0,0,0.55);'
+            f'backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);'
+            f'z-index:99999;align-items:center;justify-content:center"'
+            f'{backdrop_click}>'
+            f'<div style="background:var(--surface);border:1px solid var(--border);'
+            f'border-radius:16px;padding:28px 32px;max-width:{max_w}px;width:90%;'
+            f'box-shadow:0 24px 64px rgba(0,0,0,0.4);max-height:85vh;overflow-y:auto{box_extra}">'
+            f'{title_html}{inner}'
+            f'</div></div>'
+            f'<script>'
+            f'if(!window.openModal)window.openModal=function(id){{'
+            f'  var m=document.getElementById(id);'
+            f'  if(m){{m.style.display="flex";}}'
+            f'}};'
+            f'if(!window.closeModal)window.closeModal=function(id){{'
+            f'  var m=document.getElementById(id);'
+            f'  if(m){{m.style.display="none";}}'
+            f'}};'
+            f'document.addEventListener("keydown",function(e){{'
+            f'  if(e.key==="Escape"){{'
+            f'    var m=document.getElementById("{mid}");'
+            f'    if(m&&m.style.display!=="none")closeModal("{mid}");'
+            f'  }}'
+            f'}});'
+            f'</script>'
+        )
+        return html
+
+
+# =============================================================================
+# UTILITY
+# =============================================================================
+
+class Raw(Widget):
+    """
+    Inyecta HTML arbitrario sin procesamiento.
+
+        Raw('<hr style="border-color:red">')
+        Raw('<script>console.log("hola")</script>')
+
+    Util como escape hatch cuando necesitas HTML especifico.
+    """
+    def __init__(self, html: str):
+        self._props = {}
+        self.html   = html
+
+    def render(self):
+        return self.html
+
+
+class ThemeToggle(Widget):
+    """
+    Boton para cambiar entre temas oscuro/claro/auto.
+
+        ThemeToggle()                            # con emojis por defecto
+        ThemeToggle(dark_icon="Oscuro", light_icon="Claro")
+        ThemeToggle(include_auto=False)          # solo dark/light
+        ThemeToggle(radius=8, padding=8)
+    """
+    def __init__(self, dark_icon="🌙", light_icon="☀️", auto_icon="🌗",
+                 include_auto=True, title="Cambiar tema", **kwargs):
+        self._props       = Widget._extract_props(kwargs)
+        self.dark_icon    = dark_icon
+        self.light_icon   = light_icon
+        self.auto_icon    = auto_icon
+        self.include_auto = include_auto
+        self.title        = title
+
+    def render(self):
+        base = (
+            "background:var(--surface); border:1px solid var(--border); "
+            "color:var(--text); cursor:pointer; font-size:16px; "
+            "display:inline-flex; align-items:center; justify-content:center; "
+            "border-radius:8px; padding:6px 10px; transition:all 0.2s; "
+            "user-select:none"
+        )
+        inline  = self._resolve_props(base)
+        initial = self.auto_icon if self.include_auto else self.dark_icon
+        uid     = f"_mtt_{id(self) & 0xFFFF}"
+
+        return (
+            f'<button id="{uid}" title="{self.title}" style="{inline}" '
+            f'onclick="_mttCycle(\'{uid}\')" '
+            f'onmouseover="this.style.borderColor=\'var(--accent)\'" '
+            f'onmouseout="this.style.borderColor=\'\'">'
+            f'{initial}'
+            f'</button>'
+            f'<script>'
+            f'(function(){{'
+            f'  var ICONS={{"dark":"{self.dark_icon}","light":"{self.light_icon}","auto":"{self.auto_icon}"}};'
+            f'  var NEXT={{"dark":"light","light":{"auto" if self.include_auto else "dark"},"auto":"dark"}};'
+            f'  function _mttSync(id){{var t=document.documentElement.getAttribute("data-theme")||"auto";'
+            f'    var btn=document.getElementById(id);if(btn)btn.textContent=ICONS[t]||"{initial}";}} '
+            f'  window._mttCycle=function(id){{'
+            f'    var cur=document.documentElement.getAttribute("data-theme")||"auto";'
+            f'    var next=NEXT[cur]||"auto";'
+            f'    document.documentElement.setAttribute("data-theme",next);'
+            f'    try{{localStorage.setItem("martin-theme",next);}}catch(e){{}}'
+            f'    _mttSync(id);'
+            f'  }};'
+            f'  _mttSync("{uid}");'
+            f'  var obs=new MutationObserver(function(){{_mttSync("{uid}");}});'
+            f'  obs.observe(document.documentElement,{{attributes:true,attributeFilter:["data-theme"]}});'
+            f'}})();'
+            f'</script>'
+        )
+
+
+
+# =============================================================================
+# SELECT / MULTISELECT
+# =============================================================================
 
 class Select(Widget):
     """
@@ -785,147 +1614,10 @@ class MultiSelect(Widget):
 # UTILITY
 # ══════════════════════════════════════════════════════════
 
-class Badge(Widget):
-    """Badge("Nuevo", background="#3b82f6", color="#fff", radius=999, padding=8)"""
-    def __init__(self, label=None, child=None, children=None, **kwargs):
-        self._props   = Widget._extract_props(kwargs)
-        self.label    = label
-        self.child    = child
-        self.children = children
-        if not self._props.get("background"):
-            self._props["background"] = "#3b82f6"
-        if not self._props.get("color"):
-            self._props["color"] = "#ffffff"
 
-    def render(self):
-        base  = "display:inline-block;padding:2px 8px;border-radius:9999px;font-size:12px;font-weight:600"
-        inline = self._resolve_props(base)
-        inner  = self._resolve_inner(self.label, self.child, self.children)
-        return self._wrap_url(f'<span style="{inline}">{inner}</span>')
-
-
-class Avatar(Widget):
-    """
-    Avatar(src="user.jpg", width=40, height=40, radius=999)
-    Avatar(initials="JD", background="#6366f1", color="white", width=40, height=40)
-    """
-    def __init__(self, src=None, initials=None, **kwargs):
-        self._props = Widget._extract_props(kwargs)
-        self.src = src
-        self.initials = initials
-        # defaults
-        if not self._props.get("width"):  self._props["width"] = 40
-        if not self._props.get("height"): self._props["height"] = 40
-        if self._props.get("radius") is None: self._props["radius"] = 999
-
-    def render(self):
-        base = "overflow:hidden;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0"
-        inline = self._resolve_props(base)
-        w = self._props.get("width", 40)
-        if self.src:
-            return f'<div style="{inline}"><img src="{self.src}" style="width:100%;height:100%;object-fit:cover"></div>'
-        fs = (w // 3) if isinstance(w, (int, float)) else 14
-        bg = self._props.get("background", "#e5e7eb")
-        color = self._props.get("color", "#374151")
-        return f'<div style="{inline};background:{bg};color:{color};font-weight:600;font-size:{fs}px">{self.initials or "?"}</div>'
-
-
-class Raw(Widget):
-    """Inject raw HTML. Raw('<hr>')"""
-    def __init__(self, html: str):
-        self._props = {}
-        self.html = html
-
-    def render(self):
-        return self.html
-
-
-class ThemeToggle(Widget):
-    """
-    Botón para cambiar entre temas oscuro/claro/auto.
-    Úsalo donde quieras dentro de tu layout.
-
-    # En el navbar:
-    ThemeToggle()
-
-    # Personalizado:
-    ThemeToggle(
-        dark_icon="🌙",
-        light_icon="☀️",
-        auto_icon="🌗",
-        radius=8,
-        padding=8,
-    )
-
-    # Solo oscuro/claro (sin auto):
-    ThemeToggle(include_auto=False)
-
-    # Como texto:
-    ThemeToggle(dark_icon="Oscuro", light_icon="Claro", auto_icon="Auto")
-    """
-
-    def __init__(self, dark_icon="🌙", light_icon="☀️", auto_icon="🌗",
-                 include_auto=True, title="Cambiar tema", **kwargs):
-        self._props = Widget._extract_props(kwargs)
-        self.dark_icon    = dark_icon
-        self.light_icon   = light_icon
-        self.auto_icon    = auto_icon
-        self.include_auto = include_auto
-        self.title        = title
-
-    def render(self):
-        base = (
-            "background:var(--surface); border:1px solid var(--border); "
-            "color:var(--text); cursor:pointer; font-size:16px; "
-            "display:inline-flex; align-items:center; justify-content:center; "
-            "border-radius:8px; padding:6px 10px; transition:all 0.2s; "
-            "user-select:none"
-        )
-        inline = self._resolve_props(base)
-
-        # Cycle order depends on include_auto
-        if self.include_auto:
-            cycle = f"{{dark:'{self.light_icon}',light:'{self.auto_icon}',auto:'{self.dark_icon}'}}"
-            next_theme = "{{dark:'light',light:'auto',auto:'dark'}}"
-            initial = self.auto_icon  # shown before JS runs; JS will update
-        else:
-            cycle = f"{{dark:'{self.light_icon}',light:'{self.dark_icon}',auto:'{self.light_icon}'}}"
-            next_theme = "{{dark:'light',light:'dark',auto:'light'}}"
-            initial = self.dark_icon
-
-        uid = f"_mtt_{id(self) & 0xFFFF}"
-
-        return (
-            f'<button id="{uid}" title="{self.title}" style="{inline}" '
-            f'onclick="_mttCycle(\'{uid}\')" '
-            f'onmouseover="this.style.borderColor=\'var(--accent)\'" '
-            f'onmouseout="this.style.borderColor=\'\'">'
-            f'{initial}'
-            f'</button>'
-            f'<script>'
-            f'(function(){{'
-            f'  var ICONS={{"dark":"{self.dark_icon}","light":"{self.light_icon}","auto":"{self.auto_icon}"}};'
-            f'  var NEXT={{"dark":"light","light":{"auto" if self.include_auto else "dark"},"auto":"dark"}};'
-            f'  function _mttSync(id){{var t=document.documentElement.getAttribute("data-theme")||"auto";'
-            f'    var btn=document.getElementById(id);if(btn)btn.textContent=ICONS[t]||"{initial}";}} '
-            f'  window._mttCycle=function(id){{'
-            f'    var cur=document.documentElement.getAttribute("data-theme")||"auto";'
-            f'    var next=NEXT[cur]||"auto";'
-            f'    document.documentElement.setAttribute("data-theme",next);'
-            f'    try{{localStorage.setItem("martin-theme",next);}}catch(e){{}}'
-            f'    _mttSync(id);'
-            f'  }};'
-            f'  _mttSync("{uid}");'
-            f'  var obs=new MutationObserver(function(){{_mttSync("{uid}");}});'
-            f'  obs.observe(document.documentElement,{{attributes:true,attributeFilter:["data-theme"]}});'
-            f'}})();'
-            f'</script>'
-        )
-
-
-# ══════════════════════════════════════════════════════════
-# API / EVENTOS
-# ══════════════════════════════════════════════════════════
+# =============================================================================
+# API — llamadas al servidor
+# =============================================================================
 
 class Ref:
     """
@@ -3445,4 +4137,5 @@ class CookieBanner(Widget):
         )
 
         return banner_html + js
+
 

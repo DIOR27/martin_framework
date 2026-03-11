@@ -8,6 +8,33 @@ from pathlib import Path
 # TEMPLATES
 # ══════════════════════════════════════════════════════════
 
+GITIGNORE = """
+__pycache__/
+*.py[cod]
+.env
+venv/
+dist/
+.DS_Store
+"""
+
+README = """
+# {name}
+
+Proyecto construido con Martin Framework.
+
+## Inicio rapido
+
+```bash
+martin run
+```
+
+## Exportar
+
+```bash
+martin export
+```
+"""
+
 MAIN_PY = """\
 from martin import App, Router
 from pages.home import home
@@ -43,110 +70,106 @@ if __name__ == "__main__":
 
 PAGE_HOME = """\
 from martin import (
-    Raw, Column, Row, Spacer, Divider,
-    Heading, Text, Paragraph, Button, Icon, Badge,
+    Column, Row, Grid, Section, Card, Spacer, Divider,
+    Heading, Text, Paragraph, Button, Link, Icon, Badge,
+    NavBar, Footer,
     Border, Shadow, TextStyle, Glass, GradientText, MeshBackground, Colors,
 )
 
 
 def home():
     from martin import PageConfig
-    page = Column(
-        style=MeshBackground.themed(),
+
+    nav = NavBar(
+        brand=Heading("PROJECT_NAME", level=3, color="var(--text)"),
+        links=[
+            Link("Inicio",      href="/",           style="color:var(--text);text-decoration:none;font-size:14px"),
+            Link("Componentes", href="/components", style="color:var(--text-muted);text-decoration:none;font-size:14px"),
+            Link("Acerca de",   href="/about",      style="color:var(--text-muted);text-decoration:none;font-size:14px"),
+        ],
+        actions=[Button("Comenzar", href="/components", radius=8)],
+    )
+
+    hero = Section(
+        id="hero",
+        style="text-align:center;align-items:center;display:flex;flex-direction:column;gap:24px;min-height:85vh;justify-content:center",
         children=[
-
-            Column(
-                padding=80, gap=24,
-                style="align-items:center; text-align:center; min-height:80vh; justify-content:center",
-                children=[
-
-                    Row(
-                        gap=8,
-                        style=[
-                            Glass.dark(blur=12, opacity=0.06),
-                            Border(radius=999),
-                            "padding:6px 16px; display:inline-flex; align-items:center",
-                        ],
-                        children=[
-                            Raw('<span style="width:7px;height:7px;border-radius:50%%;'
-                                'background:#34d399;animation:pulse 2s infinite"></span>'),
-                            Text("v0.1.0 - ahora disponible",
-                                 style=TextStyle(size=13, color="var(--accent)")),
-                        ]
-                    ),
-
-                    Heading(
-                        "PROJECT_NAME", level=1,
-                        style=[
-                            GradientText.aurora(),
-                            TextStyle(size=72, weight="800", letter_spacing=-3),
-                        ]
-                    ),
-
-                    Paragraph(
-                        "PROJECT_DESC",
-                        style=TextStyle(size=20, color="var(--text-muted)", line_height=1.6),
-                    ),
-
-                    Row(gap=12, children=[
-                        Button(
-                            "Empezar ->",
-                            background="linear-gradient(135deg, #6366f1, #818cf8)",
-                            color="white", radius=10, padding=16,
-                            style="border:none; font-size:15px; font-weight:700; "
-                                  "box-shadow:0 0 32px rgba(99,102,241,0.4)",
-                        ),
-                        Button(
-                            "Ver componentes", href="/components",
-                            style=[
-                                Glass.dark(opacity=0.06),
-                                Border(radius=10),
-                                "color:var(--text-muted); font-size:15px; padding:14px 24px",
-                            ]
-                        ),
-                    ]),
-                ]
+            Badge("v0.2.0 \u2014 ahora disponible"),
+            Heading(
+                "PROJECT_NAME", level=1,
+                style=[GradientText.aurora(), TextStyle(size=72, weight="800", letter_spacing=-3)],
             ),
+            Paragraph(
+                "PROJECT_DESC",
+                style=TextStyle(size=20, color="var(--text-muted)", line_height=1.7),
+                width=580,
+            ),
+            Row(gap=12, children=[
+                Button("Empezar \u2192", href="/components",
+                       background=Colors.indigo, color="#fff",
+                       radius=10, padding=16,
+                       style="font-size:15px;font-weight:700;border:none"),
+                Button("Ver en GitHub", href="https://github.com",
+                       variant="ghost", radius=10, padding=16,
+                       style="font-size:15px"),
+            ]),
+        ],
+    )
 
-            Row(
-                gap=16, padding=48,
-                style="flex-wrap:wrap; justify-content:center",
-                children=[_feature(i, t, d) for i, t, d in [
-                    ("🧩", "Widget tree",     "Compón interfaces anidando componentes Python."),
-                    ("🎨", "Estilos propios", "Glass(), GradientText(), Shadow()... sin CSS."),
-                    ("⚡", "Hot reload",      "Guarda el fichero y el navegador se actualiza."),
-                    ("📄", "Multi-pagina",    "Router con paginas en ficheros separados."),
-                    ("📦", "Zero deps",       "Solo stdlib de Python. watchdog opcional."),
-                    ("🚀", "Export",          "martin export -> HTML listo para deploy."),
+    features = Section(
+        id="features",
+        background="var(--surface)",
+        style="display:flex;flex-direction:column;gap:48px;align-items:center",
+        children=[
+            Column(gap=8, style="text-align:center;align-items:center", children=[
+                Heading("Todo es un widget", level=2,
+                        style=TextStyle(size=36, weight="800")),
+                Paragraph("Construye cualquier interfaz anidando widgets Python. Sin HTML, sin CSS manual.",
+                          style=TextStyle(size=16, color="var(--text-muted)")),
+            ]),
+            Grid(
+                columns="repeat(auto-fill, minmax(260px, 1fr))",
+                gap=20, width="100%%",
+                children=[_feature(icon, title, desc) for icon, title, desc in [
+                    ("\U0001f9e9", "Widget tree",     "Compón interfaces anidando componentes Python, como Flutter."),
+                    ("\U0001f3a8", "Estilos propios", "Glass(), GradientText(), Shadow()... sin escribir CSS."),
+                    ("\u26a1",     "Hot reload",      "Guarda el fichero y el navegador se actualiza al instante."),
+                    ("\U0001f5fa\ufe0f", "Multi-pagina", "Router declarativo. Cada pagina en su propio fichero."),
+                    ("\U0001f4e6", "Zero deps",       "Solo stdlib de Python. Sin dependencias de terceros."),
+                    ("\U0001f680", "Export estatico", "martin export \u2192 HTML/CSS/JS listo para cualquier hosting."),
                 ]],
             ),
+        ],
+    )
 
-            Raw('<style>@keyframes pulse{'
-                '0%%,100%%{opacity:1;transform:scale(1)}'
-                '50%%{opacity:.5;transform:scale(.8)}}</style>'),
-        ]
+    footer = Footer(
+        left=Text("\u00a9 2025 PROJECT_NAME",
+                  style=TextStyle(size=13, color="var(--text-muted)")),
+        right=Row([
+            Link("Componentes", href="/components",
+                 style="font-size:13px;text-decoration:none;color:var(--text-muted)"),
+            Link("Acerca de", href="/about",
+                 style="font-size:13px;text-decoration:none;color:var(--text-muted)"),
+        ], gap=16),
     )
-    return page, PageConfig(
-        title="PROJECT_NAME",
-        description="PROJECT_DESC",
+
+    page = Column(
+        style=MeshBackground.themed(),
+        children=[nav, hero, features, footer],
     )
+    return page, PageConfig(title="PROJECT_NAME", description="PROJECT_DESC")
 
 
 def _feature(icon, title, desc):
-    from martin import Column, Heading, Text, Icon, Border, Shadow, Glass, TextStyle
-    return Column(
-        gap=12, padding=24,
-        style=[
-            "background:var(--surface); border:1px solid var(--border)",
-            Border(radius=16),
-            Shadow(y=8, blur=24, color="rgba(0,0,0,0.1)"),
-            "width:280px; transition:transform 0.2s",
-        ],
+    from martin import Card, Column, Heading, Text, Icon, TextStyle
+    return Card(
+        padding=24,
         children=[
-            Icon(icon, size=32),
-            Heading(title, level=3,
-                    style=TextStyle(size=15, weight="700", color="var(--text)")),
-            Text(desc, style=TextStyle(size=13, color="var(--text-muted)", line_height=1.6)),
+            Column(gap=12, children=[
+                Icon(icon, size=32),
+                Heading(title, level=3, style=TextStyle(size=15, weight="700")),
+                Text(desc, style=TextStyle(size=13, color="var(--text-muted)", line_height=1.6)),
+            ])
         ]
     )
 """
@@ -182,7 +205,7 @@ def about():
                 _card("🔧", "Stack",
                       "Python puro · stdlib · Sin dependencias · watchdog opcional."),
                 _card("📅", "Puerto",
-                      "El puerto por defecto es 3908, en honor al 03 de septiembre."),
+                      "El puerto por defecto es 309, en honor al 03 de septiembre."),
             ]),
 
             Link("<- Volver al inicio", href="/",
@@ -212,417 +235,420 @@ def _card(icon, title, desc):
 
 PAGE_COMPONENTS = """\
 from martin import (
-    Column, Row, Grid, Divider, Heading, Text, Paragraph, Badge, Icon, Image, Avatar,
-    Button, TextField, Select, MultiSelect, Checkbox,
-    WordCloud, Map, Timeline, TimelineItem, Hero, Gallery, GalleryItem,
-    Carousel, CarouselItem, CookieBanner, CookieCategory,
+    Container, Column, Row, Grid, Stack, Card, Section, Divider, Spacer,
+    Heading, Text, Paragraph, Link, Code, Button, Icon, Badge, Alert,
+    Image, Avatar, NavBar, Footer, Tabs, Breadcrumb,
+    Table, Modal, TextField, Select, MultiSelect, Checkbox,
+    WordCloud, Map, Timeline, TimelineItem, Hero,
+    Gallery, GalleryItem, Carousel, CarouselItem,
+    CookieBanner, CookieCategory,
     Border, Shadow, TextStyle, Glass, GradientText, MeshBackground, Colors,
 )
 
 
+def _section(title, subtitle, children):
+    from martin import Column, Row, Text, Divider, TextStyle, Card
+    return Card(
+        padding=24,
+        style="margin-bottom:0",
+        children=[
+            Column(gap=4, style="margin-bottom:16px", children=[
+                Text(title.upper(),
+                     style=TextStyle(size=11, weight="700", color="var(--text-muted)",
+                                     letter_spacing=1)),
+                Text(subtitle, style=TextStyle(size=13, color="var(--text-muted)")),
+            ]),
+            Column(gap=12, children=children),
+        ],
+    )
+
+
 def components():
+    from martin import PageConfig
     return Column(
-        style=MeshBackground.themed(), padding=48, gap=48,
+        style=MeshBackground.themed(), padding=48, gap=24,
         children=[
 
             Heading("Componentes",
                     style=[GradientText.aurora(), TextStyle(size=48, weight="800")]),
 
-            # ── Hero ──────────────────────────────────────────────────────
-            _section("Hero", "Banner principal con imagen, acciones y fondo.", [
-                Hero(
-                    badge="✨ Nuevo widget",
-                    title=Heading("Hero Banner", level=2,
-                                  style=[GradientText.aurora(),
-                                         TextStyle(size=40, weight="800")]),
-                    subtitle=Paragraph(
-                        "Banner de pagina completa. Soporta imagen, video de fondo, "
-                        "overlay, layout split o centrado y cualquier widget como contenido.",
-                        style=TextStyle(size=15, color="var(--text-muted)"),
-                    ),
-                    actions=[
-                        Button("Accion principal", background=Colors.indigo,
-                               color="white", radius=10, padding=12),
-                        Button("Secundario", radius=10, padding=12),
-                    ],
-                    image=Image("/assets/icon.webp", radius=16,
-                                style="width:160px;height:160px;object-fit:contain;"
-                                      "box-shadow:0 16px 48px rgba(99,102,241,0.25)"),
-                    background=MeshBackground.themed(),
-                    layout="split", align="left", min_height=320,
-                ),
+            _section("Layout", "Row, Column, Grid, Card, Section — los bloques estructurales.", [
+            Row([
+                            Card(padding=20, children=[Column(gap=8, children=[
+                                Text("Card 1", style=TextStyle(size=14, weight="700")),
+                                Text("Contenido dentro de un Card.", style=TextStyle(size=12, color="var(--text-muted)")),
+                            ])]),
+                            Card(padding=20, children=[Column(gap=8, children=[
+                                Text("Card 2", style=TextStyle(size=14, weight="700")),
+                                Text("Cada Card usa var(--surface) y var(--border).", style=TextStyle(size=12, color="var(--text-muted)")),
+                            ])]),
+                            Card(padding=20, children=[Column(gap=8, children=[
+                                Text("Card 3", style=TextStyle(size=14, weight="700")),
+                                Text("Funciona en dark y light mode.", style=TextStyle(size=12, color="var(--text-muted)")),
+                            ])]),
+                        ], gap=16, wrap=True),
+                        Grid(columns=3, gap=16, children=[
+                            Container(padding=16, radius=8, background="var(--surface-2,var(--surface))",
+                                      style="border:1px solid var(--border);text-align:center",
+                                      children=[Text(f"Celda {i+1}",
+                                                    style=TextStyle(size=13, color="var(--text-muted)"))
+                                                for i in range(1)]) for _ in range(3)
+                        ]),
             ]),
 
-            # ── Timeline ──────────────────────────────────────────────────
-            _section("Timeline", "Linea de tiempo con icono, imagen, fecha y descripcion.", [
-                Timeline(items=[
-                    TimelineItem(
-                        title="Lanzamiento v1.0",
-                        date="Enero 2024",
-                        description="Primera version publica del framework con widgets basicos.",
-                        icon="🌱", color=Colors.green, tag="Origen",
-                    ),
-                    TimelineItem(
-                        title="Sistema de temas",
-                        date="Febrero 2024",
-                        description="Soporte dark/light/auto con CSS variables y ThemeToggle.",
-                        icon="🎨", color=Colors.indigo, tag="Feature",
-                    ),
-                    TimelineItem(
-                        title="Hero + Timeline",
-                        date="Hoy",
-                        description="Nuevos widgets de alto nivel para landing pages completas.",
-                        icon="⏱️", color=Colors.blue, tag="Nuevo",
-                        image=Image("/assets/icon.webp",
-                                    style="width:100%;max-height:120px;object-fit:contain;"
-                                          "padding:12px;"),
-                    ),
-                ]),
+            _section("Texto", "Heading (h1-h6), Text, Paragraph, Link, Code.", [
+            Heading("Heading nivel 1", level=1),
+                        Heading("Heading nivel 2", level=2),
+                        Heading("Heading nivel 3", level=3),
+                        Paragraph("Paragraph para bloques de texto. Tiene line-height:1.6 por defecto. "
+                                  "Ideal para descripciones, onboardings o contenido editorial.",
+                                  style=TextStyle(size=15, color="var(--text-muted)")),
+                        Row(gap=8, wrap=True, children=[
+                            Text("Text normal"),
+                            Text("Text muted",   color="var(--text-muted)"),
+                            Text("Text accent",  color="var(--accent)"),
+                            Text("Text bold",    style=TextStyle(weight="700")),
+                            Text("Text small",   style=TextStyle(size=12)),
+                            Code("inline code"),
+                            Link("Un enlace", href="#"),
+                        ]),
+                        Code("def hola():\\n    return 42", block=True, language="python"),
             ]),
 
-            # ── Buttons ───────────────────────────────────────────────────
-            _section("Buttons", "Variantes y estilos de boton.", [
-                Row(gap=12, style="flex-wrap:wrap", children=[
-                    Button("Primary",   variant="primary",   radius=8),
-                    Button("Secondary", variant="secondary", radius=8),
-                    Button("Danger",    variant="danger",    radius=8),
-                    Button("Ghost",     variant="ghost",     radius=8),
-                    Button("Custom",
-                           background="linear-gradient(135deg,#7c3aed,#a855f7)",
-                           color="white", radius=999, padding=14,
-                           style="border:none;font-weight:700"),
-                    Button("Glass",
-                           style=[Glass.dark(opacity=0.08), Border(radius=8),
-                                  "color:var(--accent);padding:8px 16px"]),
-                ]),
+            _section("Badge & Alert", "Badge para etiquetas. Alert para mensajes de estado.", [
+            Row(gap=8, wrap=True, children=[
+                            Badge("Nuevo"),
+                            Badge("Pro",     background=Colors.indigo),
+                            Badge("Beta",    background="#f59e0b"),
+                            Badge("Error",   background="#ef4444"),
+                            Badge("v2.0",    background="var(--surface-2,var(--surface))",
+                                             color="var(--text)", radius=4),
+                        ]),
+                        Column(gap=8, children=[
+                            Alert("Operacion completada exitosamente.", variant="success", title="Listo"),
+                            Alert("Revisa los datos antes de continuar.", variant="warning"),
+                            Alert("El email ya esta en uso.", variant="error"),
+                            Alert("Tienes 3 notificaciones nuevas.", variant="info"),
+                        ]),
             ]),
 
-            # ── Badges ────────────────────────────────────────────────────
-            _section("Badges & Avatar", "Etiquetas y avatares.", [
-                Row(gap=16, style="flex-wrap:wrap;align-items:center", children=[
-                    Row(gap=8, style="flex-wrap:wrap", children=[
-                        Badge("Python",     background=Colors.indigo, color="white"),
-                        Badge("v1.0",       background=Colors.purple, color="white"),
-                        Badge("Nuevo",      background=Colors.green,  color="white"),
-                        Badge("Beta",       background=Colors.orange, color="white"),
-                        Badge("Deprecated", background=Colors.red,    color="white"),
-                    ]),
-                    Divider(vertical=True, color="var(--border)", thickness=1),
-                    Row(gap=8, children=[
-                        Avatar(src="/assets/icon.webp", width=40, height=40),
-                        Avatar(initials="MA", background=Colors.indigo,
-                               color="white", width=40, height=40),
-                        Avatar(initials="PY", background=Colors.purple,
-                               color="white", width=48, height=48),
-                    ]),
-                ]),
+            _section("Button", "Variantes, con enlace y con accion JS.", [
+            Row(gap=8, wrap=True, children=[
+                            Button("Primary"),
+                            Button("Secondary", variant="secondary"),
+                            Button("Danger",    variant="danger"),
+                            Button("Ghost",     variant="ghost"),
+                            Button("Link",      variant="link"),
+                        ]),
+                        Row(gap=8, wrap=True, children=[
+                            Button("Con icono 🚀"),
+                            Button("Enlace externo", href="https://example.com", variant="secondary"),
+                            Button("Accion JS", on_click="alert('Hola desde Martin!')", variant="ghost"),
+                            Button("Disabled", disabled=True),
+                        ]),
             ]),
 
-            # ── Image ─────────────────────────────────────────────────────
-            _section("Image", "Imagenes con estilos y bordes.", [
-                Row(gap=20, style="flex-wrap:wrap;align-items:flex-end", children=[
-                    Column(gap=8, children=[
-                        Text("Sin estilo", style=TextStyle(size=12, color="var(--text-muted)")),
-                        Image("/assets/icon.webp", width=80, height=80),
-                    ]),
-                    Column(gap=8, children=[
-                        Text("radius=16", style=TextStyle(size=12, color="var(--text-muted)")),
-                        Image("/assets/icon.webp", width=80, height=80, radius=16),
-                    ]),
-                    Column(gap=8, children=[
-                        Text("radius=999 (circulo)", style=TextStyle(size=12, color="var(--text-muted)")),
-                        Image("/assets/icon.webp", width=80, height=80, radius=999),
-                    ]),
-                    Column(gap=8, children=[
-                        Text("shadow", style=TextStyle(size=12, color="var(--text-muted)")),
-                        Image("/assets/icon.webp", width=80, height=80,
-                              radius=12, shadow=Shadow(y=8, blur=20, color="rgba(99,102,241,0.4)")),
-                    ]),
-                ]),
+            _section("Inputs", "TextField, Select, MultiSelect, Checkbox.", [
+            Grid(columns=2, gap=16, children=[
+                            TextField(placeholder="Nombre completo"),
+                            TextField(placeholder="Email", type="email"),
+                            TextField(placeholder="Password", type="password"),
+                            TextField(placeholder="Buscar...", radius=999),
+                        ]),
+                        Select(
+                            options=[("es","Espanol"), ("en","English"), ("fr","Frances"),
+                                     ("de","Aleman"), ("pt","Portugues")],
+                            placeholder="Selecciona idioma",
+                            search=True,
+                        ),
+                        MultiSelect(
+                            options=["Python", "JavaScript", "Rust", "Go", "TypeScript", "Swift"],
+                            placeholder="Lenguajes favoritos",
+                        ),
+                        Row(gap=16, wrap=True, children=[
+                            Checkbox("Acepto los terminos"),
+                            Checkbox("Recibir notificaciones", checked=True),
+                            Checkbox("Modo avanzado"),
+                        ]),
             ]),
 
-            # ── Inputs ────────────────────────────────────────────────────
-            _section("Inputs", "Controles de formulario.", [
-                Column(gap=12, children=[
-                    Row(gap=12, children=[
-                        TextField(placeholder="Nombre",  radius=8, style="flex:1"),
-                        TextField(placeholder="Email", type="email", radius=8, style="flex:1"),
-                    ]),
-                    Select(
-                        options=[("py","Python"),("js","JavaScript"),("rs","Rust"),("go","Go")],
-                        value="py", search=True, radius=8,
-                    ),
-                    MultiSelect(
-                        options=["Diseno","Frontend","Backend","DevOps","Testing"],
-                        values=["Diseno","Frontend"],
-                        placeholder="Anadir area...",
-                        tag_color="rgba(99,102,241,0.15)",
-                        tag_border="rgba(99,102,241,0.3)",
-                        tag_text="var(--accent)",
-                        radius=8,
-                    ),
-                    Checkbox(label="Acepto los terminos y condiciones"),
-                ]),
+            _section("Avatar & Image", "Avatares con imagen o iniciales. Imagenes con estilos.", [
+            Row(gap=12, align="center", wrap=True, children=[
+                            Avatar(initials="AB"),
+                            Avatar(initials="CD", background=Colors.indigo, color="#fff"),
+                            Avatar(initials="EF", background="#f59e0b", color="#fff", width=56, height=56),
+                            Avatar(initials="GH", background="#ef4444", color="#fff"),
+                            Avatar("/assets/icon.webp"),
+                        ]),
+                        Row(gap=16, wrap=True, children=[
+                            Image("/assets/icon.webp"),
+                            Image("/assets/icon.webp", radius=12, width=80, height=80),
+                            Image("/assets/icon.webp", radius=999, width=80, height=80, shadow=True),
+                        ]),
             ]),
 
-            # ── Glass ─────────────────────────────────────────────────────
-            _section("Glass", "Efectos glassmorphism.", [
-                Row(gap=16, style="flex-wrap:wrap", children=[
-                    _glass("🌑", "Glass.dark()",          Glass.dark()),
-                    _glass("💜", "Glass.colored(indigo)", Glass.colored("#6366f1", 0.2)),
-                    _glass("💚", "Glass.colored(green)",  Glass.colored("#34d399", 0.2)),
-                ]),
+            _section("NavBar & Footer", "Cabecera y pie de pagina declarativos.", [
+            Column(gap=0, radius=12, style="overflow:hidden;border:1px solid var(--border)", children=[
+                            NavBar(
+                                brand=Heading("MiSitio", level=4, color="var(--text)"),
+                                links=[
+                                    Link("Inicio",    href="#", style="color:var(--text);text-decoration:none;font-size:14px"),
+                                    Link("Productos", href="#", style="color:var(--text-muted);text-decoration:none;font-size:14px"),
+                                    Link("Blog",      href="#", style="color:var(--text-muted);text-decoration:none;font-size:14px"),
+                                ],
+                                actions=[
+                                    Button("Login",    variant="ghost", radius=6, padding=8),
+                                    Button("Registro", radius=6, padding=8),
+                                ],
+                                sticky=False,
+                            ),
+                            Footer(
+                                left=Text("© 2025 MiSitio", style=TextStyle(size=12, color="var(--text-muted)")),
+                                right=Row([
+                                    Link("Privacidad", href="#", style="font-size:12px;color:var(--text-muted);text-decoration:none"),
+                                    Link("Terminos",   href="#", style="font-size:12px;color:var(--text-muted);text-decoration:none"),
+                                ], gap=12),
+                            ),
+                        ]),
             ]),
 
-            # ── GradientText ──────────────────────────────────────────────
-            _section("GradientText", "Textos con gradiente.", [
-                Column(gap=8, children=[
-                    Heading("Aurora",    level=3, style=[GradientText.aurora(),
-                            TextStyle(size=28, weight="800")]),
-                    Heading("Fire",      level=3, style=[GradientText.fire(),
-                            TextStyle(size=28, weight="800")]),
-                    Heading("Ocean",     level=3, style=[GradientText.ocean(),
-                            TextStyle(size=28, weight="800")]),
-                    Heading("Rose Gold", level=3, style=[GradientText.rose_gold(),
-                            TextStyle(size=28, weight="800")]),
-                ]),
+            _section("Tabs", "Navegacion por pestanas con contenido diferente en cada una.", [
+            Tabs([
+                            ("General", Column(gap=12, padding=8, children=[
+                                Heading("Configuracion general", level=4),
+                                TextField(placeholder="Nombre de usuario"),
+                                TextField(placeholder="Email"),
+                                Button("Guardar cambios"),
+                            ])),
+                            ("Seguridad", Column(gap=12, padding=8, children=[
+                                Heading("Seguridad", level=4),
+                                TextField(placeholder="Contrasena actual", type="password"),
+                                TextField(placeholder="Nueva contrasena", type="password"),
+                                Button("Actualizar", variant="danger"),
+                            ])),
+                            ("Notificaciones", Column(gap=12, padding=8, children=[
+                                Heading("Notificaciones", level=4),
+                                Checkbox("Notificaciones por email", checked=True),
+                                Checkbox("Notificaciones push"),
+                                Checkbox("Resumen semanal", checked=True),
+                            ])),
+                        ]),
             ]),
 
-            # ── Gallery ──────────────────────────────────────────────────
-            _section("Gallery", "Galeria de imagenes con lightbox y soporte masonry.", [
-                Text("Clic en cualquier imagen para abrir el lightbox. "
-                     "Navega con las flechas o el teclado.",
-                     style=TextStyle(size=13, color="var(--text-muted)")),
-                Row(gap=24, style="flex-wrap:wrap", children=[
-                    Column(gap=8, children=[
-                        Text("Grid 3 columnas + lightbox",
-                             style=TextStyle(size=12, weight="600", color="var(--text-muted)")),
-                        Gallery(
+            _section("Table", "Tabla de datos con soporte para widgets en celdas.", [
+            Table(
+                            headers=["Nombre", "Rol", "Estado", "Accion"],
+                            rows=[
+                                [Row([Avatar(initials="AG", background=Colors.indigo, color="#fff", width=28, height=28),
+                                      Spacer(8), Text("Ana Garcia")], align="center"),
+                                 Text("Admin"), Badge("Activo", background="#22c55e"),
+                                 Button("Ver", variant="ghost", padding=4, radius=4)],
+                                [Row([Avatar(initials="PL", background="#f59e0b", color="#fff", width=28, height=28),
+                                      Spacer(8), Text("Pedro Lopez")], align="center"),
+                                 Text("Editor"), Badge("Inactivo", background="var(--border)", color="var(--text-muted)"),
+                                 Button("Ver", variant="ghost", padding=4, radius=4)],
+                                [Row([Avatar(initials="MS", background="#ef4444", color="#fff", width=28, height=28),
+                                      Spacer(8), Text("Maria Silva")], align="center"),
+                                 Text("Viewer"), Badge("Activo", background="#22c55e"),
+                                 Button("Ver", variant="ghost", padding=4, radius=4)],
+                            ],
+                            striped=True,
+                        ),
+            ]),
+
+            _section("Modal", "Ventana modal. Usa openModal(id) para abrirla.", [
+            Row(gap=8, children=[
+                            Button("Abrir modal", on_click="openModal('demo_modal')"),
+                            Button("Modal grande", on_click="openModal('big_modal')", variant="ghost"),
+                        ]),
+                        Modal(
+                            id="demo_modal",
+                            title="Confirmar accion",
+                            children=[
+                                Text("¿Estas seguro de que quieres continuar? Esta accion no se puede deshacer.",
+                                     style=TextStyle(size=14, color="var(--text-muted)", line_height=1.6)),
+                                Row([
+                                    Button("Cancelar", variant="ghost", on_click="closeModal('demo_modal')"),
+                                    Button("Confirmar", variant="danger", on_click="closeModal('demo_modal')"),
+                                ], gap=8, justify="flex-end", style="margin-top:16px"),
+                            ],
+                        ),
+                        Modal(
+                            id="big_modal",
+                            title="Formulario de contacto",
+                            max_width=600,
+                            children=[
+                                Column(gap=12, children=[
+                                    Grid(columns=2, gap=12, children=[
+                                        TextField(placeholder="Nombre"),
+                                        TextField(placeholder="Email", type="email"),
+                                    ]),
+                                    TextField(placeholder="Asunto"),
+                                    TextField(placeholder="Mensaje"),
+                                    Row([
+                                        Button("Cancelar", variant="secondary", on_click="closeModal('big_modal')"),
+                                        Button("Enviar mensaje"),
+                                    ], gap=8, justify="flex-end"),
+                                ]),
+                            ],
+                        ),
+            ]),
+
+            _section("Breadcrumb", "Ruta de navegacion.", [
+            Breadcrumb([
+                            ("Inicio",    "/"),
+                            ("Productos", "/productos"),
+                            ("Zapatillas", None),
+                        ]),
+            ]),
+
+            _section("GradientText & Glass", "Estilos especiales de texto y fondo.", [
+            Column(gap=12, children=[
+                            Heading("Aurora gradient",
+                                    style=[GradientText.aurora(), TextStyle(size=32, weight="800")]),
+                            Heading("Indigo mint",
+                                    style=[GradientText.indigo_mint(), TextStyle(size=32, weight="800")]),
+                            Heading("Sunrise",
+                                    style=[GradientText.rose_gold(), TextStyle(size=32, weight="800")]),
+                        ]),
+                        Row(gap=16, wrap=True, children=[
+                            Column(
+                                gap=8, padding=20,
+                                style=[Glass.dark(blur=16, opacity=0.08),
+                                       Border(radius=12), "width:180px;text-align:center"],
+                                children=[Icon("🔮", size=32), Text("Glass dark", style=TextStyle(size=14, weight="600"))],
+                            ),
+                            Column(
+                                gap=8, padding=20,
+                                style=[Glass.light(blur=16, opacity=0.5),
+                                       Border(radius=12), "width:180px;text-align:center"],
+                                children=[Icon("✨", size=32), Text("Glass light", style=TextStyle(size=14, weight="600"))],
+                            ),
+                        ]),
+            ]),
+
+            _section("Timeline", "Linea de tiempo vertical.", [
+            Timeline(items=[
+                            TimelineItem(
+                                title="Proyecto iniciado",
+                                description="Se crea el repositorio y la estructura base del proyecto.",
+                                date="Enero 2024", icon="🚀", color=Colors.indigo,
+                            ),
+                            TimelineItem(
+                                title="Primera version",
+                                description="Se publican los widgets basicos: Container, Row, Column, Button.",
+                                date="Marzo 2024", icon="✅", color="#22c55e",
+                            ),
+                            TimelineItem(
+                                title="Refactor v0.2",
+                                description="Coherencia total de API. Nuevos widgets: NavBar, Footer, Tabs, Table, Modal.",
+                                date="2025", icon="⚡", color="#f59e0b", tag="Actual",
+                            ),
+                        ]),
+            ]),
+
+            _section("Hero", "Banner principal de pagina.", [
+            Hero(
+                            badge=Badge("Ejemplo de Hero"),
+                            title=Heading("Construye rapido.", level=2,
+                                          style=[GradientText.aurora(), TextStyle(size=40, weight="800")]),
+                            subtitle=Paragraph(
+                                "Un Hero con imagen, layout split y fondo con mesh.",
+                                style=TextStyle(size=15, color="var(--text-muted)"),
+                            ),
+                            actions=[
+                                Button("Empezar", background=Colors.indigo, color="#fff", radius=10),
+                                Button("Ver docs", variant="ghost", radius=10),
+                            ],
+                            image=Image("/assets/icon.webp", radius=16, width=200,
+                                        style="box-shadow:0 24px 48px rgba(0,0,0,0.3)"),
+                            background=MeshBackground.themed(),
+                            layout="split", align="left", min_height=320,
+                        ),
+            ]),
+
+            _section("Gallery", "Galeria de imagenes con lightbox.", [
+            Gallery(
                             items=[
-                                GalleryItem("/assets/icon.webp", title="Imagen 1",
-                                            description="Descripcion de la primera imagen."),
-                                GalleryItem("/assets/icon.webp", title="Imagen 2",
-                                            description="Descripcion de la segunda imagen."),
-                                GalleryItem("/assets/icon.webp", title="Imagen 3",
-                                            description="Descripcion de la tercera imagen."),
+                                GalleryItem("/assets/icon.webp", title="Imagen 1", description="Descripcion de la imagen 1"),
+                                GalleryItem("/assets/icon.webp", title="Imagen 2"),
+                                GalleryItem("/assets/icon.webp", title="Imagen 3", span_cols=2),
                                 GalleryItem("/assets/icon.webp", title="Imagen 4"),
-                                GalleryItem("/assets/icon.webp", title="Imagen 5"),
+                                GalleryItem("/assets/icon.webp", title="Imagen 5", description="Con enlace", url="https://example.com"),
                                 GalleryItem("/assets/icon.webp", title="Imagen 6"),
                             ],
-                            columns=3, gap=8, img_height=160, radius=10, lightbox=True,
-                            style="max-width:480px",
+                            columns=3, gap=8, img_height=180, radius=8, lightbox=True,
                         ),
-                    ]),
-                    Column(gap=8, children=[
-                        Text("Masonry + sin lightbox (url externo)",
-                             style=TextStyle(size=12, weight="600", color="var(--text-muted)")),
-                        Gallery(
+            ]),
+
+            _section("Carousel - Slides", "Carrusel de tarjetas con flechas y dots.", [
+            Carousel(
                             items=[
-                                GalleryItem("/assets/icon.webp", title="Link externo",
-                                            url="https://github.com", url_target="_blank"),
-                                GalleryItem("/assets/icon.webp", title="Imagen B"),
-                                GalleryItem("/assets/icon.webp", title="Imagen C"),
-                                GalleryItem("/assets/icon.webp", title="Imagen D"),
+                                CarouselItem(image="/assets/icon.webp", title="Slide 1",
+                                             subtitle="Descripcion del primer slide."),
+                                CarouselItem(image="/assets/icon.webp", title="Slide 2",
+                                             subtitle="Descripcion del segundo slide."),
+                                CarouselItem(image="/assets/icon.webp", title="Slide 3",
+                                             subtitle="Con link al hacer clic.", url="https://example.com"),
+                                CarouselItem(image="/assets/icon.webp", title="Slide 4",
+                                             subtitle="Ultimo slide."),
                             ],
-                            columns=2, gap=8, radius=10,
-                            masonry=True, lightbox=False,
-                            style="max-width:320px",
+                            mode="slides", visible=3, gap=16, loop=True, autoplay=3000,
                         ),
-                    ]),
-                ]),
             ]),
 
-            # ── WordCloud ─────────────────────────────────────────────────
+            _section("Carousel - Brands", "Cinta infinita de logos.", [
+            Carousel(
+                            items=[
+                                CarouselItem(image="/assets/icon.webp", title="Marca A", url="https://example.com"),
+                                CarouselItem(image="/assets/icon.webp", title="Marca B"),
+                                CarouselItem(image="/assets/icon.webp", title="Marca C", url="https://example.com"),
+                                CarouselItem(image="/assets/icon.webp", title="Marca D"),
+                                CarouselItem(image="/assets/icon.webp", title="Marca E"),
+                            ],
+                            mode="brands", brand_height=48, brand_gap=64, speed=25,
+                            brand_filter="grayscale(100%%) opacity(0.5)",
+                        ),
+            ]),
+
+            _section("Map", "Mapa interactivo con marcadores.", [
+            Map(
+                            center=(4.711, -74.0721),
+                            zoom=12,
+                            markers=[(4.711, -74.0721, "Bogota, Colombia")],
+                            height=300,
+                        ),
+            ]),
+
             _section("WordCloud", "Nube de palabras interactiva.", [
-                Text(
-                    "Hover para resaltar, click para interactuar.",
-                    style=TextStyle(size=13, color="var(--text-muted)"),
-                ),
-                WordCloud(
-                    words={
-                        "Python":10,"Martin":9,"Web":7,"Widgets":8,
-                        "OpenSource":6,"Backend":5,"Frontend":6,
-                        "Hot Reload":4,"Router":4,"Estilos":5,
-                        "Export":3,"API":4,"Hero":5,"Timeline":4,
-                    },
-                    width=640, height=220, min_size=13, max_size=58,
-                    on_click="alert(word + ' · peso: ' + weight)",
-                ),
-            ]),
-
-            # ── Carousel (slides) ─────────────────────────────────────────
-            _section("Carousel · Slides", "Carrusel de tarjetas con flechas, dots y swipe.", [
-                Carousel(
-                    items=[
-                        CarouselItem(image="/assets/icon.webp", title="Slide 1",
-                                     subtitle="Descripcion del primer slide."),
-                        CarouselItem(image="/assets/icon.webp", title="Slide 2",
-                                     subtitle="Descripcion del segundo slide."),
-                        CarouselItem(image="/assets/icon.webp", title="Slide 3",
-                                     subtitle="Con link al hacer clic.",
-                                     url="https://github.com", url_target="_blank"),
-                        CarouselItem(image="/assets/icon.webp", title="Slide 4",
-                                     subtitle="Descripcion del cuarto slide."),
-                    ],
-                    mode="slides", visible=3, gap=16, loop=True,
-                    autoplay=3500, arrows=True, dots=True,
-                    img_height=200, radius=12,
-                ),
-            ]),
-
-            # ── Carousel (brands) ─────────────────────────────────────────
-            _section("Carousel · Brands", "Cinta infinita de logos con filtro y hover.", [
-                Text(
-                    "Filtro gris por defecto. Hover para ver en color completo. "
-                    "Pausa al pasar el cursor sobre la cinta.",
-                    style=TextStyle(size=13, color="var(--text-muted)"),
-                ),
-                Carousel(
-                    items=[
-                        CarouselItem(image="/assets/icon.webp", title="Marca A",
-                                     url="https://example.com"),
-                        CarouselItem(image="/assets/icon.webp", title="Marca B"),
-                        CarouselItem(image="/assets/icon.webp", title="Marca C",
-                                     url="https://example.com"),
-                        CarouselItem(image="/assets/icon.webp", title="Marca D"),
-                        CarouselItem(image="/assets/icon.webp", title="Marca E"),
-                        CarouselItem(image="/assets/icon.webp", title="Marca F"),
-                    ],
-                    mode="brands", brand_height=48, brand_gap=64, speed=25,
-                    brand_filter="grayscale(100%) opacity(0.5)",
-                    brand_filter_hover=None,
-                ),
-            ]),
-
-            # ── Map ───────────────────────────────────────────────────────
-            _section("Map", "Mapa interactivo Leaflet + OpenStreetMap.", [
-                Text(
-                    "Busqueda, geolocalizacion y rutas incluidas.",
-                    style=TextStyle(size=13, color="var(--text-muted)"),
-                ),
-                Map(
-                    zoom=5, height=420, route=True,
-                    route_color="#818cf8", route_weight=3,
-                    search=True, geolocation=True, tile="osm",
-                    markers=[
-                        {"lat":40.4168,"lon":-3.7038,"title":"Madrid",
-                         "popup":"Capital de Espana","icon":"\U0001f3db\ufe0f","color":"#6366f1"},
-                        {"lat":41.3851,"lon": 2.1734,"title":"Barcelona",
-                         "popup":"Ciudad Condal",   "icon":"\U0001f3d6\ufe0f","color":"#34d399"},
-                        {"lat":37.3886,"lon":-5.9823,"title":"Sevilla",
-                         "popup":"La ciudad de la luz","icon":"\U0001f338","color":"#fb923c"},
-                        {"lat":43.2630,"lon":-2.9350,"title":"Bilbao",
-                         "popup":"Capital del Pais Vasco","icon":"\U0001f3d4\ufe0f","color":"#f472b6"},
-                    ],
-                    on_marker_click="alert('\u2192 ' + marker.title)",
-                ),
-            ]),
-
-            # ── CookieBanner ──────────────────────────────────────────────
-            _section("CookieBanner", "Banner de cookies GDPR con persistencia localStorage.", [
-                Text(
-                    "Acepta, rechaza o personaliza. La decision se guarda en localStorage. "
-                    "En modo incognito siempre aparece.",
-                    style=TextStyle(size=13, color="var(--text-muted)"),
-                ),
-                Row(gap=16, style="flex-wrap:wrap", children=[
-                    Column(gap=8, style="flex:1;min-width:280px", children=[
-                        Text("Banner inferior (position=bottom)",
-                             style=TextStyle(size=12, weight="600", color="var(--text-muted)")),
-                        Text(
-                            "Se muestra abajo de la pantalla. "
-                            'Usa martin_cookie_consent_demo como clave para no interferir con otros banners.',
-                            style=TextStyle(size=12, color="var(--text-muted)"),
+            WordCloud(
+                            words={"Python":10,"Martin":9,"Web":8,"Widget":7,"CSS":6,
+                                   "HTML":5,"JavaScript":5,"Framework":4,"API":4,"Router":3},
+                            width=600, height=280,
                         ),
-                    ]),
-                ]),
-                CookieBanner(
-                    title="Este sitio usa cookies",
-                    description="Usamos cookies propias y de terceros para mejorar tu experiencia, "
-                                "analizar el trafico y personalizar el contenido.",
-                    categories=[
-                        CookieCategory("necessary", "Necesarias",
-                                       "Imprescindibles para el funcionamiento del sitio.",
-                                       default=True, required=True),
-                        CookieCategory("analytics", "Analiticas",
-                                       "Nos ayudan a entender como navegas por el sitio.",
-                                       default=False),
-                        CookieCategory("marketing", "Marketing",
-                                       "Permiten mostrarte publicidad relevante.",
-                                       default=False),
-                    ],
-                    position="bottom",
-                    storage_key="martin_cookie_consent_demo",
-                    privacy_url="/about",
-                    privacy_label="Ver politica de privacidad",
-                ),
             ]),
 
-            Divider(color="var(--border)"),
-            Row(justify="space-between", children=[
-                Text("Martin Framework",
-                     style=TextStyle(size=13, color="var(--text-muted)")),
-                Text("Puerto 309 · 03 de septiembre",
-                     style=TextStyle(size=13, color="var(--text-muted)")),
+            _section("CookieBanner", "Banner de cookies GDPR con persistencia.", [
+            CookieBanner(
+                            title="Este sitio usa cookies",
+                            description="Usamos cookies propias y de terceros para mejorar tu experiencia.",
+                            categories=[
+                                CookieCategory("necessary", "Necesarias",
+                                               "Imprescindibles para el funcionamiento.",
+                                               default=True, required=True),
+                                CookieCategory("analytics", "Analiticas",
+                                               "Mejoran el sitio.", default=False),
+                                CookieCategory("marketing", "Marketing",
+                                               "Publicidad relevante.", default=False),
+                            ],
+                            position="bottom",
+                            storage_key="martin_cookie_consent_demo",
+                            privacy_url="/about",
+                        ),
             ]),
+
         ]
-    )
-
-
-def _section(title, subtitle, children):
-    from martin import Column, Heading, Text, TextStyle, Border, Shadow
-    return Column(
-        gap=16, padding=28,
-        style=[
-            "background:var(--surface);border:1px solid var(--border)",
-            Border(radius=16),
-            Shadow(y=2, blur=8, color="rgba(0,0,0,0.06)"),
-        ],
-        children=[
-            Column(gap=4, children=[
-                Heading(title, level=2,
-                        style=TextStyle(size=12, weight="700",
-                                        color="var(--text-muted)",
-                                        letter_spacing=2, transform="uppercase")),
-                Text(subtitle, style=TextStyle(size=13, color="var(--text-muted)")),
-            ]),
-            *children,
-        ]
-    )
-
-
-def _glass(icon, label, glass_style):
-    from martin import Column, Text, Icon, Border, Shadow, TextStyle
-    return Column(
-        gap=8, padding=20,
-        style=[glass_style, Border(radius=12), Shadow.md(), "flex:1;min-width:160px"],
-        children=[
-            Icon(icon, size=24),
-            Text(label, style=TextStyle(size=13, color="var(--text)")),
-        ]
-    )
-"""
-
-GITIGNORE = "__pycache__/\n*.pyc\n.DS_Store\ndist/\n.venv/\n"
-
-README = """\
-# {name}
-
-Proyecto Martin. Ejecuta con:
-
-```bash
-martin run
-```
-
-## Paginas
-- `/`            -> `pages/home.py`
-- `/about`       -> `pages/about.py`
-- `/components`  -> `pages/components.py`
-
-## Anadir una pagina nueva
-1. Crea `pages/mi_pagina.py` con una funcion `mi_pagina()`
-2. En `main.py`: `from pages.mi_pagina import mi_pagina`
-3. Anade: `router.add("/mi-ruta", mi_pagina, title="Mi Pagina")`
+    ), PageConfig(title="Componentes")
 """
 
 
@@ -662,7 +688,7 @@ def cmd_new(args):
     print("  " + "─" * 38)
 
     title = _prompt("Título del proyecto", default=name)
-    desc = _prompt("Descripción", default="Let's build an incredible idea!")
+    desc = _prompt("Descripción", default="Let's build an incredible idea")
 
     print("")
 
@@ -730,9 +756,9 @@ def cmd_run(args):
     main_file = Path(args.file)
     if not main_file.exists():
         print(
-            "ERROR: file '"
+            "ERROR: No se encuentra '"
             + args.file
-            + "' not found. Make sure you are in the correct directory"
+            + "'. Estas en la carpeta del proyecto?"
         )
         sys.exit(1)
 
@@ -757,7 +783,7 @@ def cmd_run(args):
     if hasattr(mod, "app") and isinstance(mod.app, App):
         app = mod.app
         app.hot_reload = hot
-        if args.port != 3908:  # solo sobreescribir si se pasó explícito
+        if args.port != 309:  # solo sobreescribir si se pasó explícito
             app.port = args.port
     elif hasattr(mod, "router"):
         app = App(
@@ -867,7 +893,7 @@ def main():
     p_new.add_argument("name", help="Nombre del proyecto")
 
     p_run = sub.add_parser("run", help="Inicia el servidor de desarrollo")
-    p_run.add_argument("--port", type=int, default=3908, help="Puerto (default: 3908)")
+    p_run.add_argument("--port", type=int, default=309, help="Puerto (default: 309)")
     p_run.add_argument("--file", default="main.py", help="Fichero de entrada")
     p_run.add_argument("--no-reload", action="store_true", help="Desactiva hot reload")
 
