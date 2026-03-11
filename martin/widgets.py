@@ -20,6 +20,10 @@ Widgets pilar (bloques base para componer cualquier UI):
     Compuestos   : Hero, Timeline, Gallery, Carousel, WordCloud, Map
 """
 
+import html
+import json
+import uuid
+
 from .widget import Widget
 from .styles import resolve_styles, Border, Padding, Margin, Shadow, Size, Background
 
@@ -467,21 +471,77 @@ class Code(Widget):
     Codigo inline o en bloque.
 
         Code("print('hola')")                        # inline
-        Code("def fn():\\n    pass", block=True)     # bloque <pre><code>
+        Code("def fn():\n    pass", block=True)     # bloque <pre><code>
         Code("x = 1", block=True, language="python") # con lenguaje
     """
 
-    def __init__(self, content="", block=False, language=None, **kwargs):
+    def __init__(self, content="", block=False, language=None, copy=None, **kwargs):
         self._props = Widget._extract_props(kwargs)
         self.content = content
         self.block = block
         self.language = language
+        self.copy = (self.block or bool(self.language)) if copy is None else bool(copy)
+
+    def _copy_btn(self) -> str:
+        txt_js = json.dumps(self.content)
+        tid = f"m_code_{uuid.uuid4().hex[:10]}_copy"
+        tid_js = json.dumps(tid)
+        onclick = (
+            "(function(){"
+            f"var txt={txt_js};"
+            f"var btn=document.getElementById({tid_js});"
+            "function ok(){if(!btn)return;"
+            "btn.textContent='Copiado';"
+            "btn.style.color='#22c55e';"
+            "btn.style.borderColor='#22c55e';"
+            "setTimeout(function(){"
+            "btn.textContent='Copiar';"
+            "btn.style.color='';"
+            "btn.style.borderColor='';"
+            "},2000);}"
+            "function fallback(){"
+            "var t=document.createElement('textarea');"
+            "t.value=txt;"
+            "t.setAttribute('readonly','');"
+            "t.style.position='fixed';"
+            "t.style.top='-9999px';"
+            "document.body.appendChild(t);"
+            "t.select();"
+            "try{document.execCommand('copy');ok();}catch(e){}"
+            "document.body.removeChild(t);"
+            "}"
+            "if(navigator.clipboard&&window.isSecureContext){"
+            "navigator.clipboard.writeText(txt).then(ok).catch(fallback);"
+            "}else{fallback();}"
+            "})();"
+        )
+        onclick_attr = html.escape(onclick, quote=True)
+        return (
+            f'<button id="{tid}" title="Copiar" '
+            'style="position:absolute;top:8px;right:8px;z-index:2;'
+            "background:var(--surface,#fff);"
+            "border:1px solid rgba(128,128,128,0.25);"
+            "border-radius:5px;cursor:pointer;font-size:11px;"
+            "color:var(--text-muted,#6b7280);padding:3px 10px;"
+            "transition:all .15s;font-family:inherit;white-space:nowrap\" "
+            f'onclick="{onclick_attr}" '
+            "onmouseover=\"this.style.borderColor='var(--accent,#6366f1)';this.style.color='var(--accent,#6366f1)'\" "
+            "onmouseout=\"this.style.borderColor='rgba(128,128,128,0.25)';this.style.color='var(--text-muted,#6b7280)'\">"
+            "Copiar</button>"
+        )
 
     def render(self):
         inline = self._resolve_props()
         if self.block:
             attrs = self._attrs(style=inline or None)
             lang = f' class="language-{self.language}"' if self.language else ""
+            if self.copy:
+                btn = self._copy_btn()
+                return (
+                    '<div style="position:relative">'
+                    f"{btn}<pre{attrs}><code{lang}>{self.content}</code></pre>"
+                    "</div>"
+                )
             return f"<pre{attrs}><code{lang}>{self.content}</code></pre>"
         attrs = self._attrs(style=inline or None)
         return f"<code{attrs}>{self.content}</code>"
@@ -4906,3 +4966,5 @@ class CookieBanner(Widget):
         )
 
         return banner_html + js
+
+
