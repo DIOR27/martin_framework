@@ -50,10 +50,35 @@ router.add("/api-example", api_example, title="Backend")
 
 # Martin registra automaticamente los endpoints de cada pagina
 # si el modulo tiene una funcion register_routes(app).
+from martin import NavBar, Footer, Heading, Text, Link, Button, Row, TextStyle
+
+_nav = NavBar(
+    brand=Heading("PROJECT_NAME", level=3, color="var(--text)"),
+    links=[
+        Link("Inicio",      href="/",           style="color:var(--text);text-decoration:none;font-size:14px"),
+        Link("Componentes", href="/components", style="color:var(--text-muted);text-decoration:none;font-size:14px"),
+        Link("Acerca de",   href="/about",      style="color:var(--text-muted);text-decoration:none;font-size:14px"),
+    ],
+    actions=[Button("Comenzar", href="/components", radius=8)],
+)
+
+_footer = Footer(
+    left=Text("\u00a9 2025 PROJECT_NAME",
+              style=TextStyle(size=13, color="var(--text-muted)")),
+    right=Row([
+        Link("Componentes", href="/components",
+             style="font-size:13px;text-decoration:none;color:var(--text-muted)"),
+        Link("Acerca de",   href="/about",
+             style="font-size:13px;text-decoration:none;color:var(--text-muted)"),
+    ], gap=16),
+)
+
 app = App(
     router=router,
     title="PROJECT_NAME",
     theme="auto",
+    header=_nav,
+    footer=_footer,
     # SEO global del sitio
     site_url="https://tu-dominio.com",
     description="Descripcion de tu sitio para buscadores.",
@@ -205,7 +230,7 @@ def about():
                 _card("🔧", "Stack",
                       "Python puro · stdlib · Sin dependencias · watchdog opcional."),
                 _card("📅", "Puerto",
-                      "El puerto por defecto es 309, en honor al 03 de septiembre."),
+                      "El puerto por defecto es 3908."),
             ]),
 
             Link("<- Volver al inicio", href="/",
@@ -435,24 +460,18 @@ def components():
                         ]),
             ]),
 
-            _section("Table", "Tabla de datos con soporte para widgets en celdas.", [
+            _section("Table", "Tabla interactiva: sort por columna, busqueda y paginacion.", [
             Table(
-                            headers=["Nombre", "Rol", "Estado", "Accion"],
+                            headers=["Nombre", "Ciudad", "Rol", "Estado", "Accion"],
                             rows=[
-                                [Row([Avatar(initials="AG", background=Colors.indigo, color="#fff", width=28, height=28),
-                                      Spacer(8), Text("Ana Garcia")], align="center"),
-                                 Text("Admin"), Badge("Activo", background="#22c55e"),
-                                 Button("Ver", variant="ghost", padding=4, radius=4)],
-                                [Row([Avatar(initials="PL", background="#f59e0b", color="#fff", width=28, height=28),
-                                      Spacer(8), Text("Pedro Lopez")], align="center"),
-                                 Text("Editor"), Badge("Inactivo", background="var(--border)", color="var(--text-muted)"),
-                                 Button("Ver", variant="ghost", padding=4, radius=4)],
-                                [Row([Avatar(initials="MS", background="#ef4444", color="#fff", width=28, height=28),
-                                      Spacer(8), Text("Maria Silva")], align="center"),
-                                 Text("Viewer"), Badge("Activo", background="#22c55e"),
-                                 Button("Ver", variant="ghost", padding=4, radius=4)],
+                                [Row([Avatar(initials="AG", background=Colors.indigo, color="#fff", width=28, height=28), Spacer(8), Text("Ana Garcia")],   align="center"), "Bogota",    Text("Admin"),  Badge("Activo",    background="#22c55e"),                               Button("Ver", variant="ghost", padding=4, radius=4)],
+                                [Row([Avatar(initials="PL", background="#f59e0b",    color="#fff", width=28, height=28), Spacer(8), Text("Pedro Lopez")],  align="center"), "Medellin",  Text("Editor"), Badge("Inactivo",  background="var(--border)", color="var(--text-muted)"), Button("Ver", variant="ghost", padding=4, radius=4)],
+                                [Row([Avatar(initials="MS", background="#ef4444",    color="#fff", width=28, height=28), Spacer(8), Text("Maria Silva")],  align="center"), "Cali",      Text("Viewer"), Badge("Activo",    background="#22c55e"),                               Button("Ver", variant="ghost", padding=4, radius=4)],
+                                [Row([Avatar(initials="JR", background="#8b5cf6",    color="#fff", width=28, height=28), Spacer(8), Text("Juan Ramirez")], align="center"), "Cartagena", Text("Admin"),  Badge("Activo",    background="#22c55e"),                               Button("Ver", variant="ghost", padding=4, radius=4)],
+                                [Row([Avatar(initials="LT", background="#ec4899",    color="#fff", width=28, height=28), Spacer(8), Text("Laura Torres")], align="center"), "Bogota",    Text("Editor"), Badge("Pendiente", background="#f59e0b"),                               Button("Ver", variant="ghost", padding=4, radius=4)],
+                                [Row([Avatar(initials="CM", background="#14b8a6",    color="#fff", width=28, height=28), Spacer(8), Text("Carlos Mora")],  align="center"), "Cali",      Text("Viewer"), Badge("Inactivo",  background="var(--border)", color="var(--text-muted)"), Button("Ver", variant="ghost", padding=4, radius=4)],
                             ],
-                            striped=True,
+                            striped=True, searchable=True, sortable=True, page_size=4,
                         ),
             ]),
 
@@ -607,16 +626,22 @@ def components():
                                 CarouselItem(image="/assets/icon.webp", title="Marca E"),
                             ],
                             mode="brands", brand_height=48, brand_gap=64, speed=25,
-                            brand_filter="grayscale(100%%) opacity(0.5)",
+                            brand_filter="grayscale(100%) opacity(0.5)",
                         ),
             ]),
 
             _section("Map", "Mapa interactivo con marcadores.", [
             Map(
-                            center=(4.711, -74.0721),
-                            zoom=12,
-                            markers=[(4.711, -74.0721, "Bogota, Colombia")],
-                            height=300,
+                            zoom=5,
+                            height=380,
+                            route=True,
+                            markers=[
+                                (4.711,  -74.072, "Bogota",        "Capital de Colombia", "#6366f1", "CO"),
+                                (10.391, -75.479, "Cartagena",     "Ciudad amurallada",   "#f59e0b", "CT"),
+                                (6.244,  -75.574, "Medellin",      "Ciudad de la eterna primavera", "#22c55e", "MDE"),
+                                (3.436,  -76.522, "Cali",          "Capital de la salsa", "#ef4444", "CLO"),
+                                (7.893,  -72.504, "Cucuta",        "Frontera con Venezuela", "#8b5cf6", "CUC"),
+                            ],
                         ),
             ]),
 
@@ -783,7 +808,7 @@ def cmd_run(args):
     if hasattr(mod, "app") and isinstance(mod.app, App):
         app = mod.app
         app.hot_reload = hot
-        if args.port != 309:  # solo sobreescribir si se pasó explícito
+        if args.port != 3908:  # solo sobreescribir si se pasó explícito
             app.port = args.port
     elif hasattr(mod, "router"):
         app = App(
@@ -893,7 +918,7 @@ def main():
     p_new.add_argument("name", help="Nombre del proyecto")
 
     p_run = sub.add_parser("run", help="Inicia el servidor de desarrollo")
-    p_run.add_argument("--port", type=int, default=309, help="Puerto (default: 309)")
+    p_run.add_argument("--port", type=int, default=3908, help="Puerto (default: 309)")
     p_run.add_argument("--file", default="main.py", help="Fichero de entrada")
     p_run.add_argument("--no-reload", action="store_true", help="Desactiva hot reload")
 

@@ -998,71 +998,279 @@ class Tabs(Widget):
 
 class Table(Widget):
     """
-    Tabla de datos. Limpia, legible y adaptada al tema.
+    Tabla de datos interactiva con sort y busqueda.
 
+    Uso basico:
         Table(
             headers=["Nombre", "Email", "Rol"],
             rows=[
-                ["Ana Garcia",   "ana@email.com",   "Admin"],
-                ["Pedro Lopez",  "pedro@email.com", "Editor"],
+                ["Ana Garcia",  "ana@email.com",  "Admin"],
+                ["Pedro Lopez", "pedro@email.com","Editor"],
             ],
         )
 
-        # Con widgets en las celdas:
+    Con widgets en celdas:
         Table(
             headers=["Usuario", "Estado", "Accion"],
-            rows=[
-                [Row([Avatar(initials="AG"), Text("Ana")]), Badge("Activo"), Button("Ver")],
-            ],
+            rows=[[Row([Avatar(initials="AG"), Text("Ana")]), Badge("Activo"), Button("Ver")]],
         )
 
     Parametros:
-        headers    list    cabeceras de columnas
-        rows       list    filas de datos (lista de listas)
-        striped    bool    filas alternadas (default: True)
-        bordered   bool    bordes (default: True)
+        headers    list     cabeceras de columnas
+        rows       list     filas (lista de listas; cada celda puede ser str o Widget)
+        striped    bool     filas alternadas (default: True)
+        bordered   bool     bordes (default: True)
+        searchable bool     barra de busqueda global (default: False)
+        sortable   bool     click en cabecera para ordenar (default: False)
+        page_size  int|None paginacion (default: None = sin paginar)
+
+    Nota: sort y busqueda trabajan solo con celdas de texto puro.
+    Las celdas con widgets se tratan como string vacio para esas operaciones.
     """
-    def __init__(self, headers=None, rows=None, striped=True, bordered=True, **kwargs):
-        self._props  = Widget._extract_props(kwargs)
-        self.headers = headers or []
-        self.rows    = rows    or []
-        self.striped = striped
-        self.bordered = bordered
+
+    _id_counter = 0
+
+    def __init__(self, headers=None, rows=None,
+                 striped=True, bordered=True,
+                 searchable=False, sortable=False,
+                 page_size=None, **kwargs):
+        self._props    = Widget._extract_props(kwargs)
+        self.headers   = headers or []
+        self.rows      = rows    or []
+        self.striped   = striped
+        self.bordered  = bordered
+        self.searchable = searchable
+        self.sortable  = sortable
+        self.page_size = page_size
+        Table._id_counter += 1
+        self.uid = f"tbl_{Table._id_counter}"
 
     def render(self):
+        import json as _j
+        uid = self.uid
         border_cell = "border:1px solid var(--border);" if self.bordered else ""
-        base = "width:100%; border-collapse:collapse; font-size:14px"
+        base  = "width:100%;border-collapse:collapse;font-size:14px"
         extra = self._resolve_props()
+
         wrapper_style = "width:100%;overflow-x:auto"
         if extra:
             wrapper_style += ";" + extra
 
-        # Header
-        th_style = (f"{border_cell}padding:10px 16px; text-align:left; "
-                    f"background:var(--surface-2,var(--surface)); "
-                    f"color:var(--text); font-weight:600; white-space:nowrap")
-        thead = ""
-        if self.headers:
-            ths = "".join(f'<th style="{th_style}">{h}</th>' for h in self.headers)
-            thead = f"<thead><tr>{ths}</tr></thead>"
+        # Pre-render all cells to HTML strings
+        def _cell_html(cell):
+            if isinstance(cell, Widget):
+                return cell.render()
+            return str(cell)
 
-        # Rows
-        td_style = f"{border_cell}padding:10px 16px; color:var(--text); vertical-align:middle"
+        # ── thead ─────────────────────────────────────────────────────────────
+        th_base = (f"{border_cell}padding:10px 16px;text-align:left;"
+                   f"background:var(--surface-2,var(--surface));"
+                   f"color:var(--text);font-weight:600;white-space:nowrap;"
+                   f"user-select:none")
+        if self.sortable:
+            th_base += ";cursor:pointer"
+
+        ths = ""
+        for i, h in enumerate(self.headers):
+            sort_attr = f' data-col="{i}"' if self.sortable else ""
+            sort_icon = (f'<span id="{uid}_si{i}" style="margin-left:4px;'
+                         f'color:var(--text-muted);font-size:10px"></span>'
+                         if self.sortable else "")
+            ths += (f'<th style="{th_base}"{sort_attr}>'
+                    f'{h}{sort_icon}</th>')
+        thead = f"<thead><tr>{ths}</tr></thead>" if self.headers else ""
+
+        # ── tbody rows (rendered) ─────────────────────────────────────────────
+        td_style = f"{border_cell}padding:10px 16px;color:var(--text);vertical-align:middle"
+
+        rows_data = []   # list of (plain_text_cells, html_cells)
+        for row in self.rows:
+            plain = []
+            html  = []
+            for cell in row:
+                if isinstance(cell, Widget):
+                    plain.append("")        # widgets not searchable/sortable
+                    html.append(cell.render())
+                else:
+                    s = str(cell)
+                    plain.append(s)
+                    html.append(s)
+            rows_data.append((plain, html))
+
         tbody_rows = ""
-        for i, row in enumerate(self.rows):
-            stripe = ("background:var(--surface-2,rgba(0,0,0,0.03))"
+        for i, (plain, html_cells) in enumerate(rows_data):
+            stripe = (f"background:var(--surface-2,rgba(0,0,0,0.03))"
                       if self.striped and i % 2 == 1 else "")
             cells = "".join(
-                f'<td style="{td_style};{stripe}">'
-                + (cell.render() if isinstance(cell, Widget) else str(cell))
-                + '</td>'
-                for cell in row
+                f'<td style="{td_style};{stripe}" data-v="{_j.dumps(plain[ci])}">'
+                f'{html_cells[ci]}</td>'
+                for ci in range(len(html_cells))
             )
-            tbody_rows += f"<tr>{cells}</tr>"
-        tbody = f"<tbody>{tbody_rows}</tbody>"
+            tbody_rows += f'<tr id="{uid}_r{i}">{cells}</tr>'
+        tbody = f"<tbody id='{uid}_tbody'>{tbody_rows}</tbody>"
 
-        return (f'<div style="{wrapper_style}">'
-                f'<table style="{base}">{thead}{tbody}</table></div>')
+        # ── plain text data for JS (for sort/search) ──────────────────────────
+        rows_plain_js = _j.dumps([p for p, _ in rows_data])
+
+        # ── search bar HTML ───────────────────────────────────────────────────
+        search_html = ""
+        if self.searchable:
+            search_html = (
+                f'<div style="margin-bottom:10px">'
+                f'<input id="{uid}_search" type="text" placeholder="Buscar en tabla..."'
+                f' oninput="{uid}_filter(this.value)"'
+                f' style="padding:7px 12px;border:1px solid var(--border);border-radius:7px;'
+                f'font-size:13px;width:100%;box-sizing:border-box;background:var(--surface);'
+                f'color:var(--text);outline:none"/>'
+                f'</div>'
+            )
+
+        # ── pagination controls HTML ──────────────────────────────────────────
+        pagination_html = ""
+        if self.page_size:
+            pagination_html = (
+                f'<div id="{uid}_pgbar" style="display:flex;align-items:center;'
+                f'justify-content:space-between;margin-top:8px;gap:8px;flex-wrap:wrap">'
+                f'<span id="{uid}_pginfo" style="font-size:12px;color:var(--text-muted)"></span>'
+                f'<div style="display:flex;gap:4px">'
+                f'<button onclick="{uid}_pg(-1)" id="{uid}_pgprev"'
+                f' style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;'
+                f'background:var(--surface);color:var(--text);cursor:pointer;font-size:13px">'
+                f'&#8592;</button>'
+                f'<button onclick="{uid}_pg(1)" id="{uid}_pgnext"'
+                f' style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;'
+                f'background:var(--surface);color:var(--text);cursor:pointer;font-size:13px">'
+                f'&#8594;</button>'
+                f'</div></div>'
+            )
+
+        # ── JS ────────────────────────────────────────────────────────────────
+        needs_js = self.searchable or self.sortable or self.page_size
+        js = ""
+        if needs_js:
+            n      = len(rows_data)
+            ps     = self.page_size or n or 1
+            ncols  = len(self.headers)
+
+            js = (
+                f'<script>(function(){{'
+                f'var uid={_j.dumps(uid)};'
+                f'var _data={rows_plain_js};'   # [[plain_text, ...], ...]
+                f'var _n={n};'
+                f'var _ps={ps};'
+                f'var _page=0;'
+                f'var _sortCol=-1,_sortAsc=true;'
+                f'var _query="";'
+                f'var _order=_data.map(function(_,i){{return i;}});'  # original row indices
+
+                # filter: returns indices matching query
+                f'function _match(idx){{'
+                f'  if(!_query)return true;'
+                f'  var q=_query.toLowerCase();'
+                f'  return _data[idx].some(function(v){{return v.toLowerCase().includes(q);}});'
+                f'}}'
+
+                # apply: filter + sort → _order
+                f'function _apply(){{'
+                f'  var filtered=[];'
+                f'  for(var i=0;i<_n;i++)if(_match(i))filtered.push(i);'
+                f'  if(_sortCol>=0){{'
+                f'    var asc=_sortAsc;var col=_sortCol;'
+                f'    filtered.sort(function(a,b){{'
+                f'      var va=_data[a][col]||"",vb=_data[b][col]||"";'
+                f'      var na=parseFloat(va),nb=parseFloat(vb);'
+                f'      if(!isNaN(na)&&!isNaN(nb))return asc?na-nb:nb-na;'
+                f'      return asc?va.localeCompare(vb):vb.localeCompare(va);'
+                f'    }});'
+                f'  }}'
+                f'  _order=filtered;'
+                f'  _page=0;'
+                f'  _render();'
+                f'}}'
+
+                # render visible rows
+                f'function _render(){{'
+                f'  var tbody=document.getElementById(uid+"_tbody");'
+                f'  if(!tbody)return;'
+                f'  var start=_page*_ps, end=Math.min(start+_ps,_order.length);'
+                f'  var rows=tbody.querySelectorAll("tr");'
+                f'  for(var i=0;i<rows.length;i++)rows[i].style.display="none";'
+                f'  for(var i=start;i<end;i++){{'
+                f'    var r=document.getElementById(uid+"_r"+_order[i]);'
+                f'    if(r)r.style.display="";'
+                f'  }}'
+                # striping on visible rows
+                f'  var vis=[];'
+                f'  for(var i=start;i<end;i++){{'
+                f'    var r=document.getElementById(uid+"_r"+_order[i]);'
+                f'    if(r)vis.push(r);'
+                f'  }}'
+                + (
+                    f'  vis.forEach(function(r,idx){{'
+                    f'    r.querySelectorAll("td").forEach(function(td){{'
+                    f'      td.style.background=idx%2===1?"var(--surface-2,rgba(0,0,0,0.03))":"";'
+                    f'    }});'
+                    f'  }});'
+                    if self.striped else ""
+                ) +
+                # pagination info
+                (
+                    f'  var info=document.getElementById(uid+"_pginfo");'
+                    f'  if(info)info.textContent="Mostrando "+(start+1)+"-"+end+" de "+_order.length;'
+                    f'  var prev=document.getElementById(uid+"_pgprev");'
+                    f'  var next=document.getElementById(uid+"_pgnext");'
+                    f'  if(prev)prev.disabled=_page===0;'
+                    f'  if(next)next.disabled=end>=_order.length;'
+                    if self.page_size else ""
+                ) +
+                # sort icons
+                (
+                    f'  for(var c=0;c<{ncols};c++){{'
+                    f'    var si=document.getElementById(uid+"_si"+c);'
+                    f'    if(!si)continue;'
+                    f'    if(c===_sortCol)si.textContent=_sortAsc?" ▲":" ▼";'
+                    f'    else si.textContent=" ⇅";'
+                    f'  }}'
+                    if self.sortable else ""
+                ) +
+                f'}}'
+
+                # public functions
+                + (f'window[uid+"_filter"]=function(q){{_query=q;_apply();}};'
+                   if self.searchable else "")
+                + (f'window[uid+"_pg"]=function(d){{'
+                   f'  var total=Math.ceil(_order.length/_ps);'
+                   f'  _page=Math.max(0,Math.min(_page+d,total-1));'
+                   f'  _render();'
+                   f'}};'
+                   if self.page_size else "")
+                + (
+                    # sort on th click
+                    f'var thead=document.querySelector("#{uid}_tbody").closest("table").querySelector("thead");'
+                    f'if(thead)thead.addEventListener("click",function(e){{'
+                    f'  var th=e.target.closest("th[data-col]");'
+                    f'  if(!th)return;'
+                    f'  var col=parseInt(th.getAttribute("data-col"));'
+                    f'  if(_sortCol===col)_sortAsc=!_sortAsc;'
+                    f'  else{{_sortCol=col;_sortAsc=true;}}'
+                    f'  _apply();'
+                    f'}});'
+                    if self.sortable else ""
+                ) +
+
+                f'_apply();'
+                f'}})();</script>'
+            )
+
+        return (
+            f'<div style="{wrapper_style}">'
+            + search_html
+            + f'<table style="{base}">{thead}{tbody}</table>'
+            + pagination_html
+            + f'</div>'
+            + js
+        )
+
 
 
 # =============================================================================
@@ -2106,29 +2314,22 @@ class WordCloud(Widget):
 
 class Map(Widget):
     """
-    Mapa interactivo basado en Leaflet + OpenStreetMap. Sin API key.
+    Mapa interactivo con Leaflet + OpenStreetMap. Sin API key.
 
-    Map(center=(40.4168, -3.7038), zoom=13, height=480)
+    Uso basico:
+        Map(center=(40.4168, -3.7038), zoom=13)
 
-    Parámetros:
-        center          (lat, lon) — centro del mapa. Auto si hay markers.
-        zoom            int        — nivel de zoom 1-19 (default 13)
-        height          int        — alto en px (default 480)
-        markers         list[dict] — lista de marcadores
-        search          bool       — barra de búsqueda Nominatim (default True)
-        geolocation     bool       — botón mi-ubicación (default True)
-        route           bool       — línea entre markers en orden (default False)
-        route_color     str        — color de la ruta (default "#6366f1")
-        route_weight    int        — grosor de la ruta px (default 4)
-        tile            str        — "osm"|"dark"|"topo"|"cycle" (default "osm")
-        on_marker_click str        — JS al click en marker. Variable: `marker` dict.
+    Con marcadores — acepta dict o tupla (lat, lon) / (lat, lon, title):
+        Map(markers=[
+            {"lat": 40.4168, "lon": -3.7038, "title": "Madrid", "icon": "HH"},
+            (4.711, -74.072, "Bogota"),
+            (51.505, -0.09, "Londres", "Capital de UK", "#22c55e", "GG"),
+        ])
 
-    Marcador mínimo:
-        {"lat": 0.0, "lon": 0.0}
+    Con ruta entre puntos:
+        Map(markers=[...], route=True)
 
-    Marcador completo:
-        {"lat": 0.0, "lon": 0.0, "title": "Nombre", "popup": "HTML",
-         "color": "#6366f1", "icon": "🏠"}
+    Tiles: "osm" | "dark" | "topo" | "cycle"
     """
 
     _id_counter = 0
@@ -2137,7 +2338,7 @@ class Map(Widget):
         "osm":   ("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                   "&copy; OpenStreetMap contributors"),
         "dark":  ("https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png",
-                  "&copy; Stadia Maps, OpenStreetMap contributors"),
+                  "&copy; Stadia Maps &copy; OpenStreetMap contributors"),
         "topo":  ("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
                   "&copy; OpenTopoMap contributors"),
         "cycle": ("https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png",
@@ -2174,26 +2375,39 @@ class Map(Widget):
         Map._id_counter += 1
         self.uid = "map_" + str(Map._id_counter)
 
+    def _normalize_markers(self):
+        result = []
+        for m in self.markers:
+            if isinstance(m, dict):
+                result.append(m)
+            elif isinstance(m, (list, tuple)):
+                d = {"lat": float(m[0]), "lon": float(m[1])}
+                if len(m) > 2: d["title"]  = str(m[2])
+                if len(m) > 3: d["popup"]  = str(m[3])
+                if len(m) > 4: d["color"]  = str(m[4])
+                if len(m) > 5: d["icon"]   = str(m[5])
+                result.append(d)
+        return result
+
     def _build_js(self):
         import json as _j
-        uid = self.uid
-        J   = _j.dumps
+        uid  = self.uid
+        J    = _j.dumps
+        mkrs = self._normalize_markers()
 
         tile_url, tile_attr = self._TILES.get(self.tile, self._TILES["osm"])
         if self.tile not in self._TILES:
             tile_url, tile_attr = self.tile, "&copy; Map contributors"
 
-        # center
         if self.center:
             center_js = J(list(self.center))
-        elif self.markers:
-            lats = [m["lat"] for m in self.markers if "lat" in m]
-            lons = [m["lon"] for m in self.markers if "lon" in m]
-            center_js = J([sum(lats)/len(lats), sum(lons)/len(lons)]) if lats else "[0,0]"
+        elif mkrs:
+            lats = [m["lat"] for m in mkrs]
+            lons = [m["lon"] for m in mkrs]
+            center_js = J([sum(lats)/len(lats), sum(lons)/len(lons)])
         else:
             center_js = "[40.4168,-3.7038]"
 
-        # ── icon helper (builds DOM to avoid escaping hell) ──────────────────
         icon_fn = (
             "function _mkIcon(color,icon){"
             "var d=document.createElement('div');"
@@ -2201,78 +2415,87 @@ class Map(Widget):
             "+'border-radius:50% 50% 50% 0;border:3px solid white;'"
             "+'box-shadow:0 2px 8px rgba(0,0,0,0.3);transform:rotate(-45deg);'"
             "+'display:flex;align-items:center;justify-content:center';"
+            "if(icon){"
             "var s=document.createElement('span');"
-            "s.style.cssText='transform:rotate(45deg);font-size:14px';"
+            "s.style.cssText='transform:rotate(45deg);font-size:13px;line-height:1';"
             "s.textContent=icon;"
-            "d.appendChild(s);"
-            "return d.outerHTML;"
-            "}"
+            "d.appendChild(s);}"
+            "return d.outerHTML;}"
         )
 
-        # ── search ───────────────────────────────────────────────────────────
         search_js = ""
         if self.search:
             search_js = (
-                "var _sq=document.getElementById(" + J(uid + "_q") + ");"
-                "var _sb=document.getElementById(" + J(uid + "_btn") + ");"
+                "var _sq=document.getElementById(" + J(uid+"_q") + ");"
+                "var _sb=document.getElementById(" + J(uid+"_sbtn") + ");"
                 "var _sm=null;"
                 "function _doSearch(){"
                 "var q=_sq.value.trim();if(!q)return;"
-                "_sb.textContent='\u23f3';"
-                "fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='"
-                "+encodeURIComponent(q),{headers:{'Accept-Language':'es,en'}})"
+                "_sb.disabled=true;_sb.textContent='\u23f3';"
+                "fetch('https://nominatim.openstreetmap.org/search?format=json&limit=5&q='"
+                "+encodeURIComponent(q)+'&accept-language=es,en',"
+                "{headers:{'User-Agent':'MartinFramework/0.2'}})"
                 ".then(function(r){return r.json();})"
                 ".then(function(data){"
-                "_sb.textContent='\U0001f50d';"
-                "if(!data.length){alert('No se encontr\u00f3: '+q);return;}"
+                "_sb.disabled=false;_sb.textContent='\U0001f50d';"
+                "if(!data||!data.length){"
+                "_sq.style.outline='2px solid #ef4444';"
+                "setTimeout(function(){_sq.style.outline='';},2000);"
+                "return;}"
                 "var r=data[0];"
                 "var lat=parseFloat(r.lat),lon=parseFloat(r.lon);"
-                "if(_sm)_map.removeLayer(_sm);"
-                "var name=r.display_name.split(',')[0];"
+                "if(_sm){_map.removeLayer(_sm);}"
+                "var name=r.display_name.split(',').slice(0,2).join(', ');"
                 "_sm=L.marker([lat,lon])"
                 ".addTo(_map)"
                 ".bindPopup('<b>'+name+'</b><br><small>'+r.display_name+'</small>')"
                 ".openPopup();"
                 "_map.flyTo([lat,lon],15,{duration:1.2});"
                 "})"
-                ".catch(function(){_sb.textContent='\U0001f50d';alert('Error al buscar.');});"
+                ".catch(function(){"
+                "_sb.disabled=false;_sb.textContent='\U0001f50d';"
+                "});"
                 "}"
                 "_sb.addEventListener('click',_doSearch);"
-                "_sq.addEventListener('keydown',function(e){if(e.key==='Enter')_doSearch();});"
+                "_sq.addEventListener('keydown',function(e){"
+                "if(e.key==='Enter'){e.preventDefault();_doSearch();}"
+                "});"
             )
 
-        # ── geolocation ──────────────────────────────────────────────────────
         geo_js = ""
         if self.geolocation:
             geo_js = (
-                "var _gb=document.getElementById(" + J(uid + "_geo") + ");"
+                "var _gb=document.getElementById(" + J(uid+"_geo") + ");"
                 "var _gm=null;"
                 "_gb.addEventListener('click',function(){"
-                "if(!navigator.geolocation){alert('Geolocalizaci\u00f3n no disponible.');return;}"
-                "_gb.textContent='\u23f3';"
-                "navigator.geolocation.getCurrentPosition(function(pos){"
+                "if(!navigator.geolocation){"
+                "alert('Geolocalizaci\u00f3n no disponible.');return;}"
+                "_gb.disabled=true;_gb.textContent='\u23f3';"
+                "navigator.geolocation.getCurrentPosition("
+                "function(pos){"
+                "_gb.disabled=false;_gb.textContent='\U0001f3af';"
                 "var lat=pos.coords.latitude,lon=pos.coords.longitude;"
-                "if(_gm)_map.removeLayer(_gm);"
+                "if(_gm){_map.removeLayer(_gm);}"
                 "_gm=L.circleMarker([lat,lon],"
                 "{radius:10,fillColor:'#6366f1',color:'white',weight:3,fillOpacity:0.9})"
                 ".addTo(_map).bindPopup('<b>Tu ubicaci\u00f3n</b>').openPopup();"
                 "_map.flyTo([lat,lon],16,{duration:1.2});"
-                "_gb.textContent='\U0001f3af';"
-                "},function(){"
-                "alert('No se pudo obtener la ubicaci\u00f3n.');"
-                "_gb.textContent='\U0001f3af';"
-                "});"
+                "},"
+                "function(err){"
+                "_gb.disabled=false;_gb.textContent='\U0001f3af';"
+                "var msgs={1:'Permiso denegado.',2:'Posici\u00f3n no disponible.',3:'Tiempo agotado.'};"
+                "alert(msgs[err.code]||'Error de geolocalizaci\u00f3n.');"
+                "},"
+                "{timeout:10000,maximumAge:60000});"
                 "});"
             )
 
-        # ── click handler ────────────────────────────────────────────────────
         click_fn   = ""
         click_bind = ""
         if self.on_marker_click:
             click_fn   = "function _onMk(marker){" + self.on_marker_click + "}"
             click_bind = "_mk.on('click',function(){_onMk(m);});"
 
-        # ── route ─────────────────────────────────────────────────────────────
         route_js = ""
         if self.route:
             route_js = (
@@ -2281,38 +2504,39 @@ class Map(Widget):
                 "color:" + J(self.route_color) + ","
                 "weight:" + str(self.route_weight) + ","
                 "opacity:0.85,lineJoin:'round'"
-                "}).addTo(_map);"
-                "}"
+                "}).addTo(_map);}"
             )
 
-        # ── autofit ───────────────────────────────────────────────────────────
         autofit = ""
-        if not self.center and len(self.markers) > 1:
-            autofit = "if(_lls.length>1){_map.fitBounds(_lls,{padding:[40,40]});}"
+        if not self.center and len(mkrs) > 1:
+            autofit = "if(_lls.length>1){_map.fitBounds(_lls,{padding:[48,48]});}"
 
         return (
             "(function _im(){"
-            "if(typeof L==='undefined'){setTimeout(_im,50);return;}"
+            "if(typeof L==='undefined'){setTimeout(_im,80);return;}"
             "var el=document.getElementById(" + J(uid) + ");"
             "if(!el||el._mi)return;"
             "el._mi=true;"
-            "var _map=L.map(el,{zoomControl:true}).setView(" + center_js + "," + str(self.zoom) + ");"
-            "L.tileLayer(" + J(tile_url) + ",{attribution:" + J(tile_attr) + ",maxZoom:19}).addTo(_map);"
+            "var _map=L.map(el,{zoomControl:true,scrollWheelZoom:true})"
+            ".setView(" + center_js + "," + str(self.zoom) + ");"
+            "L.tileLayer(" + J(tile_url) + ","
+            "{attribution:" + J(tile_attr) + ",maxZoom:19}).addTo(_map);"
             + icon_fn
             + click_fn +
-            "var _markers=" + J(self.markers) + ";"
+            "var _markers=" + J(mkrs) + ";"
             "var _lls=[];"
             "_markers.forEach(function(m){"
             "var color=m.color||'#6366f1';"
             "var icon=m.icon||'';"
             "var _lIcon=L.divIcon({"
             "html:_mkIcon(color,icon),"
-            "className:'',iconSize:[32,32],iconAnchor:[16,32],popupAnchor:[0,-36]"
+            "className:'',iconSize:[32,32],iconAnchor:[16,32],popupAnchor:[0,-38]"
             "});"
             "var _mk=L.marker([m.lat,m.lon],{icon:_lIcon}).addTo(_map);"
-            "var _ph='<b>'+(m.title||'')+'</b>';"
-            "if(m.popup)_ph+='<br>'+m.popup;"
-            "if(m.title||m.popup)_mk.bindPopup(_ph);"
+            "var _ph='';"
+            "if(m.title)_ph+='<b>'+m.title+'</b>';"
+            "if(m.popup)_ph+=(m.title?'<br>':'')+m.popup;"
+            "if(_ph)_mk.bindPopup(_ph);"
             + click_bind +
             "_lls.push([m.lat,m.lon]);"
             "});"
@@ -2342,49 +2566,42 @@ class Map(Widget):
                 'transform:translateX(-50%);z-index:1000;'
                 'display:flex;gap:6px;width:min(360px,80%)">'
                 '<input id="' + uid + '_q" type="text"'
-                ' placeholder="Buscar lugar..." style="flex:1;padding:8px 12px;'
-                'border:none;border-radius:8px;font-size:14px;color:#111;'
-                'box-shadow:0 2px 12px rgba(0,0,0,0.15);outline:none"/>'
-                '<button id="' + uid + '_btn" style="padding:8px 14px;'
-                'background:#6366f1;color:white;border:none;border-radius:8px;'
-                'cursor:pointer;font-size:18px;line-height:1;'
-                'box-shadow:0 2px 12px rgba(0,0,0,0.15)">&#128269;</button>'
+                ' placeholder="Buscar lugar..." autocomplete="off"'
+                ' style="flex:1;padding:8px 12px;border:none;'
+                'border-radius:8px;font-size:14px;color:#111;'
+                'box-shadow:0 2px 12px rgba(0,0,0,0.18);outline:none"/>'
+                '<button id="' + uid + '_sbtn" title="Buscar"'
+                ' style="padding:8px 14px;background:#6366f1;color:white;'
+                'border:none;border-radius:8px;cursor:pointer;font-size:18px;'
+                'line-height:1;box-shadow:0 2px 12px rgba(0,0,0,0.18)">'
+                '&#128269;</button>'
                 '</div>'
             )
 
         geo_html = ""
         if self.geolocation:
             geo_html = (
-                '<button id="' + uid + '_geo" title="Mi ubicaci\u00f3n" style="'
-                'position:absolute;bottom:80px;right:10px;z-index:1000;'
+                '<button id="' + uid + '_geo" title="Mi ubicaci\u00f3n"'
+                ' style="position:absolute;bottom:80px;right:10px;z-index:1000;'
                 'width:34px;height:34px;background:white;'
                 'border:2px solid rgba(0,0,0,0.2);border-radius:6px;cursor:pointer;'
                 'font-size:18px;line-height:1;'
                 'display:flex;align-items:center;justify-content:center;'
-                'box-shadow:0 1px 5px rgba(0,0,0,0.2)">&#127919;</button>'
+                'box-shadow:0 1px 5px rgba(0,0,0,0.2)">'
+                '&#127919;</button>'
             )
 
-        leaflet_css = (
-            '<link rel="stylesheet" '
-            'href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" '
-            'crossorigin=""/>'
-        )
-        leaflet_js_tag = (
-            '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" '
-            'crossorigin=""></script>'
-        )
-
-        # data-height permite al JS fijar el alto aunque el CSS tarde en cargar
         return (
-            leaflet_css
-            + '<div style="' + wrapper_style + '" data-mapheight="' + height + '">'
+            '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>'
+            + '<div style="' + wrapper_style + '">'
             + '<div id="' + uid + '" style="width:100%;height:' + height + 'px"></div>'
             + search_html
             + geo_html
             + '</div>'
-            + leaflet_js_tag
+            + '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>'
             + '<script>' + self._build_js() + '</script>'
         )
+
 
 
 class Timeline(Widget):
