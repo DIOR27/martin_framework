@@ -48,6 +48,7 @@ from .widgets import (
     # Interaction
     Button,
     TextField,
+    TextArea,
     Checkbox,
     Select,
     MultiSelect,

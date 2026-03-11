@@ -267,7 +267,7 @@ from martin import (
     Container, Column, Row, Grid, Stack, Card, Section, Divider, Spacer,
     Heading, Text, Paragraph, Link, Code, Button, Icon, Badge, Alert,
     Image, Avatar, NavBar, Footer, Tabs, Breadcrumb,
-    Table, Modal, TextField, Select, MultiSelect, Checkbox,
+    Table, Modal, TextField, TextArea, Select, MultiSelect, Checkbox,
     WordCloud, Map, Timeline, TimelineItem, Hero,
     Gallery, GalleryItem, Carousel, CarouselItem,
     CookieBanner, CookieCategory,
@@ -290,6 +290,7 @@ def _section(title, subtitle, children):
             Column(gap=12, children=children),
         ],
     )
+
 
 
 def components():
@@ -344,6 +345,36 @@ def components():
                         Code("def hola():\\n    return 42", block=True, language="python"),
             ]),
 
+            _section("Code", "Bloques de codigo: syntax highlighting, boton copiar, numeracion, modo editable.", [
+            Column(gap=20, children=[
+                Code(
+                    content=chr(10).join(["from martin import App, Router, Column, Heading", "", "router = Router()", "router.add(chr(47), lambda: Column([Heading(chr(72)+chr(111)+chr(108)+chr(97))]))", "App(router=router).run()"]),
+                    language="python",
+                    filename="main.py",
+                    copy=True,
+                ),
+                Code(
+                    content=chr(10).join(["[", "  { id: 1, nombre: Ana, rol: Admin },", "  { id: 2, nombre: Pedro, rol: Editor }", "]"]),
+                    language="json",
+                    line_numbers=True,
+                    copy=True,
+                    filename="data.json",
+                ),
+                Code(
+                    content=chr(10).join(["SELECT id, nombre", "FROM usuarios", "WHERE activo = 1", "ORDER BY nombre;"]),
+                    language="sql",
+                    editable=True,
+                    filename="query.sql",
+                    copy=True,
+                ),
+                Code(
+                    content=chr(10).join(["pip install martin", "martin new mi_proyecto", "cd mi_proyecto", "martin run"]),
+                    language="bash",
+                    copy=True,
+                ),
+            ])
+            ]),
+
             _section("Badge & Alert", "Badge para etiquetas. Alert para mensajes de estado.", [
             Row(gap=8, wrap=True, children=[
                             Badge("Nuevo"),
@@ -377,28 +408,32 @@ def components():
                         ]),
             ]),
 
-            _section("Inputs", "TextField, Select, MultiSelect, Checkbox.", [
-            Grid(columns=2, gap=16, children=[
-                            TextField(placeholder="Nombre completo"),
-                            TextField(placeholder="Email", type="email"),
-                            TextField(placeholder="Password", type="password"),
-                            TextField(placeholder="Buscar...", radius=999),
-                        ]),
-                        Select(
-                            options=[("es","Espanol"), ("en","English"), ("fr","Frances"),
-                                     ("de","Aleman"), ("pt","Portugues")],
-                            placeholder="Selecciona idioma",
-                            search=True,
-                        ),
-                        MultiSelect(
-                            options=["Python", "JavaScript", "Rust", "Go", "TypeScript", "Swift"],
-                            placeholder="Lenguajes favoritos",
-                        ),
-                        Row(gap=16, wrap=True, children=[
-                            Checkbox("Acepto los terminos"),
-                            Checkbox("Recibir notificaciones", checked=True),
-                            Checkbox("Modo avanzado"),
-                        ]),
+            _section("Inputs", "TextField, TextArea, Select, MultiSelect, Checkbox.", [
+            Column(gap=16, children=[
+                Grid(columns=2, gap=16, children=[
+                    TextField(placeholder="Nombre completo"),
+                    TextField(placeholder="Email", type="email"),
+                    TextField(placeholder="Password", type="password"),
+                    TextField(placeholder="Buscar...", radius=999),
+                ]),
+                TextArea(placeholder="Escribe tu mensaje...", rows=3, max_length=280),
+                TextArea(placeholder="Auto-resize: crece con el contenido", auto_resize=True),
+                Select(
+                    options=[("es","Espanol"), ("en","English"), ("fr","Frances"),
+                             ("de","Aleman"), ("pt","Portugues")],
+                    placeholder="Selecciona idioma",
+                    search=True,
+                ),
+                MultiSelect(
+                    options=["Python", "JavaScript", "Rust", "Go", "TypeScript", "Swift"],
+                    placeholder="Lenguajes favoritos",
+                ),
+                Row(gap=16, wrap=True, children=[
+                    Checkbox("Acepto los terminos"),
+                    Checkbox("Recibir notificaciones", checked=True),
+                    Checkbox("Modo avanzado"),
+                ]),
+            ]),
             ]),
 
             _section("Avatar & Image", "Avatares con imagen o iniciales. Imagenes con estilos.", [
