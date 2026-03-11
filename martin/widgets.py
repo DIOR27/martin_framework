@@ -998,7 +998,7 @@ class Tabs(Widget):
 
 class Table(Widget):
     """
-    Tabla de datos interactiva con sort y busqueda.
+    Tabla de datos interactiva con sort por columna, busqueda por columna y paginacion.
 
     Uso basico:
         Table(
@@ -1009,23 +1009,19 @@ class Table(Widget):
             ],
         )
 
-    Con widgets en celdas:
+    Con todas las funciones:
+        Table(
+            headers=[...], rows=[...],
+            searchable=True,   # barra de busqueda global + filtro por columna
+            sortable=True,     # click en cabecera para ordenar asc/desc
+            page_size=10,      # paginacion
+        )
+
+    Con widgets en celdas (funcionales, no participan en sort/search):
         Table(
             headers=["Usuario", "Estado", "Accion"],
             rows=[[Row([Avatar(initials="AG"), Text("Ana")]), Badge("Activo"), Button("Ver")]],
         )
-
-    Parametros:
-        headers    list     cabeceras de columnas
-        rows       list     filas (lista de listas; cada celda puede ser str o Widget)
-        striped    bool     filas alternadas (default: True)
-        bordered   bool     bordes (default: True)
-        searchable bool     barra de busqueda global (default: False)
-        sortable   bool     click en cabecera para ordenar (default: False)
-        page_size  int|None paginacion (default: None = sin paginar)
-
-    Nota: sort y busqueda trabajan solo con celdas de texto puro.
-    Las celdas con widgets se tratan como string vacio para esas operaciones.
     """
 
     _id_counter = 0
@@ -1034,14 +1030,14 @@ class Table(Widget):
                  striped=True, bordered=True,
                  searchable=False, sortable=False,
                  page_size=None, **kwargs):
-        self._props    = Widget._extract_props(kwargs)
-        self.headers   = headers or []
-        self.rows      = rows    or []
-        self.striped   = striped
-        self.bordered  = bordered
+        self._props     = Widget._extract_props(kwargs)
+        self.headers    = headers or []
+        self.rows       = rows    or []
+        self.striped    = striped
+        self.bordered   = bordered
         self.searchable = searchable
-        self.sortable  = sortable
-        self.page_size = page_size
+        self.sortable   = sortable
+        self.page_size  = page_size
         Table._id_counter += 1
         self.uid = f"tbl_{Table._id_counter}"
 
@@ -1051,16 +1047,11 @@ class Table(Widget):
         border_cell = "border:1px solid var(--border);" if self.bordered else ""
         base  = "width:100%;border-collapse:collapse;font-size:14px"
         extra = self._resolve_props()
-
         wrapper_style = "width:100%;overflow-x:auto"
         if extra:
             wrapper_style += ";" + extra
 
-        # Pre-render all cells to HTML strings
-        def _cell_html(cell):
-            if isinstance(cell, Widget):
-                return cell.render()
-            return str(cell)
+        ncols = len(self.headers)
 
         # ── thead ─────────────────────────────────────────────────────────────
         th_base = (f"{border_cell}padding:10px 16px;text-align:left;"
@@ -1068,33 +1059,53 @@ class Table(Widget):
                    f"color:var(--text);font-weight:600;white-space:nowrap;"
                    f"user-select:none")
         if self.sortable:
-            th_base += ";cursor:pointer"
+            th_base += ";cursor:pointer;transition:background .15s"
 
         ths = ""
         for i, h in enumerate(self.headers):
             sort_attr = f' data-col="{i}"' if self.sortable else ""
-            sort_icon = (f'<span id="{uid}_si{i}" style="margin-left:4px;'
-                         f'color:var(--text-muted);font-size:10px"></span>'
+            icon_span = (f'<span id="{uid}_si{i}" style="margin-left:5px;'
+                         f'font-size:10px;color:var(--text-muted)">⇅</span>'
                          if self.sortable else "")
+            # Per-column search input under header
+            col_search = ""
+            if self.searchable:
+                col_search = (
+                    f'<input type="text" placeholder="Filtrar..." '
+                    f'data-col-search="{i}" '
+                    f'oninput="{uid}_colFilter(this,{i})" '
+                    f'onclick="event.stopPropagation()" '
+                    f'style="display:block;margin-top:6px;width:100%;'
+                    f'box-sizing:border-box;padding:4px 8px;font-size:12px;'
+                    f'border:1px solid var(--border);border-radius:5px;'
+                    f'background:var(--surface);color:var(--text);outline:none;'
+                    f'font-weight:400"/>'
+                )
             ths += (f'<th style="{th_base}"{sort_attr}>'
-                    f'{h}{sort_icon}</th>')
+                    f'<div style="display:flex;align-items:center">{h}{icon_span}</div>'
+                    f'{col_search}</th>')
         thead = f"<thead><tr>{ths}</tr></thead>" if self.headers else ""
 
-        # ── tbody rows (rendered) ─────────────────────────────────────────────
+        # ── tbody ─────────────────────────────────────────────────────────────
         td_style = f"{border_cell}padding:10px 16px;color:var(--text);vertical-align:middle"
 
-        rows_data = []   # list of (plain_text_cells, html_cells)
+        def _to_plain(cell):
+            """Extrae texto plano de una celda (str o Widget) para sort/search."""
+            import re as _re
+            if isinstance(cell, Widget):
+                h = cell.render()
+                # Strip HTML tags and collapse whitespace
+                t = _re.sub(r'<[^>]+>', ' ', h)
+                t = t.replace('&amp;','&').replace('&lt;','<').replace('&gt;','>').replace('&nbsp;',' ')
+                return ' '.join(t.split())
+            return str(cell)
+
+        rows_data = []  # (plain_text[], html[])
         for row in self.rows:
-            plain = []
-            html  = []
+            plain, html = [], []
             for cell in row:
-                if isinstance(cell, Widget):
-                    plain.append("")        # widgets not searchable/sortable
-                    html.append(cell.render())
-                else:
-                    s = str(cell)
-                    plain.append(s)
-                    html.append(s)
+                plain.append(_to_plain(cell))
+                html.append(cell.render() if isinstance(cell, Widget) else str(cell))
             rows_data.append((plain, html))
 
         tbody_rows = ""
@@ -1109,78 +1120,88 @@ class Table(Widget):
             tbody_rows += f'<tr id="{uid}_r{i}">{cells}</tr>'
         tbody = f"<tbody id='{uid}_tbody'>{tbody_rows}</tbody>"
 
-        # ── plain text data for JS (for sort/search) ──────────────────────────
         rows_plain_js = _j.dumps([p for p, _ in rows_data])
 
-        # ── search bar HTML ───────────────────────────────────────────────────
-        search_html = ""
+        # ── global search bar ─────────────────────────────────────────────────
+        global_search = ""
         if self.searchable:
-            search_html = (
+            global_search = (
                 f'<div style="margin-bottom:10px">'
-                f'<input id="{uid}_search" type="text" placeholder="Buscar en tabla..."'
-                f' oninput="{uid}_filter(this.value)"'
+                f'<input id="{uid}_gsearch" type="text" placeholder="Buscar en toda la tabla..."'
+                f' oninput="{uid}_globalFilter(this.value)"'
                 f' style="padding:7px 12px;border:1px solid var(--border);border-radius:7px;'
                 f'font-size:13px;width:100%;box-sizing:border-box;background:var(--surface);'
                 f'color:var(--text);outline:none"/>'
                 f'</div>'
             )
 
-        # ── pagination controls HTML ──────────────────────────────────────────
+        # ── pagination bar ────────────────────────────────────────────────────
         pagination_html = ""
         if self.page_size:
             pagination_html = (
                 f'<div id="{uid}_pgbar" style="display:flex;align-items:center;'
-                f'justify-content:space-between;margin-top:8px;gap:8px;flex-wrap:wrap">'
+                f'justify-content:space-between;margin-top:10px;gap:8px;flex-wrap:wrap">'
                 f'<span id="{uid}_pginfo" style="font-size:12px;color:var(--text-muted)"></span>'
                 f'<div style="display:flex;gap:4px">'
                 f'<button onclick="{uid}_pg(-1)" id="{uid}_pgprev"'
-                f' style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;'
-                f'background:var(--surface);color:var(--text);cursor:pointer;font-size:13px">'
-                f'&#8592;</button>'
+                f' style="padding:4px 14px;border:1px solid var(--border);border-radius:6px;'
+                f'background:var(--surface);color:var(--text);cursor:pointer;font-size:13px">&#8592;</button>'
                 f'<button onclick="{uid}_pg(1)" id="{uid}_pgnext"'
-                f' style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;'
-                f'background:var(--surface);color:var(--text);cursor:pointer;font-size:13px">'
-                f'&#8594;</button>'
+                f' style="padding:4px 14px;border:1px solid var(--border);border-radius:6px;'
+                f'background:var(--surface);color:var(--text);cursor:pointer;font-size:13px">&#8594;</button>'
                 f'</div></div>'
             )
 
         # ── JS ────────────────────────────────────────────────────────────────
-        needs_js = self.searchable or self.sortable or self.page_size
+        needs_js = self.searchable or self.sortable or bool(self.page_size)
         js = ""
         if needs_js:
-            n      = len(rows_data)
-            ps     = self.page_size or n or 1
-            ncols  = len(self.headers)
+            n  = len(rows_data)
+            ps = self.page_size or n or 1
 
             js = (
                 f'<script>(function(){{'
                 f'var uid={_j.dumps(uid)};'
-                f'var _data={rows_plain_js};'   # [[plain_text, ...], ...]
+                f'var _data={rows_plain_js};'
                 f'var _n={n};'
                 f'var _ps={ps};'
                 f'var _page=0;'
                 f'var _sortCol=-1,_sortAsc=true;'
-                f'var _query="";'
-                f'var _order=_data.map(function(_,i){{return i;}});'  # original row indices
+                f'var _globalQ="";'
+                f'var _colQ=new Array({ncols}).fill("");'
+                f'var _order=[];'
+                f'for(var _i=0;_i<_n;_i++)_order.push(_i);'
 
-                # filter: returns indices matching query
+                # match: row must pass global AND all active column filters
                 f'function _match(idx){{'
-                f'  if(!_query)return true;'
-                f'  var q=_query.toLowerCase();'
-                f'  return _data[idx].some(function(v){{return v.toLowerCase().includes(q);}});'
+                f'  var row=_data[idx];'
+                f'  if(_globalQ){{' 
+                f'    var gq=_globalQ.toLowerCase();'
+                f'    var found=false;'
+                f'    for(var c=0;c<row.length;c++){{if(row[c].toLowerCase().indexOf(gq)>=0){{found=true;break;}}}}'
+                f'    if(!found)return false;'
+                f'  }}'
+                f'  for(var c=0;c<_colQ.length;c++){{'
+                f'    if(!_colQ[c])continue;'
+                f'    var v=(row[c]||"").toLowerCase();'
+                f'    if(v.indexOf(_colQ[c].toLowerCase())<0)return false;'
+                f'  }}'
+                f'  return true;'
                 f'}}'
 
-                # apply: filter + sort → _order
+                # apply: filter + sort
                 f'function _apply(){{'
                 f'  var filtered=[];'
                 f'  for(var i=0;i<_n;i++)if(_match(i))filtered.push(i);'
                 f'  if(_sortCol>=0){{'
-                f'    var asc=_sortAsc;var col=_sortCol;'
+                f'    var asc=_sortAsc,col=_sortCol;'
                 f'    filtered.sort(function(a,b){{'
-                f'      var va=_data[a][col]||"",vb=_data[b][col]||"";'
-                f'      var na=parseFloat(va),nb=parseFloat(vb);'
-                f'      if(!isNaN(na)&&!isNaN(nb))return asc?na-nb:nb-na;'
-                f'      return asc?va.localeCompare(vb):vb.localeCompare(va);'
+                f'      var va=(_data[a][col]||"").trim();'
+                f'      var vb=(_data[b][col]||"").trim();'
+                f'      var na=Number(va),nb=Number(vb);'
+                f'      if(va!==""&&vb!==""&&!isNaN(na)&&!isNaN(nb))return asc?na-nb:nb-na;'
+                f'      return asc?va.localeCompare(vb,"es",{{sensitivity:"base"}}):'
+                f'               vb.localeCompare(va,"es",{{sensitivity:"base"}});'
                 f'    }});'
                 f'  }}'
                 f'  _order=filtered;'
@@ -1188,89 +1209,92 @@ class Table(Widget):
                 f'  _render();'
                 f'}}'
 
-                # render visible rows
+                # render visible slice
                 f'function _render(){{'
                 f'  var tbody=document.getElementById(uid+"_tbody");'
                 f'  if(!tbody)return;'
-                f'  var start=_page*_ps, end=Math.min(start+_ps,_order.length);'
-                f'  var rows=tbody.querySelectorAll("tr");'
-                f'  for(var i=0;i<rows.length;i++)rows[i].style.display="none";'
-                f'  for(var i=start;i<end;i++){{'
-                f'    var r=document.getElementById(uid+"_r"+_order[i]);'
-                f'    if(r)r.style.display="";'
-                f'  }}'
-                # striping on visible rows
+                f'  var allRows=tbody.querySelectorAll("tr");'
+                f'  for(var i=0;i<allRows.length;i++)allRows[i].style.display="none";'
+                f'  var start=_page*_ps,end=Math.min(start+_ps,_order.length);'
                 f'  var vis=[];'
                 f'  for(var i=start;i<end;i++){{'
                 f'    var r=document.getElementById(uid+"_r"+_order[i]);'
-                f'    if(r)vis.push(r);'
+                f'    if(r){{r.style.display="";vis.push(r);}}'
                 f'  }}'
-                + (
+            )
+
+            if self.striped:
+                js += (
                     f'  vis.forEach(function(r,idx){{'
                     f'    r.querySelectorAll("td").forEach(function(td){{'
                     f'      td.style.background=idx%2===1?"var(--surface-2,rgba(0,0,0,0.03))":"";'
                     f'    }});'
                     f'  }});'
-                    if self.striped else ""
-                ) +
-                # pagination info
-                (
+                )
+
+            if self.page_size:
+                js += (
                     f'  var info=document.getElementById(uid+"_pginfo");'
-                    f'  if(info)info.textContent="Mostrando "+(start+1)+"-"+end+" de "+_order.length;'
+                    f'  var total=_order.length;'
+                    f'  if(info)info.textContent=total===0?"Sin resultados":'
+                    f'    "Mostrando "+(start+1)+"\u2013"+end+" de "+total;'
                     f'  var prev=document.getElementById(uid+"_pgprev");'
                     f'  var next=document.getElementById(uid+"_pgnext");'
                     f'  if(prev)prev.disabled=_page===0;'
                     f'  if(next)next.disabled=end>=_order.length;'
-                    if self.page_size else ""
-                ) +
-                # sort icons
-                (
+                )
+
+            if self.sortable:
+                js += (
                     f'  for(var c=0;c<{ncols};c++){{'
                     f'    var si=document.getElementById(uid+"_si"+c);'
                     f'    if(!si)continue;'
-                    f'    if(c===_sortCol)si.textContent=_sortAsc?" ▲":" ▼";'
-                    f'    else si.textContent=" ⇅";'
+                    f'    if(c===_sortCol){{si.textContent=_sortAsc?" \u25b2":" \u25bc";si.style.color="var(--accent)";}}'
+                    f'    else{{si.textContent="\u21c5";si.style.color="var(--text-muted)";}}'
                     f'  }}'
-                    if self.sortable else ""
-                ) +
-                f'}}'
+                )
 
-                # public functions
-                + (f'window[uid+"_filter"]=function(q){{_query=q;_apply();}};'
-                   if self.searchable else "")
-                + (f'window[uid+"_pg"]=function(d){{'
-                   f'  var total=Math.ceil(_order.length/_ps);'
-                   f'  _page=Math.max(0,Math.min(_page+d,total-1));'
-                   f'  _render();'
-                   f'}};'
-                   if self.page_size else "")
-                + (
-                    # sort on th click
-                    f'var thead=document.querySelector("#{uid}_tbody").closest("table").querySelector("thead");'
-                    f'if(thead)thead.addEventListener("click",function(e){{'
+            js += f'}}'  # end _render
+
+            # public APIs
+            if self.searchable:
+                js += (
+                    f'window[uid+"_globalFilter"]=function(q){{_globalQ=q;_apply();}};'
+                    f'window[uid+"_colFilter"]=function(el,c){{_colQ[c]=el.value;_apply();}};'
+                )
+
+            if self.page_size:
+                js += (
+                    f'window[uid+"_pg"]=function(d){{'
+                    f'  var pages=Math.max(1,Math.ceil(_order.length/_ps));'
+                    f'  _page=Math.max(0,Math.min(_page+d,pages-1));'
+                    f'  _render();'
+                    f'}};'
+                )
+
+            if self.sortable:
+                js += (
+                    f'var _thead=document.querySelector("#{uid}_tbody").closest("table").querySelector("thead");'
+                    f'if(_thead)_thead.addEventListener("click",function(e){{'
                     f'  var th=e.target.closest("th[data-col]");'
-                    f'  if(!th)return;'
+                    f'  if(!th||e.target.tagName==="INPUT")return;'
                     f'  var col=parseInt(th.getAttribute("data-col"));'
                     f'  if(_sortCol===col)_sortAsc=!_sortAsc;'
                     f'  else{{_sortCol=col;_sortAsc=true;}}'
                     f'  _apply();'
                     f'}});'
-                    if self.sortable else ""
-                ) +
+                )
 
-                f'_apply();'
-                f'}})();</script>'
-            )
+            js += f'_apply();}})()</script>'
 
         return (
             f'<div style="{wrapper_style}">'
-            + search_html
+            + global_search
             + f'<table style="{base}">{thead}{tbody}</table>'
             + pagination_html
             + f'</div>'
             + js
         )
-
 
 
 # =============================================================================
@@ -2316,50 +2340,52 @@ class Map(Widget):
     """
     Mapa interactivo con Leaflet + OpenStreetMap. Sin API key.
 
-    Uso basico:
-        Map(center=(40.4168, -3.7038), zoom=13)
+    Basico:
+        Map(center=(-2.897, -79.004), zoom=14)   # Cuenca, Ecuador
 
-    Con marcadores — acepta dict o tupla (lat, lon) / (lat, lon, title):
+    Con marcadores (dict o tupla):
         Map(markers=[
-            {"lat": 40.4168, "lon": -3.7038, "title": "Madrid", "icon": "HH"},
-            (4.711, -74.072, "Bogota"),
-            (51.505, -0.09, "Londres", "Capital de UK", "#22c55e", "GG"),
+            {"lat": -2.897, "lon": -79.004, "title": "Cuenca", "icon": "GG"},
+            (-0.220,  -78.512, "Quito"),
+            (-2.897, -79.004, "Cuenca", "Popup HTML", "#6366f1", "CC"),
         ])
 
-    Con ruta entre puntos:
-        Map(markers=[...], route=True)
+    Parametros:
+        center          (lat, lon)    centro del mapa
+        zoom            int           nivel de zoom 1-19 (default 13)
+        height          int           alto en px (default 480)
+        markers         list          marcadores como dict o tupla
+        search          bool          barra de busqueda (default True)
+        geolocation     bool          boton mi-ubicacion (default True)
+        route           bool          linea entre markers (default False)
+        route_color     str           color ruta (default "#6366f1")
+        route_weight    int           grosor ruta px (default 4)
+        tile            str           "osm"|"dark"|"topo"|"cycle" (default "osm")
+        on_marker_click str           JS al hacer click en un marker
 
-    Tiles: "osm" | "dark" | "topo" | "cycle"
+    Marcador completo (dict):
+        {"lat": float, "lon": float,
+         "title": str, "popup": str,
+         "color": str, "icon": str}
     """
 
     _id_counter = 0
 
     _TILES = {
         "osm":   ("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                  "&copy; OpenStreetMap contributors"),
+                  "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a>"),
         "dark":  ("https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png",
-                  "&copy; Stadia Maps &copy; OpenStreetMap contributors"),
+                  "&copy; Stadia Maps, &copy; OpenStreetMap"),
         "topo":  ("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
-                  "&copy; OpenTopoMap contributors"),
+                  "&copy; OpenTopoMap"),
         "cycle": ("https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png",
-                  "&copy; CyclOSM contributors"),
+                  "&copy; CyclOSM"),
     }
 
-    def __init__(
-        self,
-        center=None,
-        zoom=13,
-        height=480,
-        markers=None,
-        search=True,
-        geolocation=True,
-        route=False,
-        route_color="#6366f1",
-        route_weight=4,
-        tile="osm",
-        on_marker_click=None,
-        **kwargs,
-    ):
+    def __init__(self, center=None, zoom=13, height=480,
+                 markers=None, search=True, geolocation=True,
+                 route=False, route_color="#6366f1", route_weight=4,
+                 tile="osm", on_marker_click=None, **kwargs):
         self._props          = Widget._extract_props(kwargs)
         self.center          = center
         self.zoom            = zoom
@@ -2389,16 +2415,19 @@ class Map(Widget):
                 result.append(d)
         return result
 
-    def _build_js(self):
+    def render(self):
         import json as _j
         uid  = self.uid
         J    = _j.dumps
         mkrs = self._normalize_markers()
+        h    = str(self.height)
+        extra = self._resolve_props()
 
         tile_url, tile_attr = self._TILES.get(self.tile, self._TILES["osm"])
         if self.tile not in self._TILES:
             tile_url, tile_attr = self.tile, "&copy; Map contributors"
 
+        # center
         if self.center:
             center_js = J(list(self.center))
         elif mkrs:
@@ -2408,18 +2437,61 @@ class Map(Widget):
         else:
             center_js = "[40.4168,-3.7038]"
 
+        wrapper_style = (
+            "position:relative;border-radius:12px;overflow:hidden;"
+            "width:100%;height:" + h + "px;box-shadow:0 4px 24px rgba(0,0,0,0.12)"
+        )
+        if extra:
+            wrapper_style += ";" + extra
+
+        # Search bar HTML (over the map, top-center)
+        search_html = ""
+        if self.search:
+            search_html = (
+                '<div id="' + uid + '_sbar" style="'
+                'position:absolute;top:10px;left:50%;transform:translateX(-50%);'
+                'z-index:1000;display:flex;gap:0;width:min(340px,78%);'
+                'box-shadow:0 2px 14px rgba(0,0,0,0.22);border-radius:9px;overflow:hidden">'
+                '<input id="' + uid + '_q" type="text" placeholder="Buscar lugar..." '
+                'autocomplete="off" '
+                'style="flex:1;padding:9px 13px;border:none;font-size:14px;'
+                'color:#111;background:#fff;outline:none;min-width:0"/>'
+                '<button id="' + uid + '_sbtn" title="Buscar" '
+                'style="padding:9px 14px;background:#6366f1;color:#fff;'
+                'border:none;cursor:pointer;font-size:17px;line-height:1;'
+                'flex-shrink:0;transition:background .2s" '
+                'onmouseover="this.style.background=\'#4f46e5\'" '
+                'onmouseout="this.style.background=\'#6366f1\'">&#128269;</button>'
+                '</div>'
+            )
+
+        # Geolocation button (bottom-right, above Leaflet zoom)
+        geo_html = ""
+        if self.geolocation:
+            geo_html = (
+                '<button id="' + uid + '_geo" title="Mi ubicaci\u00f3n actual" '
+                'style="position:absolute;bottom:86px;right:10px;z-index:1000;'
+                'width:34px;height:34px;background:#fff;'
+                'border:2px solid rgba(0,0,0,0.25);border-radius:4px;cursor:pointer;'
+                'font-size:16px;display:flex;align-items:center;justify-content:center;'
+                'box-shadow:0 1px 5px rgba(0,0,0,0.22);transition:background .15s" '
+                'onmouseover="this.style.background=\'#f0f0f0\'" '
+                'onmouseout="this.style.background=\'#fff\'">'
+                '&#x1f3af;</button>'
+            )
+
+        # ── JavaScript ────────────────────────────────────────────────────────
         icon_fn = (
             "function _mkIcon(color,icon){"
             "var d=document.createElement('div');"
-            "d.style.cssText='width:32px;height:32px;background:'+color+';'"
-            "+'border-radius:50% 50% 50% 0;border:3px solid white;'"
-            "+'box-shadow:0 2px 8px rgba(0,0,0,0.3);transform:rotate(-45deg);'"
-            "+'display:flex;align-items:center;justify-content:center';"
+            "d.style.cssText='width:30px;height:30px;background:'+color+';'"
+            "+'border-radius:50% 50% 50% 0;border:3px solid #fff;'"
+            "+'box-shadow:0 2px 8px rgba(0,0,0,0.35);transform:rotate(-45deg);'"
+            "+'display:flex;align-items:center;justify-content:center;box-sizing:border-box';"
             "if(icon){"
             "var s=document.createElement('span');"
-            "s.style.cssText='transform:rotate(45deg);font-size:13px;line-height:1';"
-            "s.textContent=icon;"
-            "d.appendChild(s);}"
+            "s.style.cssText='transform:rotate(45deg);font-size:12px;line-height:1;user-select:none';"
+            "s.textContent=icon;d.appendChild(s);}"
             "return d.outerHTML;}"
         )
 
@@ -2430,35 +2502,38 @@ class Map(Widget):
                 "var _sb=document.getElementById(" + J(uid+"_sbtn") + ");"
                 "var _sm=null;"
                 "function _doSearch(){"
-                "var q=_sq.value.trim();if(!q)return;"
-                "_sb.disabled=true;_sb.textContent='\u23f3';"
-                "fetch('https://nominatim.openstreetmap.org/search?format=json&limit=5&q='"
-                "+encodeURIComponent(q)+'&accept-language=es,en',"
-                "{headers:{'User-Agent':'MartinFramework/0.2'}})"
-                ".then(function(r){return r.json();})"
-                ".then(function(data){"
-                "_sb.disabled=false;_sb.textContent='\U0001f50d';"
-                "if(!data||!data.length){"
-                "_sq.style.outline='2px solid #ef4444';"
-                "setTimeout(function(){_sq.style.outline='';},2000);"
-                "return;}"
-                "var r=data[0];"
-                "var lat=parseFloat(r.lat),lon=parseFloat(r.lon);"
-                "if(_sm){_map.removeLayer(_sm);}"
-                "var name=r.display_name.split(',').slice(0,2).join(', ');"
-                "_sm=L.marker([lat,lon])"
-                ".addTo(_map)"
-                ".bindPopup('<b>'+name+'</b><br><small>'+r.display_name+'</small>')"
-                ".openPopup();"
-                "_map.flyTo([lat,lon],15,{duration:1.2});"
-                "})"
-                ".catch(function(){"
-                "_sb.disabled=false;_sb.textContent='\U0001f50d';"
-                "});"
+                "  var q=_sq.value.trim();if(!q)return;"
+                "  _sb.disabled=true;_sb.style.opacity='0.6';"
+                # Use Nominatim — add User-Agent header is NOT sent by browsers (CORS), 
+                # so we use the referer approach which is fine for client-side calls
+                "  fetch('https://nominatim.openstreetmap.org/search'+"
+                "    '?format=json&limit=1&addressdetails=1&q='+encodeURIComponent(q))"
+                "  .then(function(r){return r.json();})"
+                "  .then(function(data){"
+                "    _sb.disabled=false;_sb.style.opacity='1';"
+                "    if(!data||!data.length){"
+                "      _sq.style.boxShadow='inset 0 0 0 2px #ef4444';"
+                "      setTimeout(function(){_sq.style.boxShadow='';},2500);"
+                "      return;"
+                "    }"
+                "    var r=data[0];"
+                "    var lat=parseFloat(r.lat),lon=parseFloat(r.lon);"
+                "    if(_sm){_map.removeLayer(_sm);}"
+                "    var parts=r.display_name.split(',');"
+                "    var name=parts.slice(0,Math.min(2,parts.length)).join(', ');"
+                "    _sm=L.marker([lat,lon]).addTo(_map)"
+                "      .bindPopup('<b>'+name+'</b><br><small style=\"color:#666\">'+(r.display_name||'')+'</small>')"
+                "      .openPopup();"
+                "    _map.flyTo([lat,lon],15,{animate:true,duration:1.0});"
+                "  })"
+                "  .catch(function(e){"
+                "    _sb.disabled=false;_sb.style.opacity='1';"
+                "    console.warn('Map search error:',e);"
+                "  });"
                 "}"
                 "_sb.addEventListener('click',_doSearch);"
                 "_sq.addEventListener('keydown',function(e){"
-                "if(e.key==='Enter'){e.preventDefault();_doSearch();}"
+                "  if(e.key==='Enter'){e.preventDefault();_doSearch();}"
                 "});"
             )
 
@@ -2466,32 +2541,51 @@ class Map(Widget):
         if self.geolocation:
             geo_js = (
                 "var _gb=document.getElementById(" + J(uid+"_geo") + ");"
-                "var _gm=null;"
+                "var _gLayers=[];"
+                # Use Leaflet's built-in map.locate() — more reliable than raw geolocation API
+                # It fires locationfound/locationerror events, handles everything cleanly.
                 "_gb.addEventListener('click',function(){"
-                "if(!navigator.geolocation){"
-                "alert('Geolocalizaci\u00f3n no disponible.');return;}"
-                "_gb.disabled=true;_gb.textContent='\u23f3';"
-                "navigator.geolocation.getCurrentPosition("
-                "function(pos){"
-                "_gb.disabled=false;_gb.textContent='\U0001f3af';"
-                "var lat=pos.coords.latitude,lon=pos.coords.longitude;"
-                "if(_gm){_map.removeLayer(_gm);}"
-                "_gm=L.circleMarker([lat,lon],"
-                "{radius:10,fillColor:'#6366f1',color:'white',weight:3,fillOpacity:0.9})"
-                ".addTo(_map).bindPopup('<b>Tu ubicaci\u00f3n</b>').openPopup();"
-                "_map.flyTo([lat,lon],16,{duration:1.2});"
-                "},"
-                "function(err){"
-                "_gb.disabled=false;_gb.textContent='\U0001f3af';"
-                "var msgs={1:'Permiso denegado.',2:'Posici\u00f3n no disponible.',3:'Tiempo agotado.'};"
-                "alert(msgs[err.code]||'Error de geolocalizaci\u00f3n.');"
-                "},"
-                "{timeout:10000,maximumAge:60000});"
+                "  _gb.textContent='\u23f3';_gb.disabled=true;"
+                "  _map.locate({"
+                "    setView:false,"
+                "    enableHighAccuracy:true,"
+                "    timeout:15000,"
+                "    maximumAge:0"
+                "  });"
+                "});"
+                "_map.on('locationfound',function(e){"
+                "  _gb.textContent='\U0001f3af';_gb.disabled=false;"
+                "  _gLayers.forEach(function(l){_map.removeLayer(l);});"
+                "  _gLayers=[];"
+                "  var lat=e.latlng.lat,lon=e.latlng.lng;"
+                "  var acc=Math.round(e.accuracy);"
+                # accuracy circle
+                "  var circle=L.circle(e.latlng,{"
+                "    radius:e.accuracy,"
+                "    color:'#6366f1',fillColor:'#6366f1',"
+                "    fillOpacity:0.08,weight:1.5,opacity:0.35"
+                "  }).addTo(_map);"
+                # position dot
+                "  var dot=L.circleMarker(e.latlng,{"
+                "    radius:8,fillColor:'#6366f1',color:'#fff',weight:3,fillOpacity:1"
+                "  }).addTo(_map)"
+                "   .bindPopup('<b>Tu ubicaci\u00f3n</b><br><small style=\"color:#888\">Precisi\u00f3n: ±'+acc+' m</small>')"
+                "   .openPopup();"
+                "  _gLayers.push(circle,dot);"
+                "  _map.flyTo(e.latlng,16,{animate:true,duration:1.2});"
+                "});"
+                "_map.on('locationerror',function(e){"
+                "  _gb.textContent='\U0001f3af';_gb.disabled=false;"
+                "  var msg='No se pudo obtener tu ubicaci\u00f3n.';"
+                "  if(e.message&&e.message.indexOf('denied')>=0)"
+                "    msg='Permiso denegado. Habilita la ubicaci\u00f3n en tu navegador.';"
+                "  else if(e.message&&e.message.indexOf('timeout')>=0)"
+                "    msg='Tiempo de espera agotado. Intenta de nuevo.';"
+                "  alert(msg);"
                 "});"
             )
 
-        click_fn   = ""
-        click_bind = ""
+        click_fn = click_bind = ""
         if self.on_marker_click:
             click_fn   = "function _onMk(marker){" + self.on_marker_click + "}"
             click_bind = "_mk.on('click',function(){_onMk(m);});"
@@ -2500,45 +2594,57 @@ class Map(Widget):
         if self.route:
             route_js = (
                 "if(_lls.length>1){"
-                "L.polyline(_lls,{"
-                "color:" + J(self.route_color) + ","
-                "weight:" + str(self.route_weight) + ","
-                "opacity:0.85,lineJoin:'round'"
-                "}).addTo(_map);}"
+                "  L.polyline(_lls,{"
+                "    color:" + J(self.route_color) + ","
+                "    weight:" + str(self.route_weight) + ","
+                "    opacity:0.85,lineJoin:'round',dashArray:null"
+                "  }).addTo(_map);"
+                "}"
             )
 
         autofit = ""
         if not self.center and len(mkrs) > 1:
             autofit = "if(_lls.length>1){_map.fitBounds(_lls,{padding:[48,48]});}"
 
-        return (
+        init_js = (
             "(function _im(){"
             "if(typeof L==='undefined'){setTimeout(_im,80);return;}"
             "var el=document.getElementById(" + J(uid) + ");"
             "if(!el||el._mi)return;"
             "el._mi=true;"
-            "var _map=L.map(el,{zoomControl:true,scrollWheelZoom:true})"
-            ".setView(" + center_js + "," + str(self.zoom) + ");"
-            "L.tileLayer(" + J(tile_url) + ","
-            "{attribution:" + J(tile_attr) + ",maxZoom:19}).addTo(_map);"
+            # Explicitly set height in case CSS hasn't loaded
+            "el.style.height='" + h + "px';"
+            "var _map=L.map(el,{"
+            "  zoomControl:true,"
+            "  scrollWheelZoom:true,"
+            "  attributionControl:true"
+            "}).setView(" + center_js + "," + str(self.zoom) + ");"
+            "L.tileLayer(" + J(tile_url) + ",{"
+            "  attribution:" + J(tile_attr) + ","
+            "  maxZoom:19,"
+            "  crossOrigin:true"
+            "}).addTo(_map);"
             + icon_fn
             + click_fn +
             "var _markers=" + J(mkrs) + ";"
             "var _lls=[];"
             "_markers.forEach(function(m){"
-            "var color=m.color||'#6366f1';"
-            "var icon=m.icon||'';"
-            "var _lIcon=L.divIcon({"
-            "html:_mkIcon(color,icon),"
-            "className:'',iconSize:[32,32],iconAnchor:[16,32],popupAnchor:[0,-38]"
-            "});"
-            "var _mk=L.marker([m.lat,m.lon],{icon:_lIcon}).addTo(_map);"
-            "var _ph='';"
-            "if(m.title)_ph+='<b>'+m.title+'</b>';"
-            "if(m.popup)_ph+=(m.title?'<br>':'')+m.popup;"
-            "if(_ph)_mk.bindPopup(_ph);"
+            "  var color=m.color||'#6366f1';"
+            "  var icon=m.icon||'';"
+            "  var _lIcon=L.divIcon({"
+            "    html:_mkIcon(color,icon),"
+            "    className:'',"
+            "    iconSize:[30,30],"
+            "    iconAnchor:[15,30],"
+            "    popupAnchor:[0,-34]"
+            "  });"
+            "  var _mk=L.marker([m.lat,m.lon],{icon:_lIcon}).addTo(_map);"
+            "  var _ph='';"
+            "  if(m.title)_ph+='<b style=\"font-size:13px\">'+m.title+'</b>';"
+            "  if(m.popup)_ph+=(m.title?'<br>':'')+m.popup;"
+            "  if(_ph)_mk.bindPopup(_ph);"
             + click_bind +
-            "_lls.push([m.lat,m.lon]);"
+            "  _lls.push([m.lat,m.lon]);"
             "});"
             + route_js
             + autofit
@@ -2547,61 +2653,16 @@ class Map(Widget):
             "})();"
         )
 
-    def render(self):
-        uid    = self.uid
-        height = str(self.height)
-        extra  = self._resolve_props()
-
-        wrapper_style = (
-            "position:relative;border-radius:12px;overflow:hidden;"
-            "width:100%;height:" + height + "px"
-        )
-        if extra:
-            wrapper_style += ";" + extra
-
-        search_html = ""
-        if self.search:
-            search_html = (
-                '<div style="position:absolute;top:10px;left:50%;'
-                'transform:translateX(-50%);z-index:1000;'
-                'display:flex;gap:6px;width:min(360px,80%)">'
-                '<input id="' + uid + '_q" type="text"'
-                ' placeholder="Buscar lugar..." autocomplete="off"'
-                ' style="flex:1;padding:8px 12px;border:none;'
-                'border-radius:8px;font-size:14px;color:#111;'
-                'box-shadow:0 2px 12px rgba(0,0,0,0.18);outline:none"/>'
-                '<button id="' + uid + '_sbtn" title="Buscar"'
-                ' style="padding:8px 14px;background:#6366f1;color:white;'
-                'border:none;border-radius:8px;cursor:pointer;font-size:18px;'
-                'line-height:1;box-shadow:0 2px 12px rgba(0,0,0,0.18)">'
-                '&#128269;</button>'
-                '</div>'
-            )
-
-        geo_html = ""
-        if self.geolocation:
-            geo_html = (
-                '<button id="' + uid + '_geo" title="Mi ubicaci\u00f3n"'
-                ' style="position:absolute;bottom:80px;right:10px;z-index:1000;'
-                'width:34px;height:34px;background:white;'
-                'border:2px solid rgba(0,0,0,0.2);border-radius:6px;cursor:pointer;'
-                'font-size:18px;line-height:1;'
-                'display:flex;align-items:center;justify-content:center;'
-                'box-shadow:0 1px 5px rgba(0,0,0,0.2)">'
-                '&#127919;</button>'
-            )
-
         return (
             '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>'
             + '<div style="' + wrapper_style + '">'
-            + '<div id="' + uid + '" style="width:100%;height:' + height + 'px"></div>'
+            + '<div id="' + uid + '" style="width:100%;height:' + h + 'px"></div>'
             + search_html
             + geo_html
             + '</div>'
             + '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>'
-            + '<script>' + self._build_js() + '</script>'
+            + '<script>' + init_js + '</script>'
         )
-
 
 
 class Timeline(Widget):

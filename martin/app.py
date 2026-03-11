@@ -150,6 +150,13 @@ class App:
     ).run()
 
     Las páginas pueden sobreescribir header/footer retornando (widget, PageConfig(...)).
+    PageConfig(header=False) desactiva el header global en esa página.
+    PageConfig(header=MyNav()) lo reemplaza con un widget personalizado.
+
+    logo=...  — URL o nombre de archivo en assets/ para el logo del auto-nav.
+                Si no se provee, busca icon.* / logo.* en assets/.
+                Ej: App(logo='/assets/mi_logo.svg')
+                Ej: App(logo='mi_logo.png')  # buscado en assets/
     """
 
     def __init__(
@@ -163,6 +170,7 @@ class App:
         theme_toggle=True,
         header=None,
         footer=None,
+        logo=None,
         # SEO global
         site_url=None,
         description=None,
@@ -202,6 +210,7 @@ class App:
         self.twitter_handle = twitter_handle or ""
         self.lang = lang
         self.favicon = favicon or ""
+        self.logo = logo or ""  # URL o path relativo del logo custom
 
         # Link router back to app so router.add() can auto-register routes
         if self._router:
@@ -323,19 +332,30 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
             return ""
 
         icon_html = ""
-        for name_ext in (
-            "icon.png",
-            "icon.svg",
-            "icon.webp",
-            "logo.png",
-            "logo.svg",
-            "logo.webp",
-            "logo.jpg",
-        ):
-            if os.path.exists(os.path.join(self.assets_dir, name_ext)):
-                _pfx = "assets/" if self._export_mode else "/assets/"
-                icon_html = f'<img src="{_pfx}{name_ext}" alt="">'
-                break
+        if self.logo:
+            # Logo explícito vía App(logo=...)
+            _src = (
+                self.logo
+                if self.logo.startswith(("http", "/"))
+                else f"/assets/{self.logo}"
+            )
+            if self._export_mode:
+                _src = _src.lstrip("/")
+            icon_html = f'<img src="{_src}" alt="{self.title}" style="height:32px;width:auto;object-fit:contain;border-radius:6px">'
+        else:
+            for name_ext in (
+                "icon.png",
+                "icon.svg",
+                "icon.webp",
+                "logo.png",
+                "logo.svg",
+                "logo.webp",
+                "logo.jpg",
+            ):
+                if os.path.exists(os.path.join(self.assets_dir, name_ext)):
+                    _pfx = "assets/" if self._export_mode else "/assets/"
+                    icon_html = f'<img src="{_pfx}{name_ext}" alt="">'
+                    break
 
         _home_href = "index.html" if self._export_mode else "/"
         logo_html = f'<a href="{_home_href}" class="mn-logo">{icon_html}<span>{self.title}</span></a>'
@@ -412,7 +432,9 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
 
         header_html = self._render_widget(use_header)
         footer_html = self._render_widget(use_footer)
-        nav_html = self._nav_html(path)
+        # Auto-nav solo si no hay header widget explícito
+        _eff_header = page_header if page_header is not None else self.header
+        nav_html = "" if _eff_header else self._nav_html(path)
         script = LIVE_RELOAD_SCRIPT if (reload and self.hot_reload) else ""
         title = page_title or self.title
         theme = page_theme or self.theme

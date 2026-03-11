@@ -1,5 +1,4 @@
 """Martin CLI"""
-
 import argparse, os, sys, textwrap
 from pathlib import Path
 
@@ -52,14 +51,29 @@ router.add("/api-example", api_example, title="Backend")
 # si el modulo tiene una funcion register_routes(app).
 from martin import NavBar, Footer, Heading, Text, Link, Button, Row, TextStyle
 
+# ── Navbar global ──────────────────────────────────────────────────────
+# brand   → cualquier widget: Heading, Image, Row([Image, Heading]) etc.
+#   Solo nombre:    brand=Heading("MiApp", level=3)
+#   Solo logo:      brand=Image("/assets/logo.svg", height=32)
+#   Logo + nombre:  brand=Row([Image("/assets/logo.svg", height=28),
+#                              Heading("MiApp", level=4)], gap=8, align="center")
+# links   → lista de Link, Button u otros widgets (centro)
+# actions → botones/widgets a la derecha (login, CTA, ThemeToggle...)
+# Desde una pagina: return widget, PageConfig(header=False)       # desactiva
+#                   return widget, PageConfig(header=MiNavCustom()) # reemplaza
 _nav = NavBar(
     brand=Heading("PROJECT_NAME", level=3, color="var(--text)"),
+    # brand=Row([Image("/assets/logo.svg", height=28),
+    #            Heading("PROJECT_NAME", level=4)], gap=8, align="center"),
     links=[
         Link("Inicio",      href="/",           style="color:var(--text);text-decoration:none;font-size:14px"),
         Link("Componentes", href="/components", style="color:var(--text-muted);text-decoration:none;font-size:14px"),
         Link("Acerca de",   href="/about",      style="color:var(--text-muted);text-decoration:none;font-size:14px"),
     ],
-    actions=[Button("Comenzar", href="/components", radius=8)],
+    actions=[
+        # ThemeToggle(),          # boton dark/light
+        Button("Comenzar", href="/components", radius=8),
+    ],
 )
 
 _footer = Footer(
@@ -79,6 +93,7 @@ app = App(
     theme="auto",
     header=_nav,
     footer=_footer,
+    # logo="logo.png",  # archivo en assets/ — reemplaza el auto-detectado
     # SEO global del sitio
     site_url="https://tu-dominio.com",
     description="Descripcion de tu sitio para buscadores.",
@@ -167,20 +182,9 @@ def home():
         ],
     )
 
-    footer = Footer(
-        left=Text("\u00a9 2025 PROJECT_NAME",
-                  style=TextStyle(size=13, color="var(--text-muted)")),
-        right=Row([
-            Link("Componentes", href="/components",
-                 style="font-size:13px;text-decoration:none;color:var(--text-muted)"),
-            Link("Acerca de", href="/about",
-                 style="font-size:13px;text-decoration:none;color:var(--text-muted)"),
-        ], gap=16),
-    )
-
     page = Column(
         style=MeshBackground.themed(),
-        children=[nav, hero, features, footer],
+        children=[hero, features],
     )
     return page, PageConfig(title="PROJECT_NAME", description="PROJECT_DESC")
 
@@ -412,29 +416,37 @@ def components():
                         ]),
             ]),
 
-            _section("NavBar & Footer", "Cabecera y pie de pagina declarativos.", [
-            Column(gap=0, radius=12, style="overflow:hidden;border:1px solid var(--border)", children=[
-                            NavBar(
-                                brand=Heading("MiSitio", level=4, color="var(--text)"),
-                                links=[
-                                    Link("Inicio",    href="#", style="color:var(--text);text-decoration:none;font-size:14px"),
-                                    Link("Productos", href="#", style="color:var(--text-muted);text-decoration:none;font-size:14px"),
-                                    Link("Blog",      href="#", style="color:var(--text-muted);text-decoration:none;font-size:14px"),
-                                ],
-                                actions=[
-                                    Button("Login",    variant="ghost", radius=6, padding=8),
-                                    Button("Registro", radius=6, padding=8),
-                                ],
-                                sticky=False,
-                            ),
-                            Footer(
-                                left=Text("© 2025 MiSitio", style=TextStyle(size=12, color="var(--text-muted)")),
-                                right=Row([
-                                    Link("Privacidad", href="#", style="font-size:12px;color:var(--text-muted);text-decoration:none"),
-                                    Link("Terminos",   href="#", style="font-size:12px;color:var(--text-muted);text-decoration:none"),
-                                ], gap=12),
-                            ),
-                        ]),
+            _section("NavBar & Footer", "Cabecera y pie de pagina totalmente declarativos.", [
+                # brand puede ser Heading, Image (logo), Row([Image, Text]) etc.
+                # links acepta Link, Button u otros widgets
+                # actions va a la derecha: login, CTA, ThemeToggle...
+                NavBar(
+                    brand=Row([
+                        Image("/assets/icon.webp", width=28, height=28, radius=6),
+                        Text("MiApp", style=TextStyle(weight="800", size=17)),
+                    ], gap=8, align="center"),
+                    links=[
+                        Link("Inicio",    href="/",        style="color:var(--text);text-decoration:none;font-size:14px;font-weight:500"),
+                        Link("Productos", href="/productos",style="color:var(--text-muted);text-decoration:none;font-size:14px"),
+                        Link("Blog",      href="/blog",    style="color:var(--text-muted);text-decoration:none;font-size:14px"),
+                    ],
+                    actions=[
+                        Button("Login",    variant="ghost", radius=8),
+                        Button("Registro", radius=8),
+                    ],
+                ),
+                Spacer(16),
+                Footer(
+                    left=Text("\u00a9 2025 MiApp", style=TextStyle(size=13, color="var(--text-muted)")),
+                    center=Row([
+                        Link("Terminos",   href="/terminos",   style="font-size:13px;color:var(--text-muted);text-decoration:none"),
+                        Link("Privacidad", href="/privacidad", style="font-size:13px;color:var(--text-muted);text-decoration:none"),
+                    ], gap=16),
+                    right=Row([
+                        Button("Twitter", variant="ghost", padding=6, radius=6),
+                        Button("GitHub",  variant="ghost", padding=6, radius=6),
+                    ], gap=4),
+                )
             ]),
 
             _section("Tabs", "Navegacion por pestanas con contenido diferente en cada una.", [
@@ -632,15 +644,15 @@ def components():
 
             _section("Map", "Mapa interactivo con marcadores.", [
             Map(
-                            zoom=5,
-                            height=380,
+                            zoom=6,
+                            height=400,
                             route=True,
                             markers=[
-                                (4.711,  -74.072, "Bogota",        "Capital de Colombia", "#6366f1", "CO"),
-                                (10.391, -75.479, "Cartagena",     "Ciudad amurallada",   "#f59e0b", "CT"),
-                                (6.244,  -75.574, "Medellin",      "Ciudad de la eterna primavera", "#22c55e", "MDE"),
-                                (3.436,  -76.522, "Cali",          "Capital de la salsa", "#ef4444", "CLO"),
-                                (7.893,  -72.504, "Cucuta",        "Frontera con Venezuela", "#8b5cf6", "CUC"),
+                                (-2.897, -79.004, "Cuenca",   "Patrimonio de la Humanidad", "#6366f1", "CUE"),
+                                (-0.220, -78.512, "Quito",    "Capital del Ecuador",        "#f59e0b", "UIO"),
+                                (-2.203, -79.890, "Guayaquil","Puerto principal",           "#22c55e", "GYE"),
+                                (-1.012, -77.810, "Banos",    "Puerta al Oriente",          "#ef4444", "BNS"),
+                                (-0.934, -78.615, "Riobamba", "Ciudad de las primicias",    "#8b5cf6", "RIO"),
                             ],
                         ),
             ]),
@@ -677,6 +689,7 @@ def components():
 """
 
 
+
 # ══════════════════════════════════════════════════════════
 # COMANDOS
 # ══════════════════════════════════════════════════════════
@@ -686,7 +699,6 @@ def _write_api_example(path):
     """Escribe pages/api_example.py en el proyecto nuevo."""
     code = 'from martin import (\n    Column, Heading, Text, Paragraph, Button,\n    Select, MultiSelect, ResultBox, ApiCall,\n    Border, Shadow, TextStyle,\n    GradientText, MeshBackground,\n)\n\n\n# ── Endpoints de esta página ──────────────────────────────\n# Martin llama a register_routes(app) automáticamente\n# cuando esta página se añade al router.\n\ndef register_routes(app):\n\n    @app.route("/api/seleccion", methods=["POST"])\n    def api_seleccion(req):\n        data     = req.json()\n        lenguaje = data.get("lang_select", {})   # id del Select\n        areas    = data.get("areas_multi",  {})   # id del MultiSelect\n        return {\n            "ok": True,\n            "recibido": {\n                "lenguaje": lenguaje.get("etiqueta"),\n                "areas":    areas.get("etiquetas", []),\n            },\n            "mensaje": (\n                f"Lenguaje: {lenguaje.get(\'etiqueta\', \'?\')}. "\n                f"Areas: {\', \'.join(areas.get(\'etiquetas\', [])) or \'ninguna\'}."\n            ),\n        }\n\n\n# ── UI de la página ───────────────────────────────────────\n\ndef api_example():\n    return Column(\n        style=MeshBackground.themed(), padding=48, gap=32,\n        children=[\n\n            Column(gap=8, children=[\n                Heading(\n                    "Ejemplo de Backend",\n                    style=[GradientText.aurora(), TextStyle(size=40, weight="800")],\n                ),\n                Paragraph(\n                    "Selecciona valores y presiona el boton. "\n                    "El boton llama a una funcion Python en el servidor.",\n                    style=TextStyle(size=16, color="var(--text-muted)"),\n                ),\n            ]),\n\n            Column(\n                gap=20, padding=28,\n                style=[\n                    "background:var(--surface); border:1px solid var(--border)",\n                    Border(radius=16),\n                    Shadow(y=4, blur=20, color="rgba(0,0,0,0.1)"),\n                    "max-width:520px; width:100%",\n                ],\n                children=[\n\n                    Column(gap=6, children=[\n                        Text("Lenguaje",\n                             style=TextStyle(size=13, weight="600",\n                                             color="var(--text-muted)")),\n                        Select(\n                            id="lang_select",\n                            options=[\n                                ("py", "Python"),\n                                ("js", "JavaScript"),\n                                ("rs", "Rust"),\n                                ("go", "Go"),\n                                ("ts", "TypeScript"),\n                            ],\n                            value="py",\n                            search=True,\n                            radius=8,\n                        ),\n                    ]),\n\n                    Column(gap=6, children=[\n                        Text("Areas de trabajo",\n                             style=TextStyle(size=13, weight="600",\n                                             color="var(--text-muted)")),\n                        MultiSelect(\n                            id="areas_multi",\n                            options=["Diseno", "Frontend", "Backend",\n                                     "DevOps", "Testing", "Mobile"],\n                            values=["Frontend"],\n                            placeholder="Anadir area...",\n                            radius=8,\n                        ),\n                    ]),\n\n                    Button(\n                        "Enviar al servidor ->",\n                        id="send_btn",\n                        background="linear-gradient(135deg, #6366f1, #818cf8)",\n                        color="white",\n                        radius=10,\n                        style=(\n                            "border:none; font-size:15px; font-weight:700;"\n                            " padding:14px 24px;"\n                            " box-shadow:0 0 24px rgba(99,102,241,0.35);"\n                        ),\n                        on_click=ApiCall(\n                            "/api/seleccion",\n                            method="POST",\n                            target="resultado",\n                            loading="Enviando...",\n                        ),\n                    ),\n\n                    ResultBox(\n                        id="resultado",\n                        format="json",\n                    ),\n\n                ],\n            ),\n        ],\n    )\n'
     path.write_text(code, encoding="utf-8")
-
 
 def _prompt(label, default=""):
     """Pregunta interactiva con valor por defecto."""
@@ -700,7 +712,7 @@ def _prompt(label, default=""):
 
 
 def cmd_new(args):
-    name = args.name
+    name   = args.name
     target = Path(name)
 
     if target.exists():
@@ -713,7 +725,7 @@ def cmd_new(args):
     print("  " + "─" * 38)
 
     title = _prompt("Título del proyecto", default=name)
-    desc = _prompt("Descripción", default="Let's build an incredible idea")
+    desc  = _prompt("Descripción", default="Let's build an incredible idea")
 
     print("")
 
@@ -724,12 +736,11 @@ def cmd_new(args):
     # Copiar icono por defecto (el usuario puede reemplazarlo)
     _pkg_dir = Path(__file__).parent
     import shutil as _sh
-
     for _icon_name, _dest_name in [
         ("assets/default_icon.webp", "icon.webp"),
-        ("assets/default_icon.png", "icon.png"),
-        ("default_icon.webp", "icon.webp"),
-        ("default_icon.png", "icon.png"),
+        ("assets/default_icon.png",  "icon.png"),
+        ("default_icon.webp",        "icon.webp"),
+        ("default_icon.png",         "icon.png"),
     ]:
         _src = _pkg_dir / _icon_name
         if _src.exists():
@@ -738,24 +749,22 @@ def cmd_new(args):
     (target / "pages").mkdir()
     (target / "pages" / "__init__.py").write_text("", encoding="utf-8")
 
-    main_src = MAIN_PY.replace("PROJECT_NAME", title).replace(
-        "Descripcion de tu sitio para buscadores.", desc
-    )
+    main_src = (MAIN_PY
+                .replace("PROJECT_NAME", title)
+                .replace("Descripcion de tu sitio para buscadores.", desc))
 
     (target / "main.py").write_text(main_src, encoding="utf-8")
     (target / "pages" / "home.py").write_text(
         PAGE_HOME.replace("PROJECT_NAME", title).replace("PROJECT_DESC", desc),
-        encoding="utf-8",
-    )
+        encoding="utf-8")
     (target / "pages" / "about.py").write_text(
-        PAGE_ABOUT.replace("PROJECT_NAME", title), encoding="utf-8"
-    )
+        PAGE_ABOUT.replace("PROJECT_NAME", title), encoding="utf-8")
     (target / "pages" / "components.py").write_text(
-        PAGE_COMPONENTS.replace("PROJECT_NAME", title), encoding="utf-8"
-    )
+        PAGE_COMPONENTS.replace("PROJECT_NAME", title), encoding="utf-8")
     _write_api_example(target / "pages" / "api_example.py")
     (target / ".gitignore").write_text(GITIGNORE)
-    (target / "README.md").write_text(README.replace("{name}", name), encoding="utf-8")
+    (target / "README.md").write_text(
+        README.replace("{name}", name), encoding="utf-8")
 
     print("  ✓  Proyecto '" + name + "' creado")
     print("")
@@ -780,11 +789,7 @@ def cmd_new(args):
 def cmd_run(args):
     main_file = Path(args.file)
     if not main_file.exists():
-        print(
-            "ERROR: No se encuentra '"
-            + args.file
-            + "'. Estas en la carpeta del proyecto?"
-        )
+        print("ERROR: No se encuentra '" + args.file + "'. Estas en la carpeta del proyecto?")
         sys.exit(1)
 
     cwd = str(Path.cwd())
@@ -792,15 +797,13 @@ def cmd_run(args):
         sys.path.insert(0, cwd)
 
     import importlib.util
-
     source_file = str(main_file.resolve())
     spec = importlib.util.spec_from_file_location("_martin_main", source_file)
-    mod = importlib.util.module_from_spec(spec)
+    mod  = importlib.util.module_from_spec(spec)
     sys.modules["_martin_main"] = mod
     spec.loader.exec_module(mod)
 
     from martin import App
-
     hot = not args.no_reload
 
     # Si main.py ya define un objeto `app` (App instance), usarlo directamente.
@@ -808,26 +811,18 @@ def cmd_run(args):
     if hasattr(mod, "app") and isinstance(mod.app, App):
         app = mod.app
         app.hot_reload = hot
-        if args.port != 3908:  # solo sobreescribir si se pasó explícito
+        if args.port != 3908:          # solo sobreescribir si se pasó explícito
             app.port = args.port
     elif hasattr(mod, "router"):
-        app = App(
-            router=mod.router,
-            title=getattr(mod, "TITLE", Path.cwd().name),
-            port=args.port,
-            hot_reload=hot,
-        )
+        app = App(router=mod.router,
+                  title=getattr(mod, "TITLE", Path.cwd().name),
+                  port=args.port, hot_reload=hot)
     elif hasattr(mod, "build"):
-        app = App(
-            build=mod.build,
-            title=getattr(mod, "TITLE", Path.cwd().name),
-            port=args.port,
-            hot_reload=hot,
-        )
+        app = App(build=mod.build,
+                  title=getattr(mod, "TITLE", Path.cwd().name),
+                  port=args.port, hot_reload=hot)
     else:
-        print(
-            "ERROR: main.py debe definir un objeto 'app', una funcion 'build()' o un 'router'."
-        )
+        print("ERROR: main.py debe definir un objeto 'app', una funcion 'build()' o un 'router'.")
         sys.exit(1)
 
     app.run(watch_dir=cwd, source_file=source_file)
@@ -844,28 +839,22 @@ def cmd_export(args):
         sys.path.insert(0, cwd)
 
     import importlib.util
-
-    spec = importlib.util.spec_from_file_location(
-        "_martin_main", str(main_file.resolve())
-    )
-    mod = importlib.util.module_from_spec(spec)
+    spec = importlib.util.spec_from_file_location("_martin_main", str(main_file.resolve()))
+    mod  = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
 
     from martin import App
-
-    fmt = getattr(args, "format", "html")
+    fmt     = getattr(args, "format", "html")
     out_dir = getattr(args, "out", "dist")
 
     if hasattr(mod, "router"):
-        app = App(
-            router=mod.router,
-            title=getattr(mod, "TITLE", "Martin App"),
-            hot_reload=False,
-        )
+        app = App(router=mod.router,
+                  title=getattr(mod, "TITLE", "Martin App"),
+                  hot_reload=False)
     elif hasattr(mod, "build"):
-        app = App(
-            build=mod.build, title=getattr(mod, "TITLE", "Martin App"), hot_reload=False
-        )
+        app = App(build=mod.build,
+                  title=getattr(mod, "TITLE", "Martin App"),
+                  hot_reload=False)
     else:
         print("ERROR: main.py debe tener 'build' o 'router'.")
         sys.exit(1)
@@ -874,17 +863,14 @@ def cmd_export(args):
 
     if fmt == "split":
         from martin.exporter import export_split
-
         export_split(app, out_dir=out_dir, assets_src="assets")
     else:
         from martin.exporter import export_html
-
         export_html(app, out_dir=out_dir)
 
 
 def cmd_version(args):
     from martin import __version__
-
     print("martin " + __version__)
 
 
@@ -892,14 +878,12 @@ def cmd_version(args):
 # ENTRY POINT
 # ══════════════════════════════════════════════════════════
 
-
 def main():
     parser = argparse.ArgumentParser(
         prog="martin",
         description="Martin — Python web framework",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=textwrap.dedent(
-            """\
+        epilog=textwrap.dedent("""\
           Ejemplos:
             martin new mi_proyecto
             martin run
@@ -909,8 +893,7 @@ def main():
             martin export --out build
             martin export --format html
             martin version
-        """
-        ),
+        """)
     )
     sub = parser.add_subparsers(dest="command", metavar="comando")
 
@@ -918,30 +901,24 @@ def main():
     p_new.add_argument("name", help="Nombre del proyecto")
 
     p_run = sub.add_parser("run", help="Inicia el servidor de desarrollo")
-    p_run.add_argument("--port", type=int, default=3908, help="Puerto (default: 309)")
-    p_run.add_argument("--file", default="main.py", help="Fichero de entrada")
-    p_run.add_argument("--no-reload", action="store_true", help="Desactiva hot reload")
+    p_run.add_argument("--port",      type=int, default=3908,   help="Puerto (default: 309)")
+    p_run.add_argument("--file",      default="main.py",       help="Fichero de entrada")
+    p_run.add_argument("--no-reload", action="store_true",     help="Desactiva hot reload")
 
     p_exp = sub.add_parser("export", help="Exporta el proyecto")
-    p_exp.add_argument("--file", default="main.py", help="Fichero de entrada")
-    p_exp.add_argument(
-        "--out", default="dist", help="Carpeta de destino (default: dist)"
-    )
-    p_exp.add_argument(
-        "--format",
-        default="split",
-        choices=["html", "split"],
-        help="html = un fichero por pagina | split = HTML + CSS + JS separados",
-    )
+    p_exp.add_argument("--file",   default="main.py",  help="Fichero de entrada")
+    p_exp.add_argument("--out",    default="dist",     help="Carpeta de destino (default: dist)")
+    p_exp.add_argument("--format", default="split",    choices=["html", "split"],
+                       help="html = un fichero por pagina | split = HTML + CSS + JS separados")
 
     sub.add_parser("version", help="Muestra la version")
 
     args = parser.parse_args()
 
     commands = {
-        "new": cmd_new,
-        "run": cmd_run,
-        "export": cmd_export,
+        "new":     cmd_new,
+        "run":     cmd_run,
+        "export":  cmd_export,
         "version": cmd_version,
     }
 
