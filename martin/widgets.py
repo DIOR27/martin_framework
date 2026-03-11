@@ -489,40 +489,41 @@ class Code(Widget):
 
     def _copy_btn(self, content):
         import json as _j
-        uid    = self.uid
-        c_js   = _j.dumps(content)
-        uid_js = _j.dumps(uid + "_copy")
+        uid = self.uid
+        c_js = _j.dumps(content)
+        btn_id = uid + "_copy"
+        btn_js = _j.dumps(btn_id)
         return (
-            f'<button id="{uid}_copy" title="Copiar" '
+            f'<button id="{btn_id}" title="Copiar" '
             f'style="background:none;border:1px solid rgba(128,128,128,0.25);'
             f'border-radius:5px;cursor:pointer;font-size:11px;'
             f'color:var(--text-muted);padding:3px 10px;'
             f'transition:all .15s;font-family:inherit;white-space:nowrap" '
             f'onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" '
             f'onmouseout="this.style.borderColor=\'rgba(128,128,128,0.25)\';this.style.color=\'var(--text-muted)\'" '
-            f'onclick="(function(){{'
+            f'>Copiar</button>'
+            f'<script>(function(){{'
+            f'  var btn=document.getElementById({btn_js});'
+            f'  if(!btn||btn.dataset.copyBound==="1")return;'
+            f'  btn.dataset.copyBound="1";'
             f'  var txt={c_js};'
-            f'  var btn=document.getElementById({uid_js});'
             f'  function ok(){{'
-            f'    if(!btn)return;'
             f'    btn.textContent="\u2713 Copiado";'
             f'    btn.style.color="#22c55e";btn.style.borderColor="#22c55e";'
             f'    setTimeout(function(){{btn.textContent="Copiar";btn.style.color="";btn.style.borderColor="";}},2000);'
             f'  }}'
-            f'  if(navigator.clipboard&&window.isSecureContext){{'
-            f'    navigator.clipboard.writeText(txt).then(ok).catch(function(){{'
-            f'      var t=document.createElement("textarea");t.value=txt;'
-            f'      document.body.appendChild(t);t.select();'
-            f'      document.execCommand("copy");document.body.removeChild(t);ok();'
-            f'    }});'
-            f'  }}else{{'
+            f'  function fallback(){{'
             f'    var t=document.createElement("textarea");t.value=txt;'
             f'    document.body.appendChild(t);t.select();'
             f'    document.execCommand("copy");document.body.removeChild(t);ok();'
             f'  }}'
-            f'}})();" >Copiar</button>'
+            f'  btn.addEventListener("click",function(){{'
+            f'    if(navigator.clipboard&&window.isSecureContext){{'
+            f'      navigator.clipboard.writeText(txt).then(ok).catch(fallback);'
+            f'    }}else{{fallback();}}'
+            f'  }});'
+            f'}})();</script>'
         )
-
     def render(self):
         import json as _j
         uid     = self.uid
