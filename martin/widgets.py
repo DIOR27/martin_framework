@@ -4796,3 +4796,1715 @@ class CookieBanner(Widget):
         return banner_html + js
 
 
+class AccordionItem:
+    """
+    Elemento individual de un Accordion.
+
+        AccordionItem(
+            title="¿Cómo funciona?",
+            child=Paragraph("El sistema funciona así..."),
+            # o bien:
+            content="Texto simple de respuesta",
+            open=False,  # abierto por defecto
+        )
+    """
+    def __init__(self, title, content=None, child=None, children=None, open=False):
+        self.title    = title
+        self.content  = content
+        self.child    = child
+        self.children = children
+        self.open     = open
+
+
+class Accordion(Widget):
+    """
+    Acordeón: lista de secciones plegables.
+
+    Uso:
+        Accordion(items=[
+            AccordionItem("¿Qué es MARTIN?",
+                          content="MARTIN es un framework Python para construir webs."),
+            AccordionItem("¿Cómo instalo?",
+                          child=Code("pip install martin", language="bash"), open=True),
+            AccordionItem("¿Tiene dark mode?",
+                          children=[Text("Sí, completamente."), Badge("Auto")]),
+        ])
+
+    Parámetros:
+        items        list[AccordionItem]  ítems del acordeón
+        multiple     bool    permite varios abiertos a la vez (default: False)
+        variant      str     "default" | "bordered" | "separated"
+        icon         str     "chevron" | "plus" | "arrow"  — icono del toggle
+        radius       int     radio de bordes
+    """
+
+    _id_counter = 0
+
+    def __init__(self, items=None, multiple=False, variant="default",
+                 icon="chevron", **kwargs):
+        self._props   = Widget._extract_props(kwargs)
+        self.items    = items or []
+        self.multiple = multiple
+        self.variant  = variant
+        self.icon     = icon
+        Accordion._id_counter += 1
+        self.uid = f"acc_{Accordion._id_counter}"
+
+    def _icon_svg(self, closed=True):
+        if self.icon == "plus":
+            if closed:
+                return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+            else:
+                return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+        elif self.icon == "arrow":
+            return '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="transition:transform .25s"><path d="M2 5l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        else:  # chevron (default)
+            return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="transition:transform .25s"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+
+    def render(self):
+        import json as _json
+        uid      = self.uid
+        multiple = _json.dumps(self.multiple)
+        extra    = self._resolve_props()
+        radius   = self._props.get("radius", 12)
+        r_css    = f"{radius}px"
+
+        # Variant styles
+        if self.variant == "separated":
+            wrapper_style = f"display:flex;flex-direction:column;gap:8px;{extra}"
+            item_base = (f"border:1px solid var(--border);border-radius:{r_css};"
+                         f"background:var(--surface);overflow:hidden")
+        elif self.variant == "bordered":
+            wrapper_style = f"border:1px solid var(--border);border-radius:{r_css};overflow:hidden;{extra}"
+            item_base = "border-bottom:1px solid var(--border)"
+        else:  # default
+            wrapper_style = f"border:1px solid var(--border);border-radius:{r_css};overflow:hidden;{extra}"
+            item_base = "border-bottom:1px solid var(--border)"
+
+        items_html = ""
+        for i, item in enumerate(self.items):
+            iid     = f"{uid}_i{i}"
+            is_open = item.open
+            is_last = (i == len(self.items) - 1)
+
+            # Resolve content
+            if item.children:
+                body_html = Widget._render_children(item.children)
+            elif item.child is not None:
+                body_html = item.child.render() if isinstance(item.child, Widget) else str(item.child)
+            elif item.content is not None:
+                body_html = item.content.render() if isinstance(item.content, Widget) else str(item.content)
+            else:
+                body_html = ""
+
+            # Title
+            title_html = item.title.render() if isinstance(item.title, Widget) else str(item.title)
+
+            # Border on last item in default/bordered
+            item_style = item_base
+            if self.variant != "separated" and is_last:
+                item_style = item_base.replace("border-bottom:1px solid var(--border)", "")
+
+            icon_id = f"{uid}_ico{i}"
+            body_display = "block" if is_open else "none"
+            icon_rot     = "rotate(180deg)" if is_open else "rotate(0deg)"
+
+            items_html += (
+                f'<div style="{item_style}">'
+                f'  <button id="{iid}_btn" onclick="{uid}_toggle({i})" '
+                f'    style="width:100%;display:flex;align-items:center;justify-content:space-between;'
+                f'           padding:16px 20px;background:none;border:none;cursor:pointer;'
+                f'           text-align:left;gap:12px;color:var(--text);">'
+                f'    <span style="font-size:15px;font-weight:600;flex:1">{title_html}</span>'
+                f'    <span id="{icon_id}" style="flex-shrink:0;color:var(--text-muted);'
+                f'          transform:{icon_rot};transition:transform .25s;display:flex">'
+                f'      {self._icon_svg()}'
+                f'    </span>'
+                f'  </button>'
+                f'  <div id="{iid}_body" style="display:{body_display};padding:0 20px 16px;'
+                f'       font-size:14px;color:var(--text-muted);line-height:1.7">'
+                f'    {body_html}'
+                f'  </div>'
+                f'</div>'
+            )
+
+        n = len(self.items)
+        js = (
+            f'<script>(function(){{'
+            f'  var uid="{uid}",n={n},multi={multiple};'
+            f'  var open=[];'
+            f'  for(var i=0;i<n;i++){{'
+            f'    if(document.getElementById(uid+"_i"+i+"_body").style.display!=="none") open.push(i);'
+            f'  }}'
+            f'  window[uid+"_toggle"]=function(idx){{'
+            f'    var body=document.getElementById(uid+"_i"+idx+"_body");'
+            f'    var ico=document.getElementById(uid+"_ico"+idx);'
+            f'    var isOpen=body.style.display!=="none";'
+            f'    if(!multi){{'
+            f'      for(var j=0;j<n;j++){{'
+            f'        if(j!==idx){{'
+            f'          var b=document.getElementById(uid+"_i"+j+"_body");'
+            f'          var ic=document.getElementById(uid+"_ico"+j);'
+            f'          if(b)b.style.display="none";'
+            f'          if(ic)ic.style.transform="rotate(0deg)";'
+            f'        }}'
+            f'      }}'
+            f'    }}'
+            f'    if(isOpen){{'
+            f'      body.style.display="none";'
+            f'      ico.style.transform="rotate(0deg)";'
+            f'    }} else {{'
+            f'      body.style.display="block";'
+            f'      ico.style.transform="rotate(180deg)";'
+            f'    }}'
+            f'  }};'
+            f'}})();</script>'
+        )
+
+        return (
+            f'<div id="{uid}" style="{wrapper_style}">'
+            + items_html
+            + f'</div>'
+            + js
+        )
+
+
+# ══════════════════════════════════════════════════════════
+# TESTIMONIALS
+# ══════════════════════════════════════════════════════════
+
+class TestimonialItem:
+    """
+    Testimonio individual.
+
+        TestimonialItem(
+            name="Ana García",
+            role="CEO, Empresa X",
+            avatar="/assets/ana.jpg",   # URL o None (usa iniciales)
+            text="Increíble producto, cambió nuestra forma de trabajar.",
+            rating=5,                   # 1-5, None = oculta estrellas
+            company_logo="/assets/logo.svg",  # opcional
+        )
+    """
+    def __init__(self, name, text, role=None, avatar=None,
+                 rating=None, company_logo=None):
+        self.name         = name
+        self.text         = text
+        self.role         = role
+        self.avatar       = avatar
+        self.rating       = rating
+        self.company_logo = company_logo
+
+
+class Testimonials(Widget):
+    """
+    Sección de testimonios. Puede mostrarse en cuadrícula o como carrusel.
+
+    Uso:
+        Testimonials(items=[
+            TestimonialItem("Ana García", "Excelente producto.", role="CEO", rating=5),
+            TestimonialItem("Luis Ruiz",  "Lo recomiendo mucho.", role="Dev", rating=4),
+            TestimonialItem("Sara Paz",   "Cambió mi flujo de trabajo.", rating=5),
+        ])
+
+        # Como carrusel automático:
+        Testimonials(items=[...], mode="carousel", autoplay=True)
+
+    Parámetros:
+        items        list[TestimonialItem]
+        mode         str   "grid" | "carousel"  (default: "grid")
+        columns      int   columnas en modo grid (default: 3)
+        autoplay     bool  autoplay en carousel (default: True)
+        interval     int   ms entre slides en carousel (default: 5000)
+        card_radius  int   radio de las tarjetas
+        show_quotes  bool  muestra comillas decorativas (default: True)
+        accent       str   color de acento para estrellas y comillas
+    """
+
+    _id_counter = 0
+
+    def __init__(self, items=None, mode="grid", columns=3,
+                 autoplay=True, interval=5000,
+                 card_radius=16, show_quotes=True,
+                 accent="var(--accent)", **kwargs):
+        self._props      = Widget._extract_props(kwargs)
+        self.items       = items or []
+        self.mode        = mode
+        self.columns     = columns
+        self.autoplay    = autoplay
+        self.interval    = interval
+        self.card_radius = card_radius
+        self.show_quotes = show_quotes
+        self.accent      = accent
+        Testimonials._id_counter += 1
+        self.uid = f"tsm_{Testimonials._id_counter}"
+
+    def _render_card(self, item, uid_prefix=""):
+        """Render a single testimonial card."""
+        # Stars
+        stars_html = ""
+        if item.rating:
+            stars = ""
+            for i in range(5):
+                color = self.accent if i < item.rating else "var(--border)"
+                stars += f'<svg width="14" height="14" viewBox="0 0 14 14" fill="{color}"><path d="M7 1l1.5 3.5L12 5l-2.5 2.5.5 3.5L7 9.5 4 11l.5-3.5L2 5l3.5-.5z"/></svg>'
+            stars_html = f'<div style="display:flex;gap:3px;margin-bottom:12px">{stars}</div>'
+
+        # Avatar
+        if item.avatar:
+            avatar_html = (
+                f'<img src="{item.avatar}" alt="{item.name}" '
+                f'style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0">'
+            )
+        else:
+            initials = "".join(p[0].upper() for p in item.name.split()[:2])
+            avatar_html = (
+                f'<div style="width:44px;height:44px;border-radius:50%;'
+                f'background:var(--accent);color:#fff;display:flex;align-items:center;'
+                f'justify-content:center;font-weight:700;font-size:15px;flex-shrink:0">'
+                f'{initials}</div>'
+            )
+
+        # Role
+        role_html = (
+            f'<span style="font-size:12px;color:var(--text-muted)">{item.role}</span>'
+            if item.role else ""
+        )
+
+        # Company logo
+        logo_html = (
+            f'<img src="{item.company_logo}" alt="logo" '
+            f'style="height:24px;object-fit:contain;opacity:0.6;margin-bottom:8px">'
+            if item.company_logo else ""
+        )
+
+        # Quote decoration
+        quote_html = ""
+        if self.show_quotes:
+            quote_html = (
+                f'<div style="font-size:40px;line-height:1;color:{self.accent};'
+                f'opacity:0.3;font-family:Georgia,serif;margin-bottom:4px">&ldquo;</div>'
+            )
+
+        return (
+            f'<div style="background:var(--surface);border:1px solid var(--border);'
+            f'border-radius:{self.card_radius}px;padding:24px;display:flex;'
+            f'flex-direction:column;gap:0">'
+            + logo_html
+            + quote_html
+            + stars_html
+            + f'<p style="font-size:14px;color:var(--text);line-height:1.7;'
+              f'flex:1;margin:0 0 16px">{item.text}</p>'
+            + f'<div style="display:flex;align-items:center;gap:12px">'
+            + avatar_html
+            + f'<div><div style="font-size:14px;font-weight:600;color:var(--text)">{item.name}</div>'
+            + role_html
+            + f'</div></div>'
+            + f'</div>'
+        )
+
+    def render(self):
+        extra = self._resolve_props()
+        uid   = self.uid
+
+        if self.mode == "carousel":
+            return self._render_carousel(extra)
+
+        # Grid mode
+        cols  = self.columns
+        cols_css = f"repeat({cols}, 1fr)"
+        grid_style = (
+            f"display:grid;grid-template-columns:{cols_css};gap:20px;{extra}"
+        )
+        cards = "".join(self._render_card(item) for item in self.items)
+        responsive = (
+            f'<style>'
+            f'@media(max-width:768px){{#{uid}{{grid-template-columns:repeat(2,1fr)!important;}}}}'
+            f'@media(max-width:480px){{#{uid}{{grid-template-columns:1fr!important;}}}}'
+            f'</style>'
+        )
+        return f'{responsive}<div id="{uid}" style="{grid_style}">{cards}</div>'
+
+    def _render_carousel(self, extra):
+        uid      = self.uid
+        n        = len(self.items)
+        interval = self.interval
+        autoplay = self.autoplay
+
+        slides = ""
+        for i, item in enumerate(self.items):
+            card = self._render_card(item, uid_prefix=uid)
+            slides += (
+                f'<div id="{uid}_s{i}" style="flex-shrink:0;width:100%;'
+                f'padding:4px;box-sizing:border-box">{card}</div>'
+            )
+
+        # Dots
+        dots_html = ""
+        for i in range(n):
+            dots_html += (
+                f'<span id="{uid}_d{i}" onclick="{uid}_go({i})" '
+                f'style="width:8px;height:8px;border-radius:50%;cursor:pointer;'
+                f'background:{self.accent if i==0 else "var(--border)"};'
+                f'transition:background .3s;display:inline-block"></span>'
+            )
+
+        js = (
+            f'<script>(function(){{'
+            f'  var uid="{uid}",n={n},cur=0,timer=null;'
+            f'  function go(idx){{'
+            f'    var track=document.getElementById(uid+"_track");'
+            f'    if(!track)return;'
+            f'    cur=((idx%n)+n)%n;'
+            f'    track.style.transform="translateX(-"+cur*100+"%)";\n'
+            f'    for(var i=0;i<n;i++){{'
+            f'      var d=document.getElementById(uid+"_d"+i);'
+            f'      if(d)d.style.background=i===cur?"{self.accent}":"var(--border)";'
+            f'    }}'
+            f'  }}'
+            f'  window[uid+"_go"]=go;'
+            f'  window[uid+"_prev"]=function(){{go(cur-1);}};'
+            f'  window[uid+"_next"]=function(){{go(cur+1);}};'
+            f'  {"timer=setInterval(function(){go(cur+1);},"+str(interval)+");" if autoplay else ""}'
+            f'}})();</script>'
+        )
+
+        return (
+            f'<div id="{uid}" style="position:relative;overflow:hidden;{extra}">'
+            f'  <div id="{uid}_track" style="display:flex;transition:transform .45s cubic-bezier(.4,0,.2,1)">'
+            + slides
+            + f'  </div>'
+            f'  <button onclick="{uid}_prev()" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);'
+            f'    background:var(--surface);border:1px solid var(--border);border-radius:50%;'
+            f'    width:36px;height:36px;cursor:pointer;display:flex;align-items:center;'
+            f'    justify-content:center;color:var(--text);font-size:18px;z-index:2">&#8249;</button>'
+            f'  <button onclick="{uid}_next()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);'
+            f'    background:var(--surface);border:1px solid var(--border);border-radius:50%;'
+            f'    width:36px;height:36px;cursor:pointer;display:flex;align-items:center;'
+            f'    justify-content:center;color:var(--text);font-size:18px;z-index:2">&#8250;</button>'
+            f'  <div style="display:flex;justify-content:center;gap:8px;margin-top:16px;padding-bottom:8px">'
+            + dots_html
+            + f'  </div>'
+            + f'</div>'
+            + js
+        )
+
+
+# ══════════════════════════════════════════════════════════
+# SLIDE CAROUSEL (general — acepta cualquier Widget)
+# ══════════════════════════════════════════════════════════
+
+class SlideItem:
+    """
+    Ítem del SlideCarousel general. Acepta cualquier Widget como contenido.
+
+        SlideItem(child=Card([Heading("Hola"), Text("Mundo")]))
+        SlideItem(child=Image("/assets/foto.jpg"))
+        SlideItem(child=Column([...]))
+    """
+    def __init__(self, child):
+        self.child = child
+
+
+class SlideCarousel(Widget):
+    """
+    Carrusel general que acepta cualquier Widget como slide.
+    Extensión del Carousel original para contenido arbitrario.
+
+    Uso:
+        SlideCarousel(items=[
+            SlideItem(Card([Heading("Slide 1"), Text("Descripción")])),
+            SlideItem(Column([Image("/assets/a.jpg"), Paragraph("Pie de foto")])),
+            SlideItem(child=MyCustomWidget()),
+        ])
+
+        # Con múltiples slides visibles:
+        SlideCarousel(items=[...], visible=3, gap=16)
+
+    Parámetros:
+        items        list[SlideItem | Widget]  slides (acepta también Widgets directos)
+        visible      int    slides visibles a la vez (default: 1)
+        gap          int    espacio entre slides en px (default: 0)
+        loop         bool   bucle infinito (default: True)
+        autoplay     bool   avance automático (default: False)
+        interval     int    ms entre slides en autoplay (default: 4000)
+        arrows       bool   flechas de navegación (default: True)
+        dots         bool   indicadores de posición (default: True)
+        arrow_style  str    "default" | "minimal" | "pill"
+        transition   str    "slide" | "fade"
+    """
+
+    _id_counter = 0
+
+    def __init__(self, items=None, visible=1, gap=0,
+                 loop=True, autoplay=False, interval=4000,
+                 arrows=True, dots=True,
+                 arrow_style="default", transition="slide", **kwargs):
+        self._props     = Widget._extract_props(kwargs)
+        self.items      = items or []
+        self.visible    = visible
+        self.gap        = gap
+        self.loop       = loop
+        self.autoplay   = autoplay
+        self.interval   = interval
+        self.arrows     = arrows
+        self.dots       = dots
+        self.arrow_style = arrow_style
+        self.transition  = transition
+        SlideCarousel._id_counter += 1
+        self.uid = f"sc_{SlideCarousel._id_counter}"
+
+    def _resolve_item(self, item):
+        """Convierte SlideItem o Widget directo a HTML."""
+        if isinstance(item, SlideItem):
+            child = item.child
+            return child.render() if isinstance(child, Widget) else str(child)
+        elif isinstance(item, Widget):
+            return item.render()
+        return str(item)
+
+    def render(self):
+        uid      = self.uid
+        items    = self.items
+        n        = len(items)
+        visible  = self.visible
+        gap      = self.gap
+        loop     = self.loop
+        autoplay = self.autoplay
+        interval = self.interval
+        extra    = self._resolve_props()
+        radius   = self._props.get("radius", 0)
+        r_css    = f"border-radius:{radius}px;" if radius else ""
+
+        slide_width = f"calc((100% - {gap*(visible-1)}px) / {visible})"
+
+        # Build slides
+        slides_html = ""
+        for i, item in enumerate(items):
+            content = self._resolve_item(item)
+            slides_html += (
+                f'<div id="{uid}_s{i}" style="flex-shrink:0;width:{slide_width};'
+                f'overflow:hidden;{r_css}box-sizing:border-box">'
+                + content
+                + f'</div>'
+            )
+
+        # Clones for infinite loop
+        clones_after  = ""
+        clones_before = ""
+        if loop and n > 0:
+            for i in range(min(visible, n)):
+                content = self._resolve_item(items[i % n])
+                clones_after += (
+                    f'<div style="flex-shrink:0;width:{slide_width};overflow:hidden;{r_css}box-sizing:border-box">'
+                    + content + '</div>'
+                )
+                content = self._resolve_item(items[(n - 1 - i) % n])
+                clones_before = (
+                    f'<div style="flex-shrink:0;width:{slide_width};overflow:hidden;{r_css}box-sizing:border-box">'
+                    + content + '</div>'
+                ) + clones_before
+
+        positions  = max(n - visible + 1, 1)
+        offset     = visible if loop else 0
+        gap_css    = f"gap:{gap}px;" if gap else ""
+
+        # Arrows
+        arrow_css_base = (
+            "position:absolute;top:50%;transform:translateY(-50%);z-index:5;"
+            "cursor:pointer;border:none;display:flex;align-items:center;justify-content:center;"
+            "transition:opacity .2s"
+        )
+        if self.arrow_style == "minimal":
+            arrow_extra = "background:none;color:var(--text);font-size:28px;padding:4px;opacity:0.7"
+        elif self.arrow_style == "pill":
+            arrow_extra = ("background:var(--accent);color:#fff;border-radius:999px;"
+                           "width:44px;height:44px;font-size:18px;box-shadow:0 4px 16px rgba(0,0,0,0.2)")
+        else:
+            arrow_extra = ("background:var(--surface);color:var(--text);"
+                           "border:1px solid var(--border);border-radius:50%;"
+                           "width:40px;height:40px;font-size:20px")
+
+        prev_btn = (
+            f'<button onclick="{uid}_prev()" style="{arrow_css_base};{arrow_extra};left:8px">'
+            f'&#8249;</button>'
+        ) if self.arrows else ""
+
+        next_btn = (
+            f'<button onclick="{uid}_next()" style="{arrow_css_base};{arrow_extra};right:8px">'
+            f'&#8250;</button>'
+        ) if self.arrows else ""
+
+        # Dots
+        dots_html = ""
+        if self.dots:
+            dot_items = ""
+            for i in range(positions):
+                is_first = (i == 0)
+                dot_items += (
+                    f'<span id="{uid}_dot{i}" onclick="{uid}_goPos({i})" '
+                    f'style="width:{12 if is_first else 8}px;height:8px;border-radius:999px;cursor:pointer;'
+                    f'background:{"var(--accent)" if is_first else "var(--border)"};'
+                    f'transition:all .3s;display:inline-block"></span>'
+                )
+            dots_html = (
+                f'<div id="{uid}_dots" style="display:flex;justify-content:center;'
+                f'gap:6px;margin-top:12px">{dot_items}</div>'
+            )
+
+        # JS
+        js = (
+            f'<script>(function(){{'
+            f'  var uid="{uid}",n={n},vis={visible},loop={str(loop).lower()},'
+            f'      gap={gap},offset={offset},pos=0,positions={positions};'
+            f'  var track=document.getElementById(uid+"_track");'
+            f'  var animating=false;'
+            f'  function slideWidth(){{'
+            f'    var tw=track.parentElement.offsetWidth;'
+            f'    return (tw-gap*(vis-1))/vis;'
+            f'  }}'
+            f'  function setPos(p,animate){{'
+            f'    var sw=slideWidth();'
+            f'    var x=(p+offset)*(sw+gap);'
+            f'    if(animate===false)track.style.transition="none";'
+            f'    else track.style.transition="transform .4s cubic-bezier(.4,0,.2,1)";'
+            f'    track.style.transform="translateX(-"+x+"px)";'
+            f'  }}'
+            f'  function updateDots(p){{'
+            f'    for(var i=0;i<positions;i++){{'
+            f'      var d=document.getElementById(uid+"_dot"+i);'
+            f'      if(d){{d.style.background=i===p?"var(--accent)":"var(--border)";'
+            f'            d.style.width=i===p?"12px":"8px";}}'
+            f'    }}'
+            f'  }}'
+            f'  function go(newPos){{'
+            f'    if(animating)return;'
+            f'    pos=((newPos%positions)+positions)%positions;'
+            f'    setPos(pos,true);'
+            f'    updateDots(pos);'
+            f'    if(loop){{'
+            f'      animating=true;'
+            f'      setTimeout(function(){{'
+            f'        if(newPos<0){{setPos(positions-1,false);pos=positions-1;}}'
+            f'        else if(newPos>=positions){{setPos(0,false);pos=0;}}'
+            f'        animating=false;'
+            f'      }},420);'
+            f'    }}'
+            f'  }}'
+            f'  window[uid+"_prev"]=function(){{go(pos-1);}};'
+            f'  window[uid+"_next"]=function(){{go(pos+1);}};'
+            f'  window[uid+"_goPos"]=function(p){{go(p);}};'
+            f'  setPos(0,false);'
+            f'  {"setInterval(function(){go(pos+1);},"+str(interval)+");" if autoplay else ""}'
+            f'  window.addEventListener("resize",function(){{setPos(pos,false);}});'
+            f'}})();</script>'
+        )
+
+        return (
+            f'<div id="{uid}" style="position:relative;overflow:hidden;{extra}">'
+            + prev_btn + next_btn
+            + f'  <div id="{uid}_track" style="display:flex;{gap_css}will-change:transform">'
+            + (clones_before if loop else "")
+            + slides_html
+            + (clones_after if loop else "")
+            + f'  </div>'
+            + f'</div>'
+            + dots_html
+            + js
+        )
+
+
+# ══════════════════════════════════════════════════════════
+# PRICING
+# ══════════════════════════════════════════════════════════
+
+class PricingPlan:
+    """
+    Plan de precios individual.
+
+        PricingPlan(
+            name="Pro",
+            price=29,
+            currency="$",
+            period="mes",
+            description="Para equipos en crecimiento",
+            features=["Feature A", "Feature B", "Feature C"],
+            cta_label="Empezar gratis",
+            cta_url="/signup",
+            featured=True,          # resalta este plan
+            badge="Más popular",    # etiqueta opcional
+        )
+    """
+    def __init__(self, name, price, currency="$", period="mes",
+                 description=None, features=None,
+                 cta_label="Empezar", cta_url="#",
+                 featured=False, badge=None,
+                 cta_on_click=None,
+                 price_yearly=None):   # precio anual opcional para toggle
+        self.name         = name
+        self.price        = price
+        self.currency     = currency
+        self.period       = period
+        self.description  = description
+        self.features     = features or []
+        self.cta_label    = cta_label
+        self.cta_url      = cta_url
+        self.featured     = featured
+        self.badge        = badge
+        self.cta_on_click = cta_on_click
+        self.price_yearly = price_yearly
+
+
+class Pricing(Widget):
+    """
+    Sección de planes de precios.
+
+    Uso:
+        Pricing(plans=[
+            PricingPlan("Gratis", 0, features=["5 proyectos", "1 GB"]),
+            PricingPlan("Pro", 29, features=["Ilimitado", "10 GB", "Soporte"],
+                        featured=True, badge="Más popular"),
+            PricingPlan("Enterprise", 99, features=["Todo lo de Pro", "SLA", "SSO"]),
+        ])
+
+        # Con toggle mensual/anual:
+        Pricing(plans=[...], toggle=True)
+
+    Parámetros:
+        plans        list[PricingPlan]
+        columns      int    columnas (default: auto según número de planes)
+        toggle       bool   muestra toggle mensual/anual (default: False)
+        toggle_discount str  texto del descuento anual (default: "Ahorra 20%")
+        accent       str    color de acento
+        radius       int    radio de las tarjetas
+        check_icon   str    icono SVG/HTML para los features (default: ✓ estilizado)
+    """
+
+    _id_counter = 0
+
+    def __init__(self, plans=None, columns=None, toggle=False,
+                 toggle_discount="Ahorra 20%",
+                 accent="var(--accent)", **kwargs):
+        self._props          = Widget._extract_props(kwargs)
+        self.plans           = plans or []
+        self.columns         = columns or len(plans or [1])
+        self.toggle          = toggle
+        self.toggle_discount = toggle_discount
+        self.accent          = accent
+        Pricing._id_counter += 1
+        self.uid = f"prc_{Pricing._id_counter}"
+
+    def _check_icon(self):
+        return (
+            f'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0">'
+            f'<circle cx="8" cy="8" r="7" fill="{self.accent}" opacity="0.15"/>'
+            f'<path d="M5 8l2 2 4-4" stroke="{self.accent}" stroke-width="1.8" '
+            f'stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        )
+
+    def _render_plan(self, plan, uid):
+        radius   = self._props.get("radius", 16)
+        featured = plan.featured
+
+        card_style = (
+            f"background:{'var(--accent)' if featured else 'var(--surface)'};"
+            f"border:2px solid {'var(--accent)' if featured else 'var(--border)'};"
+            f"border-radius:{radius}px;padding:32px 28px;"
+            f"display:flex;flex-direction:column;gap:0;position:relative;"
+            f"{'box-shadow:0 20px 60px rgba(99,102,241,0.3);transform:scale(1.03);' if featured else ''}"
+        )
+
+        text_color   = "#fff" if featured else "var(--text)"
+        muted_color  = "rgba(255,255,255,0.75)" if featured else "var(--text-muted)"
+        border_color = "rgba(255,255,255,0.2)" if featured else "var(--border)"
+
+        badge_html = ""
+        if plan.badge:
+            badge_style = (
+                f"position:absolute;top:-12px;left:50%;transform:translateX(-50%);"
+                f"background:{'#fff' if featured else 'var(--accent)'};"
+                f"color:{'var(--accent)' if featured else '#fff'};"
+                f"font-size:11px;font-weight:700;padding:4px 14px;border-radius:999px;"
+                f"white-space:nowrap;letter-spacing:.5px"
+            )
+            badge_html = f'<span style="{badge_style}">{plan.badge}</span>'
+
+        desc_html = (
+            f'<p style="font-size:13px;color:{muted_color};margin:8px 0 20px;line-height:1.5">'
+            f'{plan.description}</p>'
+        ) if plan.description else '<div style="margin-bottom:20px"></div>'
+
+        # Price — with yearly data-attr for toggle
+        price_val = plan.price
+        price_yearly_val = plan.price_yearly
+        price_display = f"{plan.currency}{price_val}" if isinstance(price_val, (int,float)) else str(price_val)
+        yearly_attr = f' data-yearly="{plan.currency}{price_yearly_val}"' if price_yearly_val is not None else ""
+        monthly_attr = f' data-monthly="{price_display}"'
+
+        price_html = (
+            f'<div style="margin-bottom:4px">'
+            f'  <span id="{uid}_price_{id(plan)}" {monthly_attr}{yearly_attr} '
+            f'    style="font-size:40px;font-weight:800;color:{text_color};line-height:1">'
+            f'    {price_display}'
+            f'  </span>'
+            + (f'<span style="font-size:14px;color:{muted_color};margin-left:4px">/{plan.period}</span>'
+               if isinstance(price_val, (int,float)) else "")
+            + f'</div>'
+        )
+
+        # Features
+        features_html = ""
+        for feat in plan.features:
+            feat_txt = feat.render() if isinstance(feat, Widget) else str(feat)
+            features_html += (
+                f'<div style="display:flex;align-items:flex-start;gap:10px;'
+                f'padding:9px 0;border-bottom:1px solid {border_color}">'
+                + self._check_icon()
+                + f'<span style="font-size:14px;color:{text_color};line-height:1.5">{feat_txt}</span>'
+                + f'</div>'
+            )
+
+        # CTA
+        cta_style = (
+            f"display:block;width:100%;margin-top:24px;padding:12px 20px;"
+            # f"border-radius:{radius//2}px;font-size:15px;font-weight:600;"
+            f"cursor:pointer;text-align:center;text-decoration:none;"
+            f"transition:opacity .2s;box-sizing:border-box;"
+            + (f"background:#fff;color:var(--accent);border:none;" if featured
+               else f"background:var(--accent);color:#fff;border:none;")
+        )
+        click_attr = f' onclick="{plan.cta_on_click}"' if plan.cta_on_click else ""
+        cta_html = (
+            f'<a href="{plan.cta_url}" style="{cta_style}"{click_attr}>'
+            f'{plan.cta_label}</a>'
+        )
+
+        return (
+            f'<div style="{card_style}">'
+            + badge_html
+            + f'<div style="font-size:18px;font-weight:700;color:{text_color};margin-bottom:6px">{plan.name}</div>'
+            + desc_html
+            + price_html
+            + f'<div style="flex:1">{features_html}</div>'
+            + cta_html
+            + f'</div>'
+        )
+
+    def render(self):
+        uid   = self.uid
+        extra = self._resolve_props()
+        cols  = self.columns
+
+        # Toggle
+        toggle_html = ""
+        if self.toggle:
+            toggle_html = (
+                f'<div style="display:flex;align-items:center;justify-content:center;'
+                f'gap:12px;margin-bottom:32px">'
+                f'  <span id="{uid}_lbl_m" style="font-size:14px;font-weight:600;color:var(--text)">Mensual</span>'
+                f'  <div onclick="{uid}_toggleBilling()" id="{uid}_toggle_track" '
+                f'    style="width:48px;height:26px;background:var(--border);border-radius:999px;'
+                f'           cursor:pointer;position:relative;transition:background .25s">'
+                f'    <div id="{uid}_toggle_thumb" '
+                f'      style="position:absolute;top:3px;left:3px;width:20px;height:20px;'
+                f'             background:#fff;border-radius:50%;transition:left .25s;'
+                f'             box-shadow:0 1px 4px rgba(0,0,0,0.2)"></div>'
+                f'  </div>'
+                f'  <span id="{uid}_lbl_y" style="font-size:14px;color:var(--text-muted)">'
+                f'    Anual <span style="font-size:11px;background:var(--accent);color:#fff;'
+                f'      padding:2px 8px;border-radius:999px;margin-left:4px">{self.toggle_discount}</span>'
+                f'  </span>'
+                f'</div>'
+                f'<script>(function(){{'
+                f'  var uid="{uid}",yearly=false;'
+                f'  window[uid+"_toggleBilling"]=function(){{'
+                f'    yearly=!yearly;'
+                f'    var track=document.getElementById(uid+"_toggle_track");'
+                f'    var thumb=document.getElementById(uid+"_toggle_thumb");'
+                f'    var lm=document.getElementById(uid+"_lbl_m");'
+                f'    var ly=document.getElementById(uid+"_lbl_y");'
+                f'    track.style.background=yearly?"var(--accent)":"var(--border)";'
+                f'    thumb.style.left=yearly?"25px":"3px";'
+                f'    lm.style.color=yearly?"var(--text-muted)":"var(--text)";'
+                f'    ly.style.color=yearly?"var(--text)":"var(--text-muted)";'
+                f'    document.querySelectorAll("[data-monthly]").forEach(function(el){{'
+                f'      el.textContent=yearly?el.getAttribute("data-yearly")||el.getAttribute("data-monthly"):'
+                f'                           el.getAttribute("data-monthly");'
+                f'    }});'
+                f'  }};'
+                f'}})();</script>'
+            )
+
+        plans_html = "".join(self._render_plan(p, uid) for p in self.plans)
+
+        grid_style = (
+            f"display:grid;grid-template-columns:repeat({cols},1fr);"
+            f"gap:20px;align-items:center;{extra}"
+        )
+        responsive = (
+            f'<style>'
+            f'@media(max-width:768px){{#{uid}_grid{{grid-template-columns:1fr!important;}}}}'
+            f'</style>'
+        )
+
+        return (
+            responsive
+            + toggle_html
+            + f'<div id="{uid}_grid" style="{grid_style}">'
+            + plans_html
+            + f'</div>'
+        )
+
+
+# ══════════════════════════════════════════════════════════
+# FAQ
+# ══════════════════════════════════════════════════════════
+
+class FAQItem:
+    """
+    Pregunta-respuesta para FAQ.
+
+        FAQItem("¿Puedo cancelar en cualquier momento?",
+                "Sí, puedes cancelar tu suscripción en cualquier momento sin penalización.")
+        FAQItem("¿Hay prueba gratuita?",
+                child=Column([Text("Sí, 14 días gratis."), Button("Probar ahora")]))
+    """
+    def __init__(self, question, answer=None, child=None, open=False):
+        self.question = question
+        self.answer   = answer
+        self.child    = child
+        self.open     = open
+
+
+class FAQ(Widget):
+    """
+    Sección de preguntas frecuentes. Construida sobre Accordion.
+
+    Uso:
+        FAQ(items=[
+            FAQItem("¿Qué es MARTIN?", "Un framework Python para construir webs."),
+            FAQItem("¿Cómo instalo?", child=Code("pip install martin")),
+        ])
+
+        # Con buscador integrado:
+        FAQ(items=[...], searchable=True)
+
+        # Dos columnas:
+        FAQ(items=[...], columns=2)
+
+    Parámetros:
+        items        list[FAQItem]
+        searchable   bool   buscador de preguntas (default: False)
+        columns      int    1 o 2 columnas (default: 1)
+        variant      str    heredado de Accordion: "default"|"bordered"|"separated"
+        multiple     bool   permite varios abiertos (default: False)
+    """
+
+    _id_counter = 0
+
+    def __init__(self, items=None, searchable=False, columns=1,
+                 variant="separated", multiple=False, **kwargs):
+        self._props     = Widget._extract_props(kwargs)
+        self.items      = items or []
+        self.searchable = searchable
+        self.columns    = columns
+        self.variant    = variant
+        self.multiple   = multiple
+        FAQ._id_counter += 1
+        self.uid = f"faq_{FAQ._id_counter}"
+
+    def render(self):
+        uid   = self.uid
+        extra = self._resolve_props()
+
+        # Build AccordionItems from FAQItems
+        from martin.widgets import Accordion, AccordionItem
+        acc_items = [
+            AccordionItem(
+                title=item.question,
+                content=item.answer,
+                child=item.child,
+                open=item.open,
+            )
+            for item in self.items
+        ]
+
+        search_html = ""
+        if self.searchable:
+            search_html = (
+                f'<input type="text" placeholder="Buscar preguntas..." '
+                f'id="{uid}_search" oninput="{uid}_search_fn(this.value)" '
+                f'style="width:100%;padding:10px 16px;margin-bottom:20px;'
+                f'border:1px solid var(--border-input);border-radius:999px;'
+                f'background:var(--input-bg);color:var(--input-color);'
+                f'font-size:14px;outline:none;box-sizing:border-box">'
+            )
+
+        if self.columns == 2:
+            mid   = len(acc_items) // 2 + len(acc_items) % 2
+            left  = acc_items[:mid]
+            right = acc_items[mid:]
+            acc_left  = Accordion(items=left,  variant=self.variant, multiple=self.multiple)
+            acc_right = Accordion(items=right, variant=self.variant, multiple=self.multiple)
+            accordion_html = (
+                f'<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'
+                + acc_left.render()
+                + acc_right.render()
+                + f'</div>'
+            )
+        else:
+            acc = Accordion(items=acc_items, variant=self.variant, multiple=self.multiple)
+            accordion_html = acc.render()
+
+        search_js = ""
+        if self.searchable:
+            search_js = (
+                f'<script>(function(){{'
+                f'  window["{uid}_search_fn"]=function(q){{'
+                f'    q=q.toLowerCase();'
+                f'    document.querySelectorAll("#{uid}_content [id^=acc_]>div").forEach(function(item){{'
+                f'      var btn=item.querySelector("button");'
+                f'      if(!btn)return;'
+                f'      var txt=btn.textContent.toLowerCase();'
+                f'      item.style.display=txt.includes(q)?"block":"none";'
+                f'    }});'
+                f'  }};'
+                f'}})();</script>'
+            )
+
+        return (
+            f'<div id="{uid}" style="{extra}">'
+            + search_html
+            + f'<div id="{uid}_content">'
+            + accordion_html
+            + f'</div>'
+            + f'</div>'
+            + search_js
+        )
+
+
+# ══════════════════════════════════════════════════════════
+# CHART — Gráficos interactivos con Chart.js
+# ══════════════════════════════════════════════════════════
+
+class ChartDataset:
+    """
+    Dataset de datos para Chart.
+
+        ChartDataset(
+            label="Ventas 2024",
+            data=[120, 190, 80, 250, 300],
+            color="#6366f1",          # color de línea/barras (o lista de colores para pastel)
+            fill=False,               # área bajo la línea (para line/area)
+        )
+    """
+    def __init__(self, label, data, color=None, fill=False,
+                 border_width=2, point_radius=4,
+                 background_color=None):
+        self.label            = label
+        self.data             = data
+        self.color            = color
+        self.fill             = fill
+        self.border_width     = border_width
+        self.point_radius     = point_radius
+        self.background_color = background_color  # None = auto
+
+
+class Chart(Widget):
+    """
+    Gráfico interactivo usando Chart.js (cargado desde CDN).
+
+    Tipos soportados:
+        "bar"        — barras verticales
+        "bar_h"      — barras horizontales
+        "line"       — líneas
+        "area"       — área (línea con fill)
+        "pie"        — pastel
+        "doughnut"   — dona
+        "radar"      — radar / araña
+        "scatter"    — dispersión (data = [{x,y},...])
+        "bubble"     — burbuja (data = [{x,y,r},...])
+
+    Uso básico:
+        Chart(
+            type="bar",
+            labels=["Ene","Feb","Mar","Abr","May"],
+            datasets=[
+                ChartDataset("Ventas", [120,190,80,250,300], color="#6366f1"),
+                ChartDataset("Gastos", [80,100,70,150,200], color="#f472b6"),
+            ],
+            title="Resumen mensual",
+        )
+
+        # Pastel:
+        Chart(
+            type="pie",
+            labels=["Python","JS","Rust","Go"],
+            datasets=[ChartDataset("Uso", [45,30,15,10])],
+        )
+
+    Parámetros:
+        type         str    tipo de gráfico (ver arriba)
+        labels       list   etiquetas del eje X (o sectores para pie/doughnut)
+        datasets     list[ChartDataset]
+        title        str    título del gráfico
+        height       int    altura en px (default: 350)
+        legend       bool   mostrar leyenda (default: True)
+        grid         bool   mostrar cuadrícula (default: True)
+        animated     bool   animación de entrada (default: True)
+        responsive   bool   ancho responsive (default: True)
+        x_label      str    etiqueta eje X
+        y_label      str    etiqueta eje Y
+        stacked      bool   barras apiladas (default: False)
+        colors       list   paleta de colores por defecto
+        tooltip_mode str    "index" | "point" | "nearest"
+        download     bool   botón descargar PNG (default: False)
+    """
+
+    _id_counter = 0
+    DEFAULT_COLORS = [
+        "#6366f1", "#f472b6", "#34d399", "#fb923c",
+        "#38bdf8", "#a78bfa", "#4ade80", "#fbbf24",
+        "#f87171", "#2dd4bf",
+    ]
+
+    def __init__(self, type="bar", labels=None, datasets=None,
+                 title=None, height=350, legend=True, grid=True,
+                 animated=True, responsive=True,
+                 x_label=None, y_label=None, stacked=False,
+                 colors=None, tooltip_mode="index",
+                 download=False, **kwargs):
+        self._props       = Widget._extract_props(kwargs)
+        self.chart_type   = type
+        self.labels       = labels or []
+        self.datasets     = datasets or []
+        self.title        = title
+        self.height       = height
+        self.legend       = legend
+        self.grid         = grid
+        self.animated     = animated
+        self.responsive   = responsive
+        self.x_label      = x_label
+        self.y_label      = y_label
+        self.stacked      = stacked
+        self.colors       = colors or self.DEFAULT_COLORS
+        self.tooltip_mode = tooltip_mode
+        self.download     = download
+        Chart._id_counter += 1
+        self.uid = f"chart_{Chart._id_counter}"
+
+    def _resolve_type(self):
+        """Map internal type to Chart.js type."""
+        if self.chart_type == "bar_h":
+            return "bar"
+        if self.chart_type == "area":
+            return "line"
+        return self.chart_type
+
+    def _build_datasets_js(self):
+        import json as _json
+        result = []
+        is_pie_like = self.chart_type in ("pie", "doughnut")
+
+        for idx, ds in enumerate(self.datasets):
+            color = ds.color or self.colors[idx % len(self.colors)]
+
+            if is_pie_like:
+                # Pie: each slice gets its own color
+                bg_colors = [self.colors[i % len(self.colors)] for i in range(len(ds.data))]
+                d = {
+                    "label": ds.label,
+                    "data": ds.data,
+                    "backgroundColor": bg_colors,
+                    "borderWidth": 2,
+                    "borderColor": "var(--bg, #060818)",
+                }
+            else:
+                fill_val = ds.fill or (self.chart_type == "area")
+                # Convert color to rgba for background
+                bg_opacity = 0.15 if fill_val else 0.7
+                d = {
+                    "label": ds.label,
+                    "data": ds.data,
+                    "borderColor": color,
+                    "backgroundColor": (ds.background_color
+                                        if ds.background_color
+                                        else color.replace("#", "") if not color.startswith("rgba") else color),
+                    "borderWidth": ds.border_width,
+                    "pointRadius": ds.point_radius,
+                    "fill": fill_val,
+                    "tension": 0.4,
+                }
+                # For bar charts: use color directly as background
+                if self.chart_type in ("bar", "bar_h"):
+                    d["backgroundColor"] = color
+
+            result.append(d)
+
+        return _json.dumps(result)
+
+    def render(self):
+        import json as _json
+        uid        = self.uid
+        extra      = self._resolve_props()
+        cjs_type   = self._resolve_type()
+        datasets_js = self._build_datasets_js()
+        labels_js  = _json.dumps(self.labels)
+        height     = self.height
+
+        # Options
+        is_horizontal = (self.chart_type == "bar_h")
+        is_pie_like   = self.chart_type in ("pie", "doughnut")
+
+        scales_config = "scales:{}" if is_pie_like else (
+            f"scales:{{"
+            f"  x:{{"
+            f"    {'stacked:true,' if self.stacked else ''}"
+            f"    grid:{{display:{'true' if self.grid else 'false'},color:'rgba(128,128,128,0.1)'}},"
+            f"    ticks:{{color:'var(--text-muted)'}},"
+            + (f"    title:{{display:true,text:{_json.dumps(self.x_label or '')},color:'var(--text-muted)'}}" if self.x_label else "")
+            + f"  }},"
+            f"  y:{{"
+            f"    {'stacked:true,' if self.stacked else ''}"
+            f"    grid:{{display:{'true' if self.grid else 'false'},color:'rgba(128,128,128,0.1)'}},"
+            f"    ticks:{{color:'var(--text-muted)'}},"
+            + (f"    title:{{display:true,text:{_json.dumps(self.y_label or '')},color:'var(--text-muted)'}}" if self.y_label else "")
+            + f"  }}"
+            f"}}"
+        )
+
+        indexAxis = '"x"' if not is_horizontal else '"y"'
+
+        options_js = (
+            f"{{"
+            f"  responsive:{str(self.responsive).lower()},"
+            f"  maintainAspectRatio:false,"
+            f"  indexAxis:{indexAxis},"
+            f"  animation:{{duration:{'800' if self.animated else '0'}}},"
+            f"  plugins:{{"
+            f"    legend:{{display:{'true' if self.legend else 'false'},"
+            f"             labels:{{color:'var(--text)',font:{{size:13}}}}}},"
+            f"    tooltip:{{mode:{_json.dumps(self.tooltip_mode)},intersect:false}},"
+            + (f"    title:{{display:true,text:{_json.dumps(self.title or '')},color:'var(--text)',"
+               f"            font:{{size:15,weight:'600'}},padding:{{bottom:16}}}}" if self.title else "")
+            + f"  }},"
+            f"  {scales_config}"
+            f"}}"
+        )
+
+        download_btn = ""
+        if self.download:
+            download_btn = (
+                f'<button onclick="(function(){{var a=document.createElement(\'a\');'
+                f'a.download=\'chart.png\';a.href=window[\'_chart_{uid}\'].toBase64Image();'
+                f'a.click();}})()" '
+                f'style="position:absolute;top:8px;right:8px;background:var(--surface-2);'
+                f'border:1px solid var(--border);border-radius:6px;padding:6px 12px;'
+                f'font-size:12px;cursor:pointer;color:var(--text)">&#11015; PNG</button>'
+            )
+
+        wrapper_style = f"position:relative;{'height:'+str(height)+'px'};width:100%;{extra}"
+
+        js = (
+            f'<script>'
+            f'(function(){{'
+            f'  var cdnUrl="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js";'
+            f'  function init(){{'
+            f'    var ctx=document.getElementById("{uid}_canvas").getContext("2d");'
+            f'    var chart=new Chart(ctx,{{'
+            f'      type:{_json.dumps(cjs_type)},'
+            f'      data:{{labels:{labels_js},datasets:{datasets_js}}},'
+            f'      options:{options_js}'
+            f'    }});'
+            f'    window["_chart_{uid}"]=chart;'
+            f'  }}'
+            f'  if(window.Chart){{init();}}'
+            f'  else{{'
+            f'    var s=document.createElement("script");'
+            f'    s.src=cdnUrl;'
+            f'    s.onload=function(){{init();}};'
+            f'    document.head.appendChild(s);'
+            f'  }}'
+            f'}})();'
+            f'</script>'
+        )
+
+        return (
+            f'<div style="{wrapper_style}">'
+            + download_btn
+            + f'<canvas id="{uid}_canvas" style="width:100%;height:100%"></canvas>'
+            + f'</div>'
+            + js
+        )
+
+
+# ══════════════════════════════════════════════════════════
+# CALENDAR — Calendario completo con vistas mes/semana/día
+# ══════════════════════════════════════════════════════════
+
+class CalendarEvent:
+    """
+    Evento del calendario.
+
+        CalendarEvent(
+            title="Reunión de equipo",
+            date="2025-03-15",         # YYYY-MM-DD
+            start_time="10:00",        # HH:MM (opcional, para vista semana/día)
+            end_time="11:30",          # HH:MM
+            color="#6366f1",           # color del evento
+            description="Sala B, edificio central",
+            all_day=False,
+            url="/eventos/123",        # enlace al hacer clic
+        )
+    """
+    def __init__(self, title, date, start_time=None, end_time=None,
+                 color=None, description=None, all_day=False, url=None):
+        self.title       = title
+        self.date        = date        # "YYYY-MM-DD"
+        self.start_time  = start_time  # "HH:MM"
+        self.end_time    = end_time
+        self.color       = color
+        self.description = description
+        self.all_day     = all_day
+        self.url         = url
+
+
+class Calendar(Widget):
+    """
+    Calendario interactivo completo con vistas mes, semana y día.
+
+    Uso básico:
+        Calendar(events=[
+            CalendarEvent("Reunión", "2025-03-15", start_time="10:00", color="#6366f1"),
+            CalendarEvent("Entrega", "2025-03-20", color="#ef4444"),
+            CalendarEvent("Vacaciones", "2025-03-22", all_day=True, color="#34d399"),
+        ])
+
+        # Vista inicial semana, con selector de rango:
+        Calendar(events=[...], initial_view="week", range_select=True)
+
+    Parámetros:
+        events         list[CalendarEvent]
+        initial_view   str     "month" | "week" | "day"  (default: "month")
+        initial_date   str     "YYYY-MM-DD" para la fecha inicial (default: hoy)
+        range_select   bool    permite seleccionar rango de fechas (default: False)
+        on_date_click  str     JS a ejecutar al hacer clic en fecha: fn(dateStr)
+        on_event_click str     JS a ejecutar al hacer clic en evento: fn(event)
+        show_views     bool    muestra botones de cambio de vista (default: True)
+        show_today     bool    muestra botón "Hoy" (default: True)
+        first_day      int     primer día: 0=domingo, 1=lunes (default: 1)
+        locale         str     "es"|"en"|"fr"|... para nombres de días/meses
+        height         int     altura del calendario en px (default: 600)
+        accent         str     color de acento para eventos y días seleccionados
+    """
+
+    _id_counter = 0
+    MONTHS_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                 "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
+    DAYS_ES   = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"]
+    MONTHS_EN = ["January","February","March","April","May","June",
+                 "July","August","September","October","November","December"]
+    DAYS_EN   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
+
+    def __init__(self, events=None, initial_view="month", initial_date=None,
+                 range_select=False, on_date_click=None, on_event_click=None,
+                 show_views=True, show_today=True, first_day=1,
+                 locale="es", height=600,
+                 accent="var(--accent)", **kwargs):
+        self._props        = Widget._extract_props(kwargs)
+        self.events        = events or []
+        self.initial_view  = initial_view
+        self.initial_date  = initial_date  # None = today
+        self.range_select  = range_select
+        self.on_date_click = on_date_click
+        self.on_event_click = on_event_click
+        self.show_views    = show_views
+        self.show_today    = show_today
+        self.first_day     = first_day
+        self.locale        = locale
+        self.height        = height
+        self.accent        = accent
+        Calendar._id_counter += 1
+        self.uid = f"cal_{Calendar._id_counter}"
+
+    def _serialize_events(self):
+        import json as _json
+        evs = []
+        for ev in self.events:
+            evs.append({
+                "title":       ev.title,
+                "date":        ev.date,
+                "start_time":  ev.start_time or "",
+                "end_time":    ev.end_time or "",
+                "color":       ev.color or "",
+                "description": ev.description or "",
+                "all_day":     ev.all_day,
+                "url":         ev.url or "",
+            })
+        return _json.dumps(evs)
+
+    def render(self):
+        import json as _json
+        uid     = self.uid
+        extra   = self._resolve_props()
+        height  = self.height
+
+        months  = _json.dumps(self.MONTHS_ES if self.locale == "es" else self.MONTHS_EN)
+        days    = _json.dumps(self.DAYS_ES   if self.locale == "es" else self.DAYS_EN)
+        events_js = self._serialize_events()
+        accent  = self.accent
+        first_day = self.first_day
+        init_view = _json.dumps(self.initial_view)
+        init_date = _json.dumps(self.initial_date or "")
+        range_sel = _json.dumps(self.range_select)
+        on_date_click  = _json.dumps(self.on_date_click  or "")
+        on_event_click = _json.dumps(self.on_event_click or "")
+
+        wrapper_style = (
+            f"background:var(--surface);border:1px solid var(--border);"
+            f"border-radius:16px;overflow:hidden;display:flex;"
+            f"flex-direction:column;height:{height}px;{extra}"
+        )
+
+        js = f"""
+<script>
+(function(){{
+  var uid={_json.dumps(uid)};
+  var MONTHS={months};
+  var DAYS_SHORT={days};
+  var EVENTS={events_js};
+  var ACCENT={_json.dumps(accent)};
+  var FIRST_DAY={first_day};
+  var RANGE_SELECT={range_sel};
+  var ON_DATE_CLICK={on_date_click};
+  var ON_EVENT_CLICK={on_event_click};
+
+  // State
+  var today=new Date();
+  var initDate={init_date}?new Date({init_date}):new Date();
+  var curYear=initDate.getFullYear(), curMonth=initDate.getMonth(), curDay=initDate.getDate();
+  var view={init_view};
+  var selectedDates=[];
+  var rangeStart=null, rangeEnd=null;
+
+  // Event index by date
+  var evByDate={{}};
+  EVENTS.forEach(function(ev){{
+    if(!evByDate[ev.date])evByDate[ev.date]=[];
+    evByDate[ev.date].push(ev);
+  }});
+
+  function pad(n){{return n<10?"0"+n:String(n);}}
+  function dateStr(y,m,d){{return y+"-"+pad(m+1)+"-"+pad(d);}}
+  function isToday(y,m,d){{return y===today.getFullYear()&&m===today.getMonth()&&d===today.getDate();}}
+
+  // ── Header ─────────────────────────────────────────────
+  function renderHeader(){{
+    var title="";
+    if(view==="month")title=MONTHS[curMonth]+" "+curYear;
+    else if(view==="week"){{
+      var wd=getWeekDays(curYear,curMonth,curDay);
+      title=MONTHS[wd[0].getMonth()]+" "+wd[0].getDate()+" – "+
+            MONTHS[wd[6].getMonth()]+" "+wd[6].getDate()+", "+wd[0].getFullYear();
+    }}else{{
+      title=MONTHS[curMonth]+" "+curDay+", "+curYear;
+    }}
+    var h=document.getElementById(uid+"_title");
+    if(h)h.textContent=title;
+  }}
+
+  // ── Month View ──────────────────────────────────────────
+  function getFirstDayOffset(y,m){{
+    var d=new Date(y,m,1).getDay();
+    return ((d - FIRST_DAY) + 7) % 7;
+  }}
+
+  function renderMonth(){{
+    var grid=document.getElementById(uid+"_grid");
+    if(!grid)return;
+    var offset=getFirstDayOffset(curYear,curMonth);
+    var daysInMonth=new Date(curYear,curMonth+1,0).getDate();
+    var daysInPrev=new Date(curYear,curMonth,0).getDate();
+    var html="";
+    var total=Math.ceil((offset+daysInMonth)/7)*7;
+
+    for(var i=0;i<total;i++){{
+      var y=curYear,m=curMonth,d;
+      var outside=false;
+      if(i<offset){{d=daysInPrev-(offset-1-i);m=curMonth-1;if(m<0){{m=11;y--;}}outside=true;}}
+      else if(i>=offset+daysInMonth){{d=i-offset-daysInMonth+1;m=curMonth+1;if(m>11){{m=0;y++;}}outside=true;}}
+      else{{d=i-offset+1;}}
+
+      var ds=dateStr(y,m,d);
+      var evs=evByDate[ds]||[];
+      var isTod=isToday(y,m,d);
+      var isInRange=rangeStart&&rangeEnd&&ds>=rangeStart&&ds<=rangeEnd;
+      var isRangeStart=ds===rangeStart, isRangeEnd=ds===rangeEnd;
+
+      var bg="transparent";
+      if(isTod)bg="rgba(99,102,241,0.15)";
+      if(isInRange)bg="rgba(99,102,241,0.08)";
+      if(isRangeStart||isRangeEnd)bg=ACCENT;
+
+      var todayDot=isTod?'<div style="width:4px;height:4px;border-radius:50%;background:'+ACCENT+';margin:0 auto"></div>':"";
+      var dayColor=(isRangeStart||isRangeEnd)?"#fff":(outside?"var(--text-muted)":"var(--text)");
+      var todayWeight=isTod?"700":"400";
+      var cellBorder=(isRangeStart||isRangeEnd)?"border-radius:8px":"";
+
+      var evHtml="";
+      var maxShow=Math.min(evs.length,3);
+      for(var ei=0;ei<maxShow;ei++){{
+        var ec=evs[ei].color||ACCENT;
+        evHtml+='<div style="font-size:10px;background:'+ec+';color:#fff;border-radius:3px;'
+               +'padding:1px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'
+               +'margin-top:2px;cursor:pointer" '
+               +'onclick="event.stopPropagation();(function(){{var ev='+JSON.stringify(JSON.stringify(evs[ei]))+';'
+               +'if(ON_EVENT_CLICK)eval(\'(\'+ON_EVENT_CLICK+\')(ev)\');'
+               +'}})()">'
+               +evs[ei].title+'</div>';
+      }}
+      if(evs.length>3)evHtml+='<div style="font-size:10px;color:var(--text-muted);margin-top:2px">+'+( evs.length-3)+' más</div>';
+
+      html+='<div onclick="'+uid+'_clickDay(\''+ds+'\')" '
+           +'style="border:1px solid var(--border);padding:6px 8px;min-height:80px;'
+           +'cursor:pointer;background:'+bg+';'+cellBorder+';'
+           +'transition:background .15s;box-sizing:border-box">'
+           +'<div style="font-size:13px;font-weight:'+todayWeight+';color:'+dayColor+'">'
+           +d+'</div>'
+           +todayDot
+           +evHtml
+           +'</div>';
+    }}
+    grid.innerHTML=html;
+  }}
+
+  // ── Week View ───────────────────────────────────────────
+  function getWeekDays(y,m,d){{
+    var dt=new Date(y,m,d);
+    var day=dt.getDay();
+    var diff=((day-FIRST_DAY)+7)%7;
+    var start=new Date(dt);start.setDate(dt.getDate()-diff);
+    var days=[];
+    for(var i=0;i<7;i++){{var d2=new Date(start);d2.setDate(start.getDate()+i);days.push(d2);}}
+    return days;
+  }}
+
+  var HOURS=[];for(var hh=0;hh<24;hh++)HOURS.push(pad(hh)+":00");
+
+  function renderWeek(){{
+    var grid=document.getElementById(uid+"_grid");
+    if(!grid)return;
+    var wdays=getWeekDays(curYear,curMonth,curDay);
+    var html='<div style="display:grid;grid-template-columns:56px repeat(7,1fr);height:100%;overflow-y:auto">';
+    // Header row
+    html+='<div style="background:var(--surface-2,var(--surface));border-bottom:1px solid var(--border)"></div>';
+    wdays.forEach(function(dt){{
+      var isTod=isToday(dt.getFullYear(),dt.getMonth(),dt.getDate());
+      html+='<div style="border-bottom:1px solid var(--border);border-left:1px solid var(--border);'
+           +'padding:8px 4px;text-align:center;background:var(--surface-2,var(--surface))'
+           +(isTod?';color:'+ACCENT+';font-weight:700':';color:var(--text-muted)')
+           +';font-size:12px">'
+           +DAYS_SHORT[dt.getDay()]+'<br>'
+           +'<span style="font-size:18px;font-weight:700">'+(isTod?'<span style="background:'+ACCENT+';color:#fff;border-radius:50%;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center">'+dt.getDate()+'</span>':dt.getDate())+'</span>'
+           +'</div>';
+    }});
+    // Hour rows
+    HOURS.forEach(function(hStr){{
+      html+='<div style="border-bottom:1px solid var(--border);padding:4px 6px;'
+           +'font-size:11px;color:var(--text-muted);text-align:right;white-space:nowrap">'
+           +hStr+'</div>';
+      wdays.forEach(function(dt){{
+        var ds=dateStr(dt.getFullYear(),dt.getMonth(),dt.getDate());
+        var hour=parseInt(hStr);
+        var slotEvs=(evByDate[ds]||[]).filter(function(ev){{
+          if(!ev.start_time)return false;
+          var h=parseInt(ev.start_time.split(":")[0]);
+          return h===hour;
+        }});
+        var evHtml="";
+        slotEvs.forEach(function(ev){{
+          var ec=ev.color||ACCENT;
+          evHtml+='<div style="background:'+ec+';color:#fff;font-size:11px;border-radius:4px;'
+                 +'padding:2px 6px;margin-bottom:2px;cursor:pointer;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'
+                 +ev.title+(ev.end_time?' '+ev.start_time+'-'+ev.end_time:'')+'</div>';
+        }});
+        html+='<div style="border-bottom:1px solid var(--border);border-left:1px solid var(--border);'
+             +'padding:2px;min-height:40px;vertical-align:top;box-sizing:border-box">'+evHtml+'</div>';
+      }});
+    }});
+    html+='</div>';
+    grid.innerHTML=html;
+  }}
+
+  // ── Day View ────────────────────────────────────────────
+  function renderDay(){{
+    var grid=document.getElementById(uid+"_grid");
+    if(!grid)return;
+    var ds=dateStr(curYear,curMonth,curDay);
+    var dayEvs=evByDate[ds]||[];
+    var isTod=isToday(curYear,curMonth,curDay);
+    var html='<div style="overflow-y:auto;height:100%">';
+    html+='<div style="padding:12px 16px;border-bottom:1px solid var(--border);'
+         +'background:var(--surface-2,var(--surface));font-size:15px;font-weight:700;color:var(--text)">'
+         +MONTHS[curMonth]+' '+curDay+', '+curYear
+         +(isTod?' <span style="background:'+ACCENT+';color:#fff;font-size:11px;'
+           +'padding:2px 8px;border-radius:999px;margin-left:8px">Hoy</span>':'')
+         +'</div>';
+
+    // All-day events
+    var allDay=dayEvs.filter(function(e){{return e.all_day;}});
+    if(allDay.length){{
+      html+='<div style="padding:8px 16px;border-bottom:1px solid var(--border)">';
+      allDay.forEach(function(ev){{
+        var ec=ev.color||ACCENT;
+        html+='<div style="background:'+ec+';color:#fff;border-radius:6px;padding:6px 12px;'
+             +'margin-bottom:4px;font-size:13px">'+ev.title+'</div>';
+      }});
+      html+='</div>';
+    }}
+
+    // Time slots
+    HOURS.forEach(function(hStr){{
+      var hour=parseInt(hStr);
+      var slotEvs=dayEvs.filter(function(ev){{
+        if(!ev.start_time)return false;
+        return parseInt(ev.start_time.split(":")[0])===hour;
+      }});
+      html+='<div style="display:grid;grid-template-columns:64px 1fr;'
+           +'border-bottom:1px solid var(--border);min-height:56px">';
+      html+='<div style="padding:8px 10px;font-size:12px;color:var(--text-muted);text-align:right">'+hStr+'</div>';
+      html+='<div style="padding:4px 8px">';
+      slotEvs.forEach(function(ev){{
+        var ec=ev.color||ACCENT;
+        html+='<div style="background:'+ec+';color:#fff;border-radius:6px;padding:8px 12px;'
+             +'margin-bottom:4px;cursor:pointer">'
+             +'<div style="font-weight:600;font-size:13px">'+ev.title+'</div>'
+             +(ev.start_time?'<div style="font-size:11px;opacity:0.85">'+ev.start_time+(ev.end_time?' – '+ev.end_time:'')+'</div>':'')
+             +(ev.description?'<div style="font-size:12px;margin-top:4px;opacity:0.85">'+ev.description+'</div>':'')
+             +'</div>';
+      }});
+      html+='</div></div>';
+    }});
+    html+='</div>';
+    grid.innerHTML=html;
+  }}
+
+  // ── Navigation ──────────────────────────────────────────
+  window[uid+"_prev"]=function(){{
+    if(view==="month"){{curMonth--;if(curMonth<0){{curMonth=11;curYear--;}}}}
+    else if(view==="week"){{var dt=new Date(curYear,curMonth,curDay-7);curYear=dt.getFullYear();curMonth=dt.getMonth();curDay=dt.getDate();}}
+    else{{var dt=new Date(curYear,curMonth,curDay-1);curYear=dt.getFullYear();curMonth=dt.getMonth();curDay=dt.getDate();}}
+    refresh();
+  }};
+  window[uid+"_next"]=function(){{
+    if(view==="month"){{curMonth++;if(curMonth>11){{curMonth=0;curYear++;}}}}
+    else if(view==="week"){{var dt=new Date(curYear,curMonth,curDay+7);curYear=dt.getFullYear();curMonth=dt.getMonth();curDay=dt.getDate();}}
+    else{{var dt=new Date(curYear,curMonth,curDay+1);curYear=dt.getFullYear();curMonth=dt.getMonth();curDay=dt.getDate();}}
+    refresh();
+  }};
+  window[uid+"_today"]=function(){{
+    curYear=today.getFullYear();curMonth=today.getMonth();curDay=today.getDate();refresh();
+  }};
+  window[uid+"_setView"]=function(v){{
+    view=v;
+    // Update active tab
+    ["month","week","day"].forEach(function(vv){{
+      var btn=document.getElementById(uid+"_vbtn_"+vv);
+      if(btn){{
+        btn.style.background=vv===v?ACCENT:"var(--surface-2,var(--surface))";
+        btn.style.color=vv===v?"#fff":"var(--text)";
+      }}
+    }});
+    refresh();
+  }};
+  window[uid+"_clickDay"]=function(ds){{
+    var parts=ds.split("-");
+    curYear=parseInt(parts[0]);curMonth=parseInt(parts[1])-1;curDay=parseInt(parts[2]);
+    if(RANGE_SELECT){{
+      if(!rangeStart||rangeEnd){{rangeStart=ds;rangeEnd=null;}}
+      else{{
+        if(ds<rangeStart){{rangeEnd=rangeStart;rangeStart=ds;}}
+        else{{rangeEnd=ds;}}
+      }}
+    }}
+    if(ON_DATE_CLICK)eval('('+ON_DATE_CLICK+')(ds)');
+    refresh();
+  }};
+
+  function refresh(){{
+    renderHeader();
+    if(view==="month")renderMonth();
+    else if(view==="week")renderWeek();
+    else renderDay();
+  }}
+
+  // Init
+  refresh();
+}})();
+</script>
+"""
+
+        # Day names header for month view
+        days_header_js = f"DAYS_SHORT" 
+
+        # Build view buttons
+        view_btns = ""
+        if self.show_views:
+            views = [("month","Mes"), ("week","Semana"), ("day","Día")]
+            for vk, vl in views:
+                is_active = (vk == self.initial_view)
+                view_btns += (
+                    f'<button id="{uid}_vbtn_{vk}" onclick="{uid}_setView(\'{vk}\')" '
+                    f'style="padding:6px 14px;font-size:13px;border:1px solid var(--border);'
+                    f'border-radius:6px;cursor:pointer;font-weight:500;'
+                    f'background:{"var(--accent)" if is_active else "var(--surface-2,var(--surface))"};"'
+                    f'color:{"#fff" if is_active else "var(--text)"}">'
+                    f'{vl}</button>'
+                )
+
+        today_btn = (
+            f'<button onclick="{uid}_today()" '
+            f'style="padding:6px 14px;font-size:13px;border:1px solid var(--border);'
+            f'border-radius:6px;cursor:pointer;background:var(--surface-2,var(--surface));'
+            f'color:var(--text);font-weight:500">Hoy</button>'
+        ) if self.show_today else ""
+
+        # Day names row (for month view - static header)
+        day_names_html = ""
+        day_names_data = self.DAYS_ES if self.locale == "es" else self.DAYS_EN
+        # Reorder based on first_day
+        ordered_days = day_names_data[self.first_day:] + day_names_data[:self.first_day]
+        for dn in ordered_days:
+            day_names_html += (
+                f'<div style="padding:8px 0;text-align:center;font-size:12px;'
+                f'font-weight:600;color:var(--text-muted)">{dn}</div>'
+            )
+
+        return (
+            f'<div id="{uid}" style="{wrapper_style}">'
+            # Toolbar
+            + f'<div style="display:flex;align-items:center;gap:8px;padding:12px 16px;'
+              f'border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap">'
+            + f'  <button onclick="{uid}_prev()" style="width:32px;height:32px;display:flex;align-items:center;'
+              f'    justify-content:center;border:1px solid var(--border);border-radius:6px;'
+              f'    cursor:pointer;background:var(--surface-2,var(--surface));color:var(--text);font-size:16px">&#8249;</button>'
+            + f'  <button onclick="{uid}_next()" style="width:32px;height:32px;display:flex;align-items:center;'
+              f'    justify-content:center;border:1px solid var(--border);border-radius:6px;'
+              f'    cursor:pointer;background:var(--surface-2,var(--surface));color:var(--text);font-size:16px">&#8250;</button>'
+            + f'  <span id="{uid}_title" style="font-size:16px;font-weight:700;color:var(--text);'
+              f'    flex:1;text-align:left"></span>'
+            + (f'  {today_btn}' if self.show_today else '')
+            + (f'  <div style="display:flex;gap:4px">{view_btns}</div>' if self.show_views else '')
+            + f'</div>'
+            # Day names header (only for month view, JS manages it)
+            + f'<div id="{uid}_daynames" style="display:grid;grid-template-columns:repeat(7,1fr);'
+              f'border-bottom:1px solid var(--border);flex-shrink:0">'
+            + day_names_html
+            + f'</div>'
+            # Grid
+            + f'<div id="{uid}_grid" style="flex:1;overflow:auto;'
+              f'display:grid;grid-template-columns:repeat(7,1fr)">'
+            + f'</div>'
+            + f'</div>'
+            + js
+        )

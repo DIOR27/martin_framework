@@ -247,11 +247,21 @@ def _reset_widget_counters():
             Map,
             Gallery,
             Carousel,
+            Accordion,
+            Testimonials,
+            SlideCarousel,
+            Pricing,
+            FAQ,
+            Chart,
+            Calendar,
         )
 
         Select._id_counter = MultiSelect._id_counter = 0
         WordCloud._id_counter = Map._id_counter = 0
         Gallery._id_counter = Carousel._id_counter = 0
+        Accordion._id_counter = Testimonials._id_counter = 0
+        SlideCarousel._id_counter = Pricing._id_counter = 0
+        FAQ._id_counter = Chart._id_counter = Calendar._id_counter = 0
     except Exception:
         pass
 
