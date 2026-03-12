@@ -6317,6 +6317,33 @@ class Calendar(Widget):
   function dateStr(y,m,d){{return y+"-"+pad(m+1)+"-"+pad(d);}}
   function isToday(y,m,d){{return y===today.getFullYear()&&m===today.getMonth()&&d===today.getDate();}}
 
+  function syncViewButtons(){{
+    ["month","week","day"].forEach(function(vv){{
+      var btn=document.getElementById(uid+"_vbtn_"+vv);
+      if(btn){{
+        btn.style.background=vv===view?ACCENT:"var(--surface-2,var(--surface))";
+        btn.style.color=vv===view?"#fff":"var(--text)";
+      }}
+    }});
+  }}
+
+  function applyViewLayout(){{
+    var grid=document.getElementById(uid+"_grid");
+    var daynames=document.getElementById(uid+"_daynames");
+    if(!grid)return;
+    if(view==="month"){{
+      if(daynames)daynames.style.display="grid";
+      grid.style.display="grid";
+      grid.style.gridTemplateColumns="repeat(7,1fr)";
+      grid.style.overflow="auto";
+    }}else{{
+      if(daynames)daynames.style.display="none";
+      grid.style.display="block";
+      grid.style.gridTemplateColumns="none";
+      grid.style.overflow="hidden";
+    }}
+  }}
+
   // ── Header ─────────────────────────────────────────────
   function renderHeader(){{
     var title="";
@@ -6413,7 +6440,8 @@ class Calendar(Widget):
     var grid=document.getElementById(uid+"_grid");
     if(!grid)return;
     var wdays=getWeekDays(curYear,curMonth,curDay);
-    var html='<div style="display:grid;grid-template-columns:56px repeat(7,1fr);height:100%;overflow-y:auto">';
+    var html='<div style="display:grid;grid-template-columns:56px repeat(7,minmax(120px,1fr));height:100%;overflow:auto;min-width:860px">';
+
     // Header row
     html+='<div style="background:var(--surface-2,var(--surface));border-bottom:1px solid var(--border)"></div>';
     wdays.forEach(function(dt){{
@@ -6426,30 +6454,42 @@ class Calendar(Widget):
            +'<span style="font-size:18px;font-weight:700">'+(isTod?'<span style="background:'+ACCENT+';color:#fff;border-radius:50%;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center">'+dt.getDate()+'</span>':dt.getDate())+'</span>'
            +'</div>';
     }});
+
     // Hour rows
     HOURS.forEach(function(hStr){{
       html+='<div style="border-bottom:1px solid var(--border);padding:4px 6px;'
            +'font-size:11px;color:var(--text-muted);text-align:right;white-space:nowrap">'
            +hStr+'</div>';
+
       wdays.forEach(function(dt){{
         var ds=dateStr(dt.getFullYear(),dt.getMonth(),dt.getDate());
-        var hour=parseInt(hStr);
-        var slotEvs=(evByDate[ds]||[]).filter(function(ev){{
-          if(!ev.start_time)return false;
-          var h=parseInt(ev.start_time.split(":")[0]);
-          return h===hour;
-        }});
+        var dayList=evByDate[ds]||[];
+        var hour=parseInt(hStr,10);
+        var slotIdx=[];
+        for(var di=0;di<dayList.length;di++){{
+          var ev=dayList[di];
+          if(!ev.start_time)continue;
+          var evHour=parseInt(ev.start_time.split(":")[0],10);
+          if(evHour===hour)slotIdx.push(di);
+        }}
+
         var evHtml="";
-        slotEvs.forEach(function(ev){{
+        slotIdx.forEach(function(evIdx){{
+          var ev=dayList[evIdx];
           var ec=ev.color||ACCENT;
-          evHtml+='<div style="background:'+ec+';color:#fff;font-size:11px;border-radius:4px;'
+          evHtml+='<div onclick="event.stopPropagation();'+uid+'_eventClick('+JSON.stringify(ds)+','+evIdx+')" '
+                 +'style="background:'+ec+';color:#fff;font-size:11px;border-radius:4px;'
                  +'padding:2px 6px;margin-bottom:2px;cursor:pointer;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'
                  +ev.title+(ev.end_time?' '+ev.start_time+'-'+ev.end_time:'')+'</div>';
         }});
-        html+='<div style="border-bottom:1px solid var(--border);border-left:1px solid var(--border);'
-             +'padding:2px;min-height:40px;vertical-align:top;box-sizing:border-box">'+evHtml+'</div>';
+
+        html+='<div onclick="'+uid+'_clickDay('+JSON.stringify(ds)+','+JSON.stringify(hStr)+')" '
+             +'style="border-bottom:1px solid var(--border);border-left:1px solid var(--border);'
+             +'padding:2px;min-height:40px;vertical-align:top;box-sizing:border-box;cursor:pointer">'
+             +evHtml+'</div>';
       }});
     }});
+
     html+='</div>';
     grid.innerHTML=html;
   }}
@@ -6459,9 +6499,10 @@ class Calendar(Widget):
     var grid=document.getElementById(uid+"_grid");
     if(!grid)return;
     var ds=dateStr(curYear,curMonth,curDay);
-    var dayEvs=evByDate[ds]||[];
+    var dayList=evByDate[ds]||[];
     var isTod=isToday(curYear,curMonth,curDay);
     var html='<div style="overflow-y:auto;height:100%">';
+
     html+='<div style="padding:12px 16px;border-bottom:1px solid var(--border);'
          +'background:var(--surface-2,var(--surface));font-size:15px;font-weight:700;color:var(--text)">'
          +MONTHS[curMonth]+' '+curDay+', '+curYear
@@ -6469,40 +6510,56 @@ class Calendar(Widget):
            +'padding:2px 8px;border-radius:999px;margin-left:8px">Hoy</span>':'')
          +'</div>';
 
-    // All-day events
-    var allDay=dayEvs.filter(function(e){{return e.all_day;}});
-    if(allDay.length){{
+    if(!dayList.length){{
+      html+='<div style="padding:10px 16px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-muted)">'
+           +'No hay eventos. Haz clic en una hora para crear o manejar un evento.'
+           +'</div>';
+    }}
+
+    var allDayIdx=[];
+    for(var ai=0;ai<dayList.length;ai++){{ if(dayList[ai].all_day) allDayIdx.push(ai); }}
+
+    if(allDayIdx.length){{
       html+='<div style="padding:8px 16px;border-bottom:1px solid var(--border)">';
-      allDay.forEach(function(ev){{
+      allDayIdx.forEach(function(evIdx){{
+        var ev=dayList[evIdx];
         var ec=ev.color||ACCENT;
-        html+='<div style="background:'+ec+';color:#fff;border-radius:6px;padding:6px 12px;'
-             +'margin-bottom:4px;font-size:13px">'+ev.title+'</div>';
+        html+='<div onclick="'+uid+'_eventClick('+JSON.stringify(ds)+','+evIdx+')" '
+             +'style="background:'+ec+';color:#fff;border-radius:6px;padding:6px 12px;'
+             +'margin-bottom:4px;font-size:13px;cursor:pointer">'+ev.title+'</div>';
       }});
       html+='</div>';
     }}
 
-    // Time slots
     HOURS.forEach(function(hStr){{
-      var hour=parseInt(hStr);
-      var slotEvs=dayEvs.filter(function(ev){{
-        if(!ev.start_time)return false;
-        return parseInt(ev.start_time.split(":")[0])===hour;
-      }});
-      html+='<div style="display:grid;grid-template-columns:64px 1fr;'
-           +'border-bottom:1px solid var(--border);min-height:56px">';
+      var hour=parseInt(hStr,10);
+      var slotIdx=[];
+      for(var si=0;si<dayList.length;si++){{
+        var ev=dayList[si];
+        if(!ev.start_time)continue;
+        var evHour=parseInt(ev.start_time.split(":")[0],10);
+        if(evHour===hour)slotIdx.push(si);
+      }}
+
+      html+='<div style="display:grid;grid-template-columns:64px 1fr;border-bottom:1px solid var(--border);min-height:56px">';
       html+='<div style="padding:8px 10px;font-size:12px;color:var(--text-muted);text-align:right">'+hStr+'</div>';
-      html+='<div style="padding:4px 8px">';
-      slotEvs.forEach(function(ev){{
+      html+='<div onclick="'+uid+'_clickDay('+JSON.stringify(ds)+','+JSON.stringify(hStr)+')" style="padding:4px 8px;cursor:pointer">';
+
+      slotIdx.forEach(function(evIdx){{
+        var ev=dayList[evIdx];
         var ec=ev.color||ACCENT;
-        html+='<div style="background:'+ec+';color:#fff;border-radius:6px;padding:8px 12px;'
+        html+='<div onclick="event.stopPropagation();'+uid+'_eventClick('+JSON.stringify(ds)+','+evIdx+')" '
+             +'style="background:'+ec+';color:#fff;border-radius:6px;padding:8px 12px;'
              +'margin-bottom:4px;cursor:pointer">'
              +'<div style="font-weight:600;font-size:13px">'+ev.title+'</div>'
              +(ev.start_time?'<div style="font-size:11px;opacity:0.85">'+ev.start_time+(ev.end_time?' – '+ev.end_time:'')+'</div>':'')
              +(ev.description?'<div style="font-size:12px;margin-top:4px;opacity:0.85">'+ev.description+'</div>':'')
              +'</div>';
       }});
+
       html+='</div></div>';
     }});
+
     html+='</div>';
     grid.innerHTML=html;
   }}
@@ -6517,7 +6574,12 @@ class Calendar(Widget):
       try{{eval("("+ON_EVENT_CLICK+")(ev)");}}catch(_e){{}}
       return;
     }}
-    if(ev.url)window.location.href=ev.url;
+    if(ev.url){{window.location.href=ev.url;return;}}
+
+    var info=ev.title||"Evento";
+    if(ev.start_time) info+="\\n"+ev.start_time+(ev.end_time?" - "+ev.end_time:"");
+    if(ev.description) info+="\\n\\n"+ev.description;
+    try{{window.alert(info);}}catch(_e){{}}
   }};
 
   // ── Navigation ──────────────────────────────────────────
@@ -6538,35 +6600,43 @@ class Calendar(Widget):
   }};
   window[uid+"_setView"]=function(v){{
     view=v;
-    // Update active tab
-    ["month","week","day"].forEach(function(vv){{
-      var btn=document.getElementById(uid+"_vbtn_"+vv);
-      if(btn){{
-        btn.style.background=vv===v?ACCENT:"var(--surface-2,var(--surface))";
-        btn.style.color=vv===v?"#fff":"var(--text)";
-      }}
-    }});
+    syncViewButtons();
     refresh();
   }};
-  window[uid+"_clickDay"]=function(ds){{
+  window[uid+"_clickDay"]=function(ds,hourStr){{
     var parts=ds.split("-");
-    curYear=parseInt(parts[0]);curMonth=parseInt(parts[1])-1;curDay=parseInt(parts[2]);
-    if(RANGE_SELECT){{
+    curYear=parseInt(parts[0],10);curMonth=parseInt(parts[1],10)-1;curDay=parseInt(parts[2],10);
+
+    if(RANGE_SELECT&&view==="month"){{
       if(!rangeStart||rangeEnd){{rangeStart=ds;rangeEnd=null;}}
       else{{
         if(ds<rangeStart){{rangeEnd=rangeStart;rangeStart=ds;}}
         else{{rangeEnd=ds;}}
       }}
+    }} else if(view!=="day"){{
+      view="day";
+      syncViewButtons();
     }}
-    if(ON_DATE_CLICK)eval('('+ON_DATE_CLICK+')(ds)');
+
+    if(ON_DATE_CLICK){{
+      var payload=hourStr?(ds+"T"+hourStr):ds;
+      var named=window[ON_DATE_CLICK];
+      if(typeof named==="function") named(payload);
+      else{{
+        try{{eval("("+ON_DATE_CLICK+")(payload)");}}catch(_e){{}}
+      }}
+    }}
+
     refresh();
   }};
 
   function refresh(){{
+    applyViewLayout();
     renderHeader();
     if(view==="month")renderMonth();
     else if(view==="week")renderWeek();
     else renderDay();
+    syncViewButtons();
   }}
 
   // Init
