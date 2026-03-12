@@ -4906,7 +4906,7 @@ class Accordion(Widget):
                 item_style = item_base.replace("border-bottom:1px solid var(--border)", "")
 
             icon_id = f"{uid}_ico{i}"
-            body_display = "block" if is_open else "none"
+            body_open    = "1" if is_open else "0"
             icon_rot     = "rotate(180deg)" if is_open else "rotate(0deg)"
 
             items_html += (
@@ -4921,45 +4921,89 @@ class Accordion(Widget):
                 f'      {self._icon_svg()}'
                 f'    </span>'
                 f'  </button>'
-                f'  <div id="{iid}_body" style="display:{body_display};padding:0 20px 16px;'
-                f'       font-size:14px;color:var(--text-muted);line-height:1.7">'
+                f'  <div id="{iid}_body" data-open="{body_open}" style="max-height:0;overflow:hidden;'
+                f'       padding:0 20px 0;font-size:14px;color:var(--text-muted);line-height:1.7;'
+                f'       opacity:0;transform:translateY(-4px);'
+                f'       transition:max-height .28s cubic-bezier(.4,0,.2,1),'
+                f'                  opacity .2s ease,transform .2s ease,padding .24s ease;">'
                 f'    {body_html}'
                 f'  </div>'
                 f'</div>'
             )
 
         n = len(self.items)
-        js = (
-            f'<script>(function(){{'
-            f'  var uid="{uid}",n={n},multi={multiple};'
-            f'  var open=[];'
-            f'  for(var i=0;i<n;i++){{'
-            f'    if(document.getElementById(uid+"_i"+i+"_body").style.display!=="none") open.push(i);'
-            f'  }}'
-            f'  window[uid+"_toggle"]=function(idx){{'
-            f'    var body=document.getElementById(uid+"_i"+idx+"_body");'
-            f'    var ico=document.getElementById(uid+"_ico"+idx);'
-            f'    var isOpen=body.style.display!=="none";'
-            f'    if(!multi){{'
-            f'      for(var j=0;j<n;j++){{'
-            f'        if(j!==idx){{'
-            f'          var b=document.getElementById(uid+"_i"+j+"_body");'
-            f'          var ic=document.getElementById(uid+"_ico"+j);'
-            f'          if(b)b.style.display="none";'
-            f'          if(ic)ic.style.transform="rotate(0deg)";'
-            f'        }}'
-            f'      }}'
-            f'    }}'
-            f'    if(isOpen){{'
-            f'      body.style.display="none";'
-            f'      ico.style.transform="rotate(0deg)";'
-            f'    }} else {{'
-            f'      body.style.display="block";'
-            f'      ico.style.transform="rotate(180deg)";'
-            f'    }}'
-            f'  }};'
-            f'}})();</script>'
-        )
+        js = f"""
+<script>(function(){{
+  var uid={_json.dumps(uid)}, n={n}, multi={multiple};
+  var TRANS="max-height .28s cubic-bezier(.4,0,.2,1),opacity .2s ease,transform .2s ease,padding .24s ease";
+
+  function bodyEl(i){{ return document.getElementById(uid+"_i"+i+"_body"); }}
+  function iconEl(i){{ return document.getElementById(uid+"_ico"+i); }}
+
+  function setOpen(i, open, animate){{
+    var b = bodyEl(i), ic = iconEl(i);
+    if(!b) return;
+
+    if(!animate) b.style.transition = "none";
+
+    if(open){{
+      if(b.style.maxHeight === "none") b.style.maxHeight = b.scrollHeight + "px";
+      requestAnimationFrame(function(){{
+        b.style.maxHeight = b.scrollHeight + "px";
+        b.style.opacity = "1";
+        b.style.transform = "translateY(0)";
+        b.style.padding = "0 20px 16px";
+      }});
+      b.setAttribute("data-open", "1");
+      if(ic) ic.style.transform = "rotate(180deg)";
+    }} else {{
+      if(b.style.maxHeight === "none"){{
+        b.style.maxHeight = b.scrollHeight + "px";
+        b.offsetHeight;
+      }}
+      b.style.maxHeight = b.scrollHeight + "px";
+      requestAnimationFrame(function(){{
+        b.style.maxHeight = "0px";
+        b.style.opacity = "0";
+        b.style.transform = "translateY(-4px)";
+        b.style.padding = "0 20px 0";
+      }});
+      b.setAttribute("data-open", "0");
+      if(ic) ic.style.transform = "rotate(0deg)";
+    }}
+
+    if(!animate){{
+      b.offsetHeight;
+      b.style.transition = TRANS;
+    }}
+  }}
+
+  for(var i = 0; i < n; i++){{
+    (function(idx){{
+      var b = bodyEl(idx);
+      if(!b) return;
+      b.style.transition = TRANS;
+      b.addEventListener("transitionend", function(e){{
+        if(e.propertyName === "max-height" && b.getAttribute("data-open") === "1"){{
+          b.style.maxHeight = "none";
+        }}
+      }});
+      var initiallyOpen = b.getAttribute("data-open") === "1";
+      setOpen(idx, initiallyOpen, false);
+    }})(i);
+  }}
+
+  window[uid+"_toggle"] = function(idx){{
+    var b = bodyEl(idx);
+    if(!b) return;
+    var isOpen = b.getAttribute("data-open") === "1";
+    if(!multi){{
+      for(var j = 0; j < n; j++) if(j !== idx) setOpen(j, false, true);
+    }}
+    setOpen(idx, !isOpen, true);
+  }};
+}})();</script>
+"""
 
         return (
             f'<div id="{uid}" style="{wrapper_style}">'
@@ -5873,7 +5917,7 @@ class Chart(Widget):
                  animated=True, responsive=True,
                  x_label=None, y_label=None, stacked=False,
                  colors=None, tooltip_mode="index",
-                 download=False, **kwargs):
+                 download=False, text_color=None, muted_text_color=None, **kwargs):
         self._props       = Widget._extract_props(kwargs)
         self.chart_type   = type
         self.labels       = labels or []
@@ -5890,6 +5934,8 @@ class Chart(Widget):
         self.colors       = colors or self.DEFAULT_COLORS
         self.tooltip_mode = tooltip_mode
         self.download     = download
+        self.text_color   = text_color
+        self.muted_text_color = muted_text_color
         Chart._id_counter += 1
         self.uid = f"chart_{Chart._id_counter}"
 
@@ -5903,6 +5949,27 @@ class Chart(Widget):
 
     def _build_datasets_js(self):
         import json as _json
+
+        def _to_rgba(c, alpha):
+            if not isinstance(c, str):
+                return c
+            s = c.strip()
+            if s.startswith(("rgba(", "rgb(", "hsl(", "hsla(")):
+                return s
+            if s.startswith("#"):
+                h = s[1:]
+                if len(h) == 3:
+                    h = "".join(ch * 2 for ch in h)
+                if len(h) == 6:
+                    try:
+                        r = int(h[0:2], 16)
+                        g = int(h[2:4], 16)
+                        b = int(h[4:6], 16)
+                        return f"rgba({r},{g},{b},{alpha})"
+                    except ValueError:
+                        return s
+            return s
+
         result = []
         is_pie_like = self.chart_type in ("pie", "doughnut")
 
@@ -5917,7 +5984,7 @@ class Chart(Widget):
                     "data": ds.data,
                     "backgroundColor": bg_colors,
                     "borderWidth": 2,
-                    "borderColor": "var(--bg, #060818)",
+                    "borderColor": "#060818",
                 }
             else:
                 fill_val = ds.fill or (self.chart_type == "area")
@@ -5927,9 +5994,11 @@ class Chart(Widget):
                     "label": ds.label,
                     "data": ds.data,
                     "borderColor": color,
-                    "backgroundColor": (ds.background_color
-                                        if ds.background_color
-                                        else color.replace("#", "") if not color.startswith("rgba") else color),
+                    "backgroundColor": (
+                        ds.background_color
+                        if ds.background_color
+                        else _to_rgba(color, bg_opacity)
+                    ),
                     "borderWidth": ds.border_width,
                     "pointRadius": ds.point_radius,
                     "fill": fill_val,
@@ -5951,6 +6020,8 @@ class Chart(Widget):
         datasets_js = self._build_datasets_js()
         labels_js  = _json.dumps(self.labels)
         height     = self.height
+        text_color_js = _json.dumps(self.text_color or "")
+        muted_color_js = _json.dumps(self.muted_text_color or "")
 
         # Options
         is_horizontal = (self.chart_type == "bar_h")
@@ -6005,29 +6076,77 @@ class Chart(Widget):
 
         wrapper_style = f"position:relative;{'height:'+str(height)+'px'};width:100%;{extra}"
 
-        js = (
-            f'<script>'
-            f'(function(){{'
-            f'  var cdnUrl="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js";'
-            f'  function init(){{'
-            f'    var ctx=document.getElementById("{uid}_canvas").getContext("2d");'
-            f'    var chart=new Chart(ctx,{{'
-            f'      type:{_json.dumps(cjs_type)},'
-            f'      data:{{labels:{labels_js},datasets:{datasets_js}}},'
-            f'      options:{options_js}'
-            f'    }});'
-            f'    window["_chart_{uid}"]=chart;'
-            f'  }}'
-            f'  if(window.Chart){{init();}}'
-            f'  else{{'
-            f'    var s=document.createElement("script");'
-            f'    s.src=cdnUrl;'
-            f'    s.onload=function(){{init();}};'
-            f'    document.head.appendChild(s);'
-            f'  }}'
-            f'}})();'
-            f'</script>'
-        )
+        js = f"""
+<script>
+(function(){{
+  var cdnUrl="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js";
+  var customText={text_color_js};
+  var customMuted={muted_color_js};
+
+  function cssVar(name, fallback){{
+    var raw=(getComputedStyle(document.documentElement).getPropertyValue(name)||"").trim();
+    return raw || fallback;
+  }}
+
+  function applyThemeColors(chart){{
+    var textColor=customText || cssVar("--text", "#111827");
+    var mutedColor=customMuted || cssVar("--text-muted", "#6b7280");
+    var gridColor=cssVar("--border", "rgba(128,128,128,0.2)");
+    var opts=chart.options||{{}};
+
+    if(opts.plugins&&opts.plugins.legend&&opts.plugins.legend.labels){{
+      opts.plugins.legend.labels.color=textColor;
+    }}
+    if(opts.plugins&&opts.plugins.title){{
+      opts.plugins.title.color=textColor;
+    }}
+
+    if(opts.scales){{
+      ["x","y","r"].forEach(function(axis){{
+        var sc=opts.scales[axis];
+        if(!sc)return;
+        if(sc.ticks) sc.ticks.color=mutedColor;
+        if(sc.title) sc.title.color=mutedColor;
+        if(sc.grid && sc.grid.display!==false) sc.grid.color=gridColor;
+      }});
+    }}
+  }}
+
+  function init(){{
+    var ctx=document.getElementById("{uid}_canvas").getContext("2d");
+    var options={options_js};
+    var chart=new Chart(ctx,{{
+      type:{_json.dumps(cjs_type)},
+      data:{{labels:{labels_js},datasets:{datasets_js}}},
+      options:options
+    }});
+    applyThemeColors(chart);
+    chart.update("none");
+
+    var obs=new MutationObserver(function(muts){{
+      for(var i=0;i<muts.length;i++){{
+        if(muts[i].attributeName==="data-theme"){{
+          applyThemeColors(chart);
+          chart.update("none");
+          break;
+        }}
+      }}
+    }});
+    obs.observe(document.documentElement,{{attributes:true,attributeFilter:["data-theme"]}});
+
+    window["_chart_{uid}"]=chart;
+  }}
+
+  if(window.Chart){{init();}}
+  else{{
+    var s=document.createElement("script");
+    s.src=cdnUrl;
+    s.onload=function(){{init();}};
+    document.head.appendChild(s);
+  }}
+}})();
+</script>
+"""
 
         return (
             f'<div style="{wrapper_style}">'
@@ -6258,14 +6377,13 @@ class Calendar(Widget):
         evHtml+='<div style="font-size:10px;background:'+ec+';color:#fff;border-radius:3px;'
                +'padding:1px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'
                +'margin-top:2px;cursor:pointer" '
-               +'onclick="event.stopPropagation();(function(){{var ev='+JSON.stringify(JSON.stringify(evs[ei]))+';'
-               +'if(ON_EVENT_CLICK)eval(\'(\'+ON_EVENT_CLICK+\')(ev)\');'
-               +'}})()">'
+               +'onclick="event.stopPropagation();'+uid+'_eventClick('+JSON.stringify(ds)+','+ei+')" '
+               +'>'
                +evs[ei].title+'</div>';
       }}
       if(evs.length>3)evHtml+='<div style="font-size:10px;color:var(--text-muted);margin-top:2px">+'+( evs.length-3)+' más</div>';
 
-      html+='<div onclick="'+uid+'_clickDay(\''+ds+'\')" '
+      html+='<div onclick="'+uid+'_clickDay('+JSON.stringify(ds)+')" '
            +'style="border:1px solid var(--border);padding:6px 8px;min-height:80px;'
            +'cursor:pointer;background:'+bg+';'+cellBorder+';'
            +'transition:background .15s;box-sizing:border-box">'
@@ -6389,6 +6507,19 @@ class Calendar(Widget):
     grid.innerHTML=html;
   }}
 
+  window[uid+"_eventClick"]=function(ds,idx){{
+    var list=evByDate[ds]||[];
+    var ev=list[idx];
+    if(!ev)return;
+    if(ON_EVENT_CLICK){{
+      var named=window[ON_EVENT_CLICK];
+      if(typeof named==="function"){{named(ev);return;}}
+      try{{eval("("+ON_EVENT_CLICK+")(ev)");}}catch(_e){{}}
+      return;
+    }}
+    if(ev.url)window.location.href=ev.url;
+  }};
+
   // ── Navigation ──────────────────────────────────────────
   window[uid+"_prev"]=function(){{
     if(view==="month"){{curMonth--;if(curMonth<0){{curMonth=11;curYear--;}}}}
@@ -6457,7 +6588,7 @@ class Calendar(Widget):
                     f'<button id="{uid}_vbtn_{vk}" onclick="{uid}_setView(\'{vk}\')" '
                     f'style="padding:6px 14px;font-size:13px;border:1px solid var(--border);'
                     f'border-radius:6px;cursor:pointer;font-weight:500;'
-                    f'background:{"var(--accent)" if is_active else "var(--surface-2,var(--surface))"};"'
+                    f'background:{"var(--accent)" if is_active else "var(--surface-2,var(--surface))"};'
                     f'color:{"#fff" if is_active else "var(--text)"}">'
                     f'{vl}</button>'
                 )
