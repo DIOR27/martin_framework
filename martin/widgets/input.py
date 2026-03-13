@@ -437,8 +437,8 @@ class Select(Widget):
         # ── Native <select> (no search) ───────────────────────────────────
         if not self.search:
             base = (
-                "padding: 8px 12px; border: 1px solid var(--border-input); border-radius: 6px; "
-                "font-size: 14px; background: var(--input-bg); color: var(--input-color); "
+                "padding: 8px 12px; border: 1px solid var(--border-input,var(--border)); border-radius: 6px; "
+                "font-size: 14px; background: var(--input-bg,var(--surface)); color: var(--input-color,var(--text)); "
                 "cursor: pointer; width: 100%"
             )
             inline = f"{base}; {extra}" if extra else base
@@ -484,9 +484,9 @@ class Select(Widget):
             f"  {hidden_input}"
             f'  <div id="{uid}_btn" onclick="pwSelectToggle(\'{uid}\')"'
             f'    style="display:flex;align-items:center;justify-content:space-between;'
-            f"           padding:8px 14px;border:1px solid var(--border-input);border-radius:6px;"
+            f"           padding:8px 14px;border:1px solid var(--border-input,var(--border));border-radius:6px;"
             f'           background:var(--input-bg);cursor:pointer;user-select:none;gap:8px;transition:border-color .2s">'
-            f'    <span id="{uid}_label" style="color:var(--input-color);flex:1;font-size:14px">{selected_lbl}</span>'
+            f'    <span id="{uid}_label" style="color:var(--input-color,var(--text));flex:1;font-size:14px">{selected_lbl}</span>'
             f'    <svg id="{uid}_arrow" width="12" height="12" viewBox="0 0 12 12"'
             f'         style="flex-shrink:0;transition:transform .2s;opacity:0.5">'
             f'      <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>'
@@ -494,14 +494,14 @@ class Select(Widget):
             f"  </div>"
             f'  <div id="{uid}_drop"'
             f'    style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;'
-            f"           z-index:9999;border:1px solid var(--border-input);border-radius:10px;"
-            f'           box-shadow:0 12px 40px rgba(0,0,0,0.25);overflow:hidden;background:var(--dropdown-bg)">'
+            f"           z-index:10020;border:1px solid var(--border-input,var(--border));border-radius:10px;"
+            f'           box-shadow:0 12px 40px rgba(0,0,0,0.25);overflow:hidden;background:var(--dropdown-bg,var(--surface))">'
             f'    <div style="padding:8px 8px 6px;border-bottom:1px solid var(--border)">'
             f'      <input id="{uid}_search" type="text" placeholder="Buscar..."'
             f"        oninput=\"pwSelectFilter('{uid}',this.value)\""
-            f'        style="width:100%;padding:7px 10px;border:1px solid var(--border-input);'
+            f'        style="width:100%;padding:7px 10px;border:1px solid var(--border-input,var(--border));'
             f"               border-radius:6px;font-size:13px;outline:none;box-sizing:border-box;"
-            f'               background:var(--input-bg);color:var(--input-color)">'
+            f'               background:var(--input-bg,var(--surface));color:var(--input-color,var(--text))">'
             f"    </div>"
             f'    <div id="{uid}_list" style="max-height:220px;overflow-y:auto;padding:6px">'
             f"      {opt_items}"
@@ -637,8 +637,8 @@ class MultiSelect(Widget):
             f'  <div id="{uid}_box"'
             f'    style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;'
             f"           min-height:42px;padding:6px 10px;"
-            f"           border:1px solid var(--border-input);border-radius:8px;"
-            f'           background:var(--input-bg);cursor:text;transition:border-color .2s"'
+            f"           border:1px solid var(--border-input,var(--border));border-radius:8px;"
+            f'           background:var(--input-bg,var(--surface));cursor:text;transition:border-color .2s"'
             f"    onclick=\"document.getElementById('{uid}_input').focus()\">"
             f'    <input id="{uid}_input" type="text" placeholder="{self.placeholder}"'
             f'      style="border:none;outline:none;background:transparent;'
@@ -647,8 +647,8 @@ class MultiSelect(Widget):
             f'  <div id="{uid}_hidden"></div>'
             f'  <div id="{uid}_drop"'
             f'    style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;'
-            f"           z-index:9999;border:1px solid var(--border-input);border-radius:10px;"
-            f'           box-shadow:0 12px 40px rgba(0,0,0,0.25);overflow:hidden;background:var(--dropdown-bg)">'
+            f"           z-index:10020;border:1px solid var(--border-input,var(--border));border-radius:10px;"
+            f'           box-shadow:0 12px 40px rgba(0,0,0,0.25);overflow:hidden;background:var(--dropdown-bg,var(--surface))">'
             f'    <div id="{uid}_list"'
             f'      style="max-height:220px;overflow-y:auto;padding:6px">'
             f"      {opt_rows}"

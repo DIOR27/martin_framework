@@ -39,12 +39,14 @@ from martin import App, Router
 from pages.home import home
 from pages.about import about
 from pages.components import components
+from pages.all_widgets import all_widgets
 from pages.api_example import api_example
 
 router = Router()
 router.add("/",            home,        title="Inicio")
 router.add("/about",       about,       title="Acerca de")
 router.add("/components",  components,  title="Componentes")
+router.add("/all-widgets", all_widgets, title="Todos los widgets")
 router.add("/api-example", api_example, title="Backend")
 
 # Martin registra automaticamente los endpoints de cada pagina
@@ -68,6 +70,7 @@ _nav = NavBar(
     links=[
         Link("Inicio",      href="/",           style="color:var(--text);text-decoration:none;font-size:14px"),
         Link("Componentes", href="/components", style="color:var(--text-muted);text-decoration:none;font-size:14px"),
+        Link("Todos",       href="/all-widgets",style="color:var(--text-muted);text-decoration:none;font-size:14px"),
         Link("Acerca de",   href="/about",      style="color:var(--text-muted);text-decoration:none;font-size:14px"),
     ],
     actions=[
@@ -81,6 +84,8 @@ _footer = Footer(
               style=TextStyle(size=13, color="var(--text-muted)")),
     right=Row([
         Link("Componentes", href="/components",
+             style="font-size:13px;text-decoration:none;color:var(--text-muted)"),
+        Link("Todos", href="/all-widgets",
              style="font-size:13px;text-decoration:none;color:var(--text-muted)"),
         Link("Acerca de",   href="/about",
              style="font-size:13px;text-decoration:none;color:var(--text-muted)"),
@@ -271,6 +276,13 @@ from martin import (
     WordCloud, Map, Timeline, TimelineItem, Hero,
     Gallery, GalleryItem, Carousel, CarouselItem,
     CookieBanner, CookieCategory,
+    Accordion, AccordionItem,
+    Testimonials, TestimonialItem,
+    SlideCarousel, SlideItem,
+    Pricing, PricingPlan,
+    FAQ, FAQItem,
+    Chart, ChartDataset,
+    Calendar, CalendarEvent,
     Border, Shadow, TextStyle, Glass, GradientText, MeshBackground, Colors,
 )
 
@@ -719,8 +731,405 @@ def components():
                         ),
             ]),
 
+            _section("Accordion", "Preguntas y respuestas desplegables.", [
+            Accordion(items=[
+                            AccordionItem("¿Martin soporta componentes?", content="Si, con arquitectura de widgets composables."),
+                            AccordionItem("¿Tiene export estatico?", content="Si, usando `martin export`."),
+                            AccordionItem("¿Funciona sin dependencias externas?", content="Si, usa stdlib y opcionalmente watchdog."),
+                        ], multiple=False),
+            ]),
+
+            _section("Testimonials", "Tarjetas de testimonios de clientes.", [
+            Testimonials(
+                            items=[
+                                TestimonialItem(name="Ana", text="La experiencia de desarrollo es excelente.", role="Frontend Engineer", rating=5),
+                                TestimonialItem(name="Luis", text="Rapido de aprender y muy productivo.", role="Tech Lead", rating=5),
+                                TestimonialItem(name="Carla", text="Nos permitio iterar UI en horas.", role="Product Designer", rating=4),
+                            ],
+                            mode="grid",
+                            columns=3,
+                        ),
+            ]),
+
+            _section("SlideCarousel", "Carrusel de contenido personalizado.", [
+            SlideCarousel(
+                            items=[
+                                SlideItem(Card(padding=24, children=[Heading("Slide A", level=4), Text("Contenido personalizado A")])),
+                                SlideItem(Card(padding=24, children=[Heading("Slide B", level=4), Text("Contenido personalizado B")])),
+                                SlideItem(Card(padding=24, children=[Heading("Slide C", level=4), Text("Contenido personalizado C")])),
+                            ],
+                            visible=2,
+                            gap=12,
+                            autoplay=True,
+                            interval=2500,
+                        ),
+            ]),
+
+            _section("Pricing", "Planes y tablas de precios.", [
+            Pricing(
+                            plans=[
+                                PricingPlan("Starter", "9", features=["1 proyecto", "Soporte base"], cta_label="Elegir"),
+                                PricingPlan("Pro", "29", featured=True, features=["Proyectos ilimitados", "Soporte prioritario"], cta_label="Comenzar"),
+                                PricingPlan("Team", "79", features=["Equipo", "Roles", "SSO"], cta_label="Contactar"),
+                            ],
+                            columns=3,
+                            toggle=True,
+                        ),
+            ]),
+
+            _section("FAQ", "Preguntas frecuentes con buscador.", [
+            FAQ(
+                            items=[
+                                FAQItem("¿Como inicio?", "Ejecuta `martin new` y luego `martin run`."),
+                                FAQItem("¿Puedo usar API?", "Si, via `register_routes(app)` y `ApiCall`."),
+                                FAQItem("¿Soporta tema oscuro?", "Si, con `theme=auto` o `ThemeToggle()`."),
+                            ],
+                            searchable=True,
+                        ),
+            ]),
+
+            _section("Chart", "Graficos con multiples datasets.", [
+            Chart(
+                            type="line",
+                            labels=["Ene", "Feb", "Mar", "Abr", "May"],
+                            datasets=[
+                                ChartDataset("Usuarios", [12, 19, 15, 23, 28], color="#6366f1", fill=True),
+                                ChartDataset("Ventas", [5, 9, 8, 14, 18], color="#22c55e"),
+                            ],
+                            height=300,
+                            title="Metricas mensuales",
+                            download=True,
+                        ),
+            ]),
+
+            _section("Calendar", "Calendario mensual/semanal/diario con eventos.", [
+            Calendar(
+                            events=[
+                                CalendarEvent("Planning", "2026-03-16", start_time="09:00", end_time="10:00", color="#6366f1"),
+                                CalendarEvent("Demo cliente", "2026-03-18", start_time="15:00", end_time="16:00", color="#22c55e"),
+                                CalendarEvent("Release", "2026-03-20", all_day=True, color="#f59e0b"),
+                            ],
+                            initial_view="month",
+                            locale="es",
+                            editable=True,
+                            height=560,
+                        ),
+            ]),
+
         ]
     ), PageConfig(title="Componentes")
+"""
+
+
+PAGE_ALL_WIDGETS = """\
+from martin import (
+    Container, Row, Column, Grid, Stack, Card, Section, Spacer, Divider,
+    Heading, Text, Paragraph, Link, Code,
+    Image, Video, Icon, Avatar,
+    Button, TextField, TextArea, Checkbox, Select, MultiSelect,
+    Badge, Alert,
+    NavBar, Footer, Breadcrumb, Tabs,
+    Table, Modal,
+    Raw, ThemeToggle,
+    Ref, ApiCall, ResultBox,
+    WordCloud, Map, Timeline, TimelineItem, Hero,
+    Gallery, GalleryItem, Carousel, CarouselItem,
+    CookieBanner, CookieCategory,
+    Accordion, AccordionItem,
+    Testimonials, TestimonialItem,
+    SlideCarousel, SlideItem,
+    Pricing, PricingPlan,
+    FAQ, FAQItem,
+    Chart, ChartDataset,
+    Calendar, CalendarEvent,
+    TextStyle, Colors, MeshBackground,
+)
+
+
+def register_routes(app):
+    @app.route("/api/widgets_echo", methods=["POST"])
+    def widgets_echo(req):
+        data = req.json()
+        name = (data.get("aw_name", {}) or {}).get("valor", "")
+        lang = (data.get("aw_lang", {}) or {}).get("etiqueta", "")
+        stack = (data.get("aw_stack", {}) or {}).get("etiquetas", [])
+        return {
+            "ok": True,
+            "mensaje": f"Hola {name or 'mundo'}",
+            "lenguaje": lang,
+            "stack": stack,
+            "raw": data,
+        }
+
+
+def _section(title, subtitle, children):
+    return Card(
+        padding=20,
+        children=[
+            Column(gap=4, style="margin-bottom:12px", children=[
+                Heading(title, level=3, style=TextStyle(size=18, weight="700")),
+                Text(subtitle, style=TextStyle(size=13, color="var(--text-muted)")),
+            ]),
+            Column(gap=10, children=children),
+        ],
+    )
+
+
+def all_widgets():
+    return Column(
+        style=MeshBackground.themed(),
+        padding=32,
+        gap=18,
+        children=[
+            Heading("Todos los widgets", style=TextStyle(size=42, weight="800")),
+            Paragraph(
+                "Esta pagina se genera automaticamente con `martin new` y muestra todos los widgets disponibles.",
+                style=TextStyle(size=15, color="var(--text-muted)"),
+            ),
+
+            _section("Layout", "Container, Row, Column, Grid, Stack, Card, Section, Spacer, Divider", [
+                Container(
+                    padding=12,
+                    style="border:1px solid var(--border);background:var(--surface-2,var(--surface));",
+                    children=[Text("Container base")],
+                ),
+                Row(gap=8, wrap=True, children=[Badge("Row A"), Badge("Row B"), Badge("Row C")]),
+                Column(gap=6, children=[Text("Column item 1"), Text("Column item 2")]),
+                Grid(columns=3, gap=8, children=[
+                    Card(padding=10, children=[Text("Grid 1")]),
+                    Card(padding=10, children=[Text("Grid 2")]),
+                    Card(padding=10, children=[Text("Grid 3")]),
+                ]),
+                Stack(children=[
+                    Container(
+                        style="height:90px;background:linear-gradient(135deg,#6366f1,#22d3ee);border-radius:10px",
+                        children=[],
+                    ),
+                    Container(
+                        style="display:flex;align-items:center;justify-content:center;height:90px;color:#fff;font-weight:700",
+                        children=[Text("Stack overlay", color="#fff")],
+                    ),
+                ]),
+                Section(
+                    padding=20,
+                    style="border:1px dashed var(--border);border-radius:10px",
+                    children=[Text("Section dentro de la demo")],
+                ),
+                Row(align="center", children=[Text("Antes"), Spacer(24), Text("Despues de Spacer")]),
+                Divider(),
+            ]),
+
+            _section("Texto", "Heading, Text, Paragraph, Link, Code", [
+                Heading("Heading ejemplo", level=4),
+                Text("Texto base"),
+                Paragraph("Parrafo de ejemplo con estilo legible para contenido largo."),
+                Link("Enlace interno", href="/components"),
+                Row(gap=8, align="center", children=[Text("Inline"), Code("print('hola')")]),
+                Code("def sumar(a, b):\\n    return a + b", block=True, language="python"),
+            ]),
+
+            _section("Media", "Image, Video, Icon, Avatar", [
+                Row(gap=12, wrap=True, align="center", children=[
+                    Image("/assets/icon.webp", width=72, height=72, radius=8),
+                    Avatar(initials="MW", background=Colors.indigo, color="#fff"),
+                    Icon("🎬", size=28),
+                ]),
+                Video(
+                    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+                    controls=True,
+                    width=320,
+                    style="border-radius:12px;overflow:hidden",
+                ),
+            ]),
+
+            _section("Inputs + API", "Button, TextField, TextArea, Checkbox, Select, MultiSelect, Ref, ApiCall, ResultBox", [
+                Grid(columns=2, gap=10, children=[
+                    TextField(id="aw_name", placeholder="Tu nombre"),
+                    Select(id="aw_lang", options=[("py", "Python"), ("js", "JavaScript"), ("rs", "Rust")], search=True),
+                ]),
+                TextArea(placeholder="Comentario rapido...", rows=2, max_length=120),
+                MultiSelect(
+                    id="aw_stack",
+                    options=["Frontend", "Backend", "Data", "DevOps", "QA"],
+                    values=["Backend"],
+                ),
+                Row(gap=10, wrap=True, children=[
+                    Checkbox("Acepto terminos", checked=True),
+                    Button(
+                        "Enviar al endpoint demo",
+                        on_click=ApiCall(
+                            "/api/widgets_echo",
+                            method="POST",
+                            target="aw_result",
+                            body={
+                                "name": Ref("aw_name"),
+                                "lang": Ref("aw_lang"),
+                                "stack": Ref("aw_stack"),
+                            },
+                        ),
+                    ),
+                ]),
+                ResultBox(id="aw_result", format="json"),
+            ]),
+
+            _section("Feedback", "Badge y Alert", [
+                Row(gap=8, wrap=True, children=[
+                    Badge("Nuevo"),
+                    Badge("Pro", background=Colors.indigo, color="#fff"),
+                    Badge("Warning", background="#f59e0b", color="#111"),
+                ]),
+                Alert("Operacion completada", variant="success", title="OK"),
+                Alert("Revisa este paso", variant="warning"),
+            ]),
+
+            _section("Navigation", "NavBar, Footer, Breadcrumb, Tabs", [
+                NavBar(
+                    brand=Text("MiniNav", style=TextStyle(weight="700")),
+                    links=[Link("Inicio", href="/"), Link("Widgets", href="/all-widgets")],
+                    actions=[ThemeToggle()],
+                ),
+                Breadcrumb([("Inicio", "/"), ("Demo", "/all-widgets"), ("Actual", None)]),
+                Tabs([
+                    ("Perfil", Text("Contenido pestaña Perfil")),
+                    ("Equipo", Text("Contenido pestaña Equipo")),
+                    ("Ajustes", Text("Contenido pestaña Ajustes")),
+                ]),
+                Footer(
+                    left=Text("Footer demo", style=TextStyle(size=12, color="var(--text-muted)")),
+                    right=Link("Volver arriba", href="#"),
+                ),
+            ]),
+
+            _section("Data + Overlay", "Table y Modal", [
+                Table(
+                    headers=["Nombre", "Rol", "Estado"],
+                    rows=[
+                        ["Ana", "Admin", Badge("Activo", background="#22c55e", color="#fff")],
+                        ["Pedro", "Editor", Badge("Pendiente", background="#f59e0b", color="#111")],
+                        ["Maria", "Viewer", Badge("Inactivo", background="var(--border)", color="var(--text-muted)")],
+                    ],
+                    searchable=True,
+                    sortable=True,
+                    page_size=2,
+                ),
+                Button("Abrir modal", on_click="openModal('all_widgets_modal')"),
+                Modal(
+                    id="all_widgets_modal",
+                    title="Modal demo",
+                    children=[
+                        Text("Este es el widget Modal en accion."),
+                        Row(gap=8, justify="flex-end", children=[
+                            Button("Cerrar", variant="ghost", on_click="closeModal('all_widgets_modal')"),
+                            Button("Aceptar", on_click="closeModal('all_widgets_modal')"),
+                        ]),
+                    ],
+                ),
+            ]),
+
+            _section("Special", "Raw, CookieBanner", [
+                Raw('<div style="padding:10px;border:1px dashed var(--border);border-radius:8px">Raw HTML renderizado</div>'),
+                CookieBanner(
+                    title="Demo de cookies",
+                    description="Este banner tambien se genera en proyectos nuevos.",
+                    categories=[
+                        CookieCategory("necessary", "Necesarias", default=True, required=True),
+                        CookieCategory("analytics", "Analiticas"),
+                    ],
+                    storage_key="martin_cookie_consent_all_widgets",
+                ),
+            ]),
+
+            _section("Compound", "Hero, Timeline, Gallery, Carousel, WordCloud, Map", [
+                Hero(
+                    title=Heading("Hero demo", level=3),
+                    subtitle=Paragraph("Seccion principal compuesta con CTA e imagen."),
+                    actions=[Button("CTA primaria"), Button("CTA secundaria", variant="ghost")],
+                    image=Image("/assets/icon.webp", width=120, radius=12),
+                    min_height=280,
+                    layout="split",
+                    align="left",
+                ),
+                Timeline(items=[
+                    TimelineItem("Inicio", date="2025-01", description="Arranca el proyecto", icon="🚀"),
+                    TimelineItem("Refactor", date="2026-03", description="Widgets modularizados", icon="✅"),
+                ]),
+                Gallery(
+                    items=[
+                        GalleryItem("/assets/icon.webp", title="Item 1"),
+                        GalleryItem("/assets/icon.webp", title="Item 2"),
+                        GalleryItem("/assets/icon.webp", title="Item 3"),
+                    ],
+                    columns=3,
+                    gap=8,
+                ),
+                Carousel(
+                    items=[
+                        CarouselItem(image="/assets/icon.webp", title="Slide 1", subtitle="Descripcion 1"),
+                        CarouselItem(image="/assets/icon.webp", title="Slide 2", subtitle="Descripcion 2"),
+                        CarouselItem(image="/assets/icon.webp", title="Slide 3", subtitle="Descripcion 3"),
+                    ],
+                    visible=2,
+                    autoplay=2500,
+                    loop=True,
+                ),
+                WordCloud(words={"Martin":10, "Widgets":9, "Python":8, "Web":7, "API":6}, width=520, height=220),
+                Map(
+                    zoom=6,
+                    height=320,
+                    markers=[
+                        (-2.897, -79.004, "Cuenca", "Azuay", "#6366f1", "CUE"),
+                        (-0.180, -78.467, "Quito", "Pichincha", "#22c55e", "UIO"),
+                    ],
+                ),
+            ]),
+
+            _section("Advanced Components", "Accordion, Testimonials, SlideCarousel, Pricing, FAQ, Chart, Calendar", [
+                Accordion(items=[
+                    AccordionItem("Que es Martin?", content="Un framework web en Python."),
+                    AccordionItem("Soporta componentes?", content="Si, con arquitectura de widgets."),
+                ]),
+                Testimonials(items=[
+                    TestimonialItem(name="Ana", text="Excelente DX.", role="Frontend"),
+                    TestimonialItem(name="Luis", text="Productivo y limpio.", role="Backend"),
+                ], mode="grid", columns=2),
+                SlideCarousel(items=[
+                    SlideItem(Card(padding=20, children=[Heading("Slide A", level=4), Text("Contenido A")])),
+                    SlideItem(Card(padding=20, children=[Heading("Slide B", level=4), Text("Contenido B")])),
+                    SlideItem(Card(padding=20, children=[Heading("Slide C", level=4), Text("Contenido C")])),
+                ], visible=2, gap=12, autoplay=True, interval=2500),
+                Pricing(plans=[
+                    PricingPlan("Starter", "9", features=["1 proyecto", "Soporte base"], cta_label="Elegir"),
+                    PricingPlan("Pro", "29", featured=True, features=["Proyectos ilimitados", "Soporte prioritario"], cta_label="Comenzar"),
+                    PricingPlan("Team", "79", features=["Equipo", "Roles", "SSO"], cta_label="Contactar"),
+                ], columns=3, toggle=True),
+                FAQ(items=[
+                    FAQItem("Se puede exportar estatico?", "Si, con `martin export`."),
+                    FAQItem("Hay hot reload?", "Si, durante `martin run`."),
+                ], searchable=True),
+                Chart(
+                    type="line",
+                    labels=["Ene", "Feb", "Mar", "Abr"],
+                    datasets=[
+                        ChartDataset("Usuarios", [12, 19, 15, 23], color="#6366f1", fill=True),
+                        ChartDataset("Ventas", [5, 9, 8, 14], color="#22c55e"),
+                    ],
+                    height=280,
+                    legend=True,
+                    download=True,
+                    title="Metrica demo",
+                ),
+                Calendar(
+                    events=[
+                        CalendarEvent("Sprint planning", "2026-03-16", start_time="09:00", end_time="10:00", color="#6366f1"),
+                        CalendarEvent("Release", "2026-03-20", all_day=True, color="#22c55e"),
+                    ],
+                    initial_view="month",
+                    locale="es",
+                    height=520,
+                ),
+            ]),
+        ],
+    )
 """
 
 
@@ -796,6 +1205,8 @@ def cmd_new(args):
         PAGE_ABOUT.replace("PROJECT_NAME", title), encoding="utf-8")
     (target / "pages" / "components.py").write_text(
         PAGE_COMPONENTS.replace("PROJECT_NAME", title), encoding="utf-8")
+    (target / "pages" / "all_widgets.py").write_text(
+        PAGE_ALL_WIDGETS.replace("PROJECT_NAME", title), encoding="utf-8")
     _write_api_example(target / "pages" / "api_example.py")
     (target / ".gitignore").write_text(GITIGNORE)
     (target / "README.md").write_text(
@@ -813,6 +1224,8 @@ def cmd_new(args):
     print("    |   |-- home.py")
     print("    |   |-- about.py")
     print("    |   +-- components.py")
+    print("    |   +-- all_widgets.py")
+    print("    |   +-- api_example.py")
     print("    +-- assets/")
     print("")
     print("  Siguiente:")

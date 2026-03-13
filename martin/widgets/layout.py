@@ -279,7 +279,7 @@ class Card(Widget):
     def render(self):
         base = (
             "background:var(--surface); border:1px solid var(--border); "
-            "border-radius:12px; overflow:hidden"
+            "border-radius:12px; overflow:visible"
         )
         inline = self._resolve_props(base)
         inner = self._render_children(self.children)
