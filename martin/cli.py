@@ -1,5 +1,9 @@
 """Martin CLI"""
-import argparse, os, sys, textwrap
+import argparse
+import importlib.util
+import shutil
+import sys
+import textwrap
 from pathlib import Path
 
 
@@ -1132,17 +1136,135 @@ def all_widgets():
     )
 """
 
+PAGE_API_EXAMPLE = """\
+from martin import (
+    Column, Heading, Text, Paragraph, Button,
+    Select, MultiSelect, ResultBox, ApiCall,
+    Border, Shadow, TextStyle,
+    GradientText, MeshBackground,
+)
+
+
+# ── Endpoints de esta página ──────────────────────────────
+# Martin llama a register_routes(app) automáticamente
+# cuando esta página se añade al router.
+def register_routes(app):
+
+    @app.route("/api/seleccion", methods=["POST"])
+    def api_seleccion(req):
+        data = req.json()
+        lenguaje = data.get("lang_select", {})   # id del Select
+        areas = data.get("areas_multi", {})      # id del MultiSelect
+        return {
+            "ok": True,
+            "recibido": {
+                "lenguaje": lenguaje.get("etiqueta"),
+                "areas": areas.get("etiquetas", []),
+            },
+            "mensaje": (
+                f"Lenguaje: {lenguaje.get('etiqueta', '?')}. "
+                f"Areas: {', '.join(areas.get('etiquetas', [])) or 'ninguna'}."
+            ),
+        }
+
+
+# ── UI de la página ───────────────────────────────────────
+def api_example():
+    return Column(
+        style=MeshBackground.themed(), padding=48, gap=32,
+        children=[
+
+            Column(gap=8, children=[
+                Heading(
+                    "Ejemplo de Backend",
+                    style=[GradientText.aurora(), TextStyle(size=40, weight="800")],
+                ),
+                Paragraph(
+                    "Selecciona valores y presiona el boton. "
+                    "El boton llama a una funcion Python en el servidor.",
+                    style=TextStyle(size=16, color="var(--text-muted)"),
+                ),
+            ]),
+
+            Column(
+                gap=20, padding=28,
+                style=[
+                    "background:var(--surface); border:1px solid var(--border)",
+                    Border(radius=16),
+                    Shadow(y=4, blur=20, color="rgba(0,0,0,0.1)"),
+                    "max-width:520px; width:100%",
+                ],
+                children=[
+
+                    Column(gap=6, children=[
+                        Text("Lenguaje",
+                             style=TextStyle(size=13, weight="600",
+                                             color="var(--text-muted)")),
+                        Select(
+                            id="lang_select",
+                            options=[
+                                ("py", "Python"),
+                                ("js", "JavaScript"),
+                                ("rs", "Rust"),
+                                ("go", "Go"),
+                                ("ts", "TypeScript"),
+                            ],
+                            value="py",
+                            search=True,
+                            radius=8,
+                        ),
+                    ]),
+
+                    Column(gap=6, children=[
+                        Text("Areas de trabajo",
+                             style=TextStyle(size=13, weight="600",
+                                             color="var(--text-muted)")),
+                        MultiSelect(
+                            id="areas_multi",
+                            options=["Diseno", "Frontend", "Backend",
+                                     "DevOps", "Testing", "Mobile"],
+                            values=["Frontend"],
+                            placeholder="Anadir area...",
+                            radius=8,
+                        ),
+                    ]),
+
+                    Button(
+                        "Enviar al servidor ->",
+                        id="send_btn",
+                        background="linear-gradient(135deg, #6366f1, #818cf8)",
+                        color="white",
+                        radius=10,
+                        style=(
+                            "border:none; font-size:15px; font-weight:700;"
+                            " padding:14px 24px;"
+                            " box-shadow:0 0 24px rgba(99,102,241,0.35);"
+                        ),
+                        on_click=ApiCall(
+                            "/api/seleccion",
+                            method="POST",
+                            target="resultado",
+                            loading="Enviando...",
+                        ),
+                    ),
+
+                    ResultBox(
+                        id="resultado",
+                        format="json",
+                    ),
+
+                ],
+            ),
+        ],
+    )
+"""
+
 
 
 # ══════════════════════════════════════════════════════════
 # COMANDOS
 # ══════════════════════════════════════════════════════════
 
-
-def _write_api_example(path):
-    """Escribe pages/api_example.py en el proyecto nuevo."""
-    code = 'from martin import (\n    Column, Heading, Text, Paragraph, Button,\n    Select, MultiSelect, ResultBox, ApiCall,\n    Border, Shadow, TextStyle,\n    GradientText, MeshBackground,\n)\n\n\n# ── Endpoints de esta página ──────────────────────────────\n# Martin llama a register_routes(app) automáticamente\n# cuando esta página se añade al router.\n\ndef register_routes(app):\n\n    @app.route("/api/seleccion", methods=["POST"])\n    def api_seleccion(req):\n        data     = req.json()\n        lenguaje = data.get("lang_select", {})   # id del Select\n        areas    = data.get("areas_multi",  {})   # id del MultiSelect\n        return {\n            "ok": True,\n            "recibido": {\n                "lenguaje": lenguaje.get("etiqueta"),\n                "areas":    areas.get("etiquetas", []),\n            },\n            "mensaje": (\n                f"Lenguaje: {lenguaje.get(\'etiqueta\', \'?\')}. "\n                f"Areas: {\', \'.join(areas.get(\'etiquetas\', [])) or \'ninguna\'}."\n            ),\n        }\n\n\n# ── UI de la página ───────────────────────────────────────\n\ndef api_example():\n    return Column(\n        style=MeshBackground.themed(), padding=48, gap=32,\n        children=[\n\n            Column(gap=8, children=[\n                Heading(\n                    "Ejemplo de Backend",\n                    style=[GradientText.aurora(), TextStyle(size=40, weight="800")],\n                ),\n                Paragraph(\n                    "Selecciona valores y presiona el boton. "\n                    "El boton llama a una funcion Python en el servidor.",\n                    style=TextStyle(size=16, color="var(--text-muted)"),\n                ),\n            ]),\n\n            Column(\n                gap=20, padding=28,\n                style=[\n                    "background:var(--surface); border:1px solid var(--border)",\n                    Border(radius=16),\n                    Shadow(y=4, blur=20, color="rgba(0,0,0,0.1)"),\n                    "max-width:520px; width:100%",\n                ],\n                children=[\n\n                    Column(gap=6, children=[\n                        Text("Lenguaje",\n                             style=TextStyle(size=13, weight="600",\n                                             color="var(--text-muted)")),\n                        Select(\n                            id="lang_select",\n                            options=[\n                                ("py", "Python"),\n                                ("js", "JavaScript"),\n                                ("rs", "Rust"),\n                                ("go", "Go"),\n                                ("ts", "TypeScript"),\n                            ],\n                            value="py",\n                            search=True,\n                            radius=8,\n                        ),\n                    ]),\n\n                    Column(gap=6, children=[\n                        Text("Areas de trabajo",\n                             style=TextStyle(size=13, weight="600",\n                                             color="var(--text-muted)")),\n                        MultiSelect(\n                            id="areas_multi",\n                            options=["Diseno", "Frontend", "Backend",\n                                     "DevOps", "Testing", "Mobile"],\n                            values=["Frontend"],\n                            placeholder="Anadir area...",\n                            radius=8,\n                        ),\n                    ]),\n\n                    Button(\n                        "Enviar al servidor ->",\n                        id="send_btn",\n                        background="linear-gradient(135deg, #6366f1, #818cf8)",\n                        color="white",\n                        radius=10,\n                        style=(\n                            "border:none; font-size:15px; font-weight:700;"\n                            " padding:14px 24px;"\n                            " box-shadow:0 0 24px rgba(99,102,241,0.35);"\n                        ),\n                        on_click=ApiCall(\n                            "/api/seleccion",\n                            method="POST",\n                            target="resultado",\n                            loading="Enviando...",\n                        ),\n                    ),\n\n                    ResultBox(\n                        id="resultado",\n                        format="json",\n                    ),\n\n                ],\n            ),\n        ],\n    )\n'
-    path.write_text(code, encoding="utf-8")
 
 def _prompt(label, default=""):
     """Pregunta interactiva con valor por defecto."""
@@ -1155,63 +1277,55 @@ def _prompt(label, default=""):
     return val or default
 
 
-def cmd_new(args):
-    name   = args.name
-    target = Path(name)
+DEFAULT_PROJECT_DESC = "Let's build an incredible idea"
+ICON_CANDIDATES = [
+    ("assets/default_icon.webp", "icon.webp"),
+    ("assets/default_icon.png", "icon.png"),
+    ("default_icon.webp", "icon.webp"),
+    ("default_icon.png", "icon.png"),
+]
 
-    if target.exists():
-        print("ERROR: La carpeta '" + name + "' ya existe.")
-        sys.exit(1)
 
-    # ── Preguntas interactivas ─────────────────────────────
-    print("")
-    print("  Nuevo proyecto Martin · '" + name + "'")
-    print("  " + "─" * 38)
+def _copy_default_icon(assets_dir: Path):
+    """Copia el icono por defecto si existe en el paquete."""
+    pkg_dir = Path(__file__).parent
+    for icon_name, dest_name in ICON_CANDIDATES:
+        src = pkg_dir / icon_name
+        if src.exists():
+            shutil.copy(src, assets_dir / dest_name)
+            return
 
-    title = _prompt("Título del proyecto", default=name)
-    desc  = _prompt("Descripción", default="Let's build an incredible idea")
 
-    print("")
+def _render_new_project_files(name: str, title: str, desc: str):
+    """Renderiza contenidos de archivos para `martin new`."""
+    main_src = (
+        MAIN_PY.replace("PROJECT_NAME", title)
+        .replace("Descripcion de tu sitio para buscadores.", desc)
+    )
+    return {
+        "main.py": main_src,
+        "pages/__init__.py": "",
+        "pages/home.py": PAGE_HOME.replace("PROJECT_NAME", title).replace(
+            "PROJECT_DESC", desc
+        ),
+        "pages/about.py": PAGE_ABOUT.replace("PROJECT_NAME", title),
+        "pages/components.py": PAGE_COMPONENTS.replace("PROJECT_NAME", title),
+        "pages/all_widgets.py": PAGE_ALL_WIDGETS.replace("PROJECT_NAME", title),
+        "pages/api_example.py": PAGE_API_EXAMPLE,
+        ".gitignore": GITIGNORE,
+        "README.md": README.replace("{name}", name),
+    }
 
-    # ── Crear estructura ───────────────────────────────────
-    target.mkdir()
-    (target / "assets").mkdir()
 
-    # Copiar icono por defecto (el usuario puede reemplazarlo)
-    _pkg_dir = Path(__file__).parent
-    import shutil as _sh
-    for _icon_name, _dest_name in [
-        ("assets/default_icon.webp", "icon.webp"),
-        ("assets/default_icon.png",  "icon.png"),
-        ("default_icon.webp",        "icon.webp"),
-        ("default_icon.png",         "icon.png"),
-    ]:
-        _src = _pkg_dir / _icon_name
-        if _src.exists():
-            _sh.copy(_src, target / "assets" / _dest_name)
-            break
-    (target / "pages").mkdir()
-    (target / "pages" / "__init__.py").write_text("", encoding="utf-8")
+def _write_project_files(target: Path, files: dict):
+    """Escribe archivos relativos al root del proyecto."""
+    for rel_path, content in files.items():
+        path = target / rel_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
 
-    main_src = (MAIN_PY
-                .replace("PROJECT_NAME", title)
-                .replace("Descripcion de tu sitio para buscadores.", desc))
 
-    (target / "main.py").write_text(main_src, encoding="utf-8")
-    (target / "pages" / "home.py").write_text(
-        PAGE_HOME.replace("PROJECT_NAME", title).replace("PROJECT_DESC", desc),
-        encoding="utf-8")
-    (target / "pages" / "about.py").write_text(
-        PAGE_ABOUT.replace("PROJECT_NAME", title), encoding="utf-8")
-    (target / "pages" / "components.py").write_text(
-        PAGE_COMPONENTS.replace("PROJECT_NAME", title), encoding="utf-8")
-    (target / "pages" / "all_widgets.py").write_text(
-        PAGE_ALL_WIDGETS.replace("PROJECT_NAME", title), encoding="utf-8")
-    _write_api_example(target / "pages" / "api_example.py")
-    (target / ".gitignore").write_text(GITIGNORE)
-    (target / "README.md").write_text(
-        README.replace("{name}", name), encoding="utf-8")
-
+def _print_new_project_summary(name: str, title: str, desc: str):
     print("  ✓  Proyecto '" + name + "' creado")
     print("")
     print("  Título      : " + title)
@@ -1234,22 +1348,59 @@ def cmd_new(args):
     print("")
 
 
+def _ensure_cwd_on_syspath():
+    cwd = str(Path.cwd())
+    if cwd not in sys.path:
+        sys.path.insert(0, cwd)
+    return cwd
+
+
+def _load_module_from_file(main_file: Path, module_name: str):
+    source_file = str(main_file.resolve())
+    spec = importlib.util.spec_from_file_location(module_name, source_file)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("No se pudo cargar el módulo: " + source_file)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = mod
+    spec.loader.exec_module(mod)
+    return mod, source_file
+
+
+def cmd_new(args):
+    name = args.name
+    target = Path(name)
+
+    if target.exists():
+        print("ERROR: La carpeta '" + name + "' ya existe.")
+        sys.exit(1)
+
+    # ── Preguntas interactivas ─────────────────────────────
+    print("")
+    print("  Nuevo proyecto Martin · '" + name + "'")
+    print("  " + "─" * 38)
+
+    title = _prompt("Título del proyecto", default=name)
+    desc = _prompt("Descripción", default=DEFAULT_PROJECT_DESC)
+
+    print("")
+
+    # ── Crear estructura ───────────────────────────────────
+    target.mkdir()
+    assets_dir = target / "assets"
+    assets_dir.mkdir()
+    _copy_default_icon(assets_dir)
+    _write_project_files(target, _render_new_project_files(name, title, desc))
+    _print_new_project_summary(name, title, desc)
+
+
 def cmd_run(args):
     main_file = Path(args.file)
     if not main_file.exists():
         print("ERROR: No se encuentra '" + args.file + "'. Estas en la carpeta del proyecto?")
         sys.exit(1)
 
-    cwd = str(Path.cwd())
-    if cwd not in sys.path:
-        sys.path.insert(0, cwd)
-
-    import importlib.util
-    source_file = str(main_file.resolve())
-    spec = importlib.util.spec_from_file_location("_martin_main", source_file)
-    mod  = importlib.util.module_from_spec(spec)
-    sys.modules["_martin_main"] = mod
-    spec.loader.exec_module(mod)
+    cwd = _ensure_cwd_on_syspath()
+    mod, source_file = _load_module_from_file(main_file, "_martin_main")
 
     from martin import App
     hot = not args.no_reload
@@ -1282,14 +1433,8 @@ def cmd_export(args):
         print("ERROR: No se encuentra '" + args.file + "'.")
         sys.exit(1)
 
-    cwd = str(Path.cwd())
-    if cwd not in sys.path:
-        sys.path.insert(0, cwd)
-
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("_martin_main", str(main_file.resolve()))
-    mod  = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    _ensure_cwd_on_syspath()
+    mod, _ = _load_module_from_file(main_file, "_martin_export_main")
 
     from martin import App
     fmt     = getattr(args, "format", "html")
@@ -1322,11 +1467,7 @@ def cmd_version(args):
     print("martin " + __version__)
 
 
-# ══════════════════════════════════════════════════════════
-# ENTRY POINT
-# ══════════════════════════════════════════════════════════
-
-def main():
+def _build_parser():
     parser = argparse.ArgumentParser(
         prog="martin",
         description="Martin — Python web framework",
@@ -1349,17 +1490,30 @@ def main():
     p_new.add_argument("name", help="Nombre del proyecto")
 
     p_run = sub.add_parser("run", help="Inicia el servidor de desarrollo")
-    p_run.add_argument("--port",      type=int, default=3908,   help="Puerto (default: 309)")
-    p_run.add_argument("--file",      default="main.py",       help="Fichero de entrada")
-    p_run.add_argument("--no-reload", action="store_true",     help="Desactiva hot reload")
+    p_run.add_argument("--port", type=int, default=3908, help="Puerto (default: 3908)")
+    p_run.add_argument("--file", default="main.py", help="Fichero de entrada")
+    p_run.add_argument("--no-reload", action="store_true", help="Desactiva hot reload")
 
     p_exp = sub.add_parser("export", help="Exporta el proyecto")
-    p_exp.add_argument("--file",   default="main.py",  help="Fichero de entrada")
-    p_exp.add_argument("--out",    default="dist",     help="Carpeta de destino (default: dist)")
-    p_exp.add_argument("--format", default="split",    choices=["html", "split"],
-                       help="html = un fichero por pagina | split = HTML + CSS + JS separados")
+    p_exp.add_argument("--file", default="main.py", help="Fichero de entrada")
+    p_exp.add_argument("--out", default="dist", help="Carpeta de destino (default: dist)")
+    p_exp.add_argument(
+        "--format",
+        default="split",
+        choices=["html", "split"],
+        help="html = un fichero por pagina | split = HTML + CSS + JS separados",
+    )
 
     sub.add_parser("version", help="Muestra la version")
+    return parser
+
+
+# ══════════════════════════════════════════════════════════
+# ENTRY POINT
+# ══════════════════════════════════════════════════════════
+
+def main():
+    parser = _build_parser()
 
     args = parser.parse_args()
 
