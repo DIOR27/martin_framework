@@ -13,14 +13,9 @@ from .navigation import NavBar, Footer, Breadcrumb, Tabs
 from .data import Table
 from .overlay import Modal
 from .special import Raw, ThemeToggle, CookieCategory, CookieBanner
-from .compound import (
-    Ref,
-    ApiCall,
-    ResultBox,
-    WordCloud,
-    Map,
-    Timeline,
-    TimelineItem,
+from .api import Ref, ApiCall, ResultBox
+from .dataviz import WordCloud, Map, Timeline, TimelineItem, Chart, ChartDataset
+from .marketing import (
     Hero,
     Gallery,
     GalleryItem,
@@ -36,11 +31,8 @@ from .compound import (
     PricingPlan,
     FAQ,
     FAQItem,
-    Chart,
-    ChartDataset,
-    Calendar,
-    CalendarEvent,
 )
+from .calendar import Calendar, CalendarEvent
 
 __all__ = [
     # Layout
