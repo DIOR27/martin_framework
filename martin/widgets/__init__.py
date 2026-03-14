@@ -9,7 +9,7 @@ from .text import Text, Heading, Paragraph, Link, Code
 from .media import Image, Video, Icon, Avatar
 from .input import Button, TextField, TextArea, Checkbox, Select, MultiSelect
 from .feedback import Badge, Alert
-from .navigation import NavBar, Footer, Breadcrumb, Tabs
+from .navigation import NavBar, SideMenu, Footer, Breadcrumb, Tabs
 from .data import Table
 from .overlay import Modal
 from .special import Raw, ThemeToggle, CookieCategory, CookieBanner
@@ -68,6 +68,7 @@ __all__ = [
     "Alert",
     # Navigation
     "NavBar",
+    "SideMenu",
     "Footer",
     "Breadcrumb",
     "Tabs",

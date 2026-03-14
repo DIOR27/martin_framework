@@ -57,6 +57,7 @@ from .widgets import (
     Alert,
     # Navigation
     NavBar,
+    SideMenu,
     Footer,
     Breadcrumb,
     Tabs,
@@ -147,6 +148,7 @@ __all__ = [
     "Badge",
     "Alert",
     "NavBar",
+    "SideMenu",
     "Footer",
     "Breadcrumb",
     "Tabs",

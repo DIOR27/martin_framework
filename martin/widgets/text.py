@@ -13,6 +13,8 @@ Todo lo que sea palabras vive aquí.
 import json as _json
 
 from ..widget import Widget
+from .._context import get_current_path
+from .._routing import paths_match
 
 
 # =============================================================================
@@ -122,7 +124,15 @@ class Link(Widget):
     """
 
     def __init__(
-        self, content=None, href="#", target=None, child=None, children=None, **kwargs
+        self,
+        content=None,
+        href="#",
+        target=None,
+        child=None,
+        children=None,
+        auto_active=True,
+        class_name=None,
+        **kwargs,
     ):
         self._props = Widget._extract_props(kwargs)
         self.content = content
@@ -130,10 +140,35 @@ class Link(Widget):
         self.target = target
         self.child = child
         self.children = children
+        self.auto_active = auto_active
+        self.class_name = class_name
+
+    def _is_active(self):
+        if not self.auto_active:
+            return False
+        if self.target and self.target != "_self":
+            return False
+        return paths_match(get_current_path(), self.href)
 
     def render(self):
+        is_active = self._is_active()
         inline = self._resolve_props("color:var(--accent); text-decoration:underline")
-        attrs = self._attrs(href=self.href, target=self.target, style=inline or None)
+        if is_active:
+            inline = (inline + "; " if inline else "") + "color:var(--accent); font-weight:600"
+
+        classes = []
+        if self.class_name:
+            classes.append(self.class_name)
+        if is_active:
+            classes.extend(["martin-link-active", "mn-active"])
+
+        attrs = self._attrs(
+            href=self.href,
+            target=self.target,
+            style=inline or None,
+            aria_current="page" if is_active else None,
+            **{"class": " ".join(classes) or None},
+        )
         inner = self._resolve_inner(self.content, self.child, self.children)
         return f"<a{attrs}>{inner}</a>"
 

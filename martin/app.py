@@ -7,6 +7,8 @@ import http.server, webbrowser
 from pathlib import Path
 from .theme import THEME_CSS, THEME_TOGGLE_JS
 from .response import Response, Request
+from ._context import set_current_path, reset_current_path
+from ._routing import paths_match
 
 
 LIVE_RELOAD_SCRIPT = """
@@ -364,7 +366,7 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
         for path in self._router.paths():
             _, title = self._router.resolve(path)
             label = title or path.strip("/").capitalize() or "Inicio"
-            is_active = path == current_path
+            is_active = paths_match(current_path, path)
             act_cls = ' class="mn-active"' if is_active else ""
             if self._export_mode:
                 href = "index.html" if path == "/" else (path.lstrip("/") + ".html")
@@ -625,44 +627,52 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
                 import traceback
 
                 tb = traceback.format_exc()
-                return self._wrap(
-                    f'<pre style="color:#f87171;padding:32px;font-size:13px;'
-                    f'line-height:1.6">Error:\n\n{tb}</pre>',
-                    path=path,
-                )
+                path_token = set_current_path(path)
+                try:
+                    return self._wrap(
+                        f'<pre style="color:#f87171;padding:32px;font-size:13px;'
+                        f'line-height:1.6">Error:\n\n{tb}</pre>',
+                        path=path,
+                    )
+                finally:
+                    reset_current_path(path_token)
 
-        body = widget.render() if hasattr(widget, "render") else str(widget)
+        path_token = set_current_path(path)
+        try:
+            body = widget.render() if hasattr(widget, "render") else str(widget)
 
-        # Extraer overrides de PageConfig si existe
-        p_header = page_cfg.header if page_cfg else None
-        p_footer = page_cfg.footer if page_cfg else None
-        p_title = (
-            page_cfg.title if page_cfg and page_cfg.title else None
-        ) or page_title
-        p_theme = page_cfg.theme if page_cfg and page_cfg.theme else None
+            # Extraer overrides de PageConfig si existe
+            p_header = page_cfg.header if page_cfg else None
+            p_footer = page_cfg.footer if page_cfg else None
+            p_title = (
+                page_cfg.title if page_cfg and page_cfg.title else None
+            ) or page_title
+            p_theme = page_cfg.theme if page_cfg and page_cfg.theme else None
 
-        p_desc = page_cfg.description if page_cfg and page_cfg.description else None
-        p_keywords = page_cfg.keywords if page_cfg and page_cfg.keywords else None
-        p_og_image = page_cfg.og_image if page_cfg and page_cfg.og_image else None
-        p_canonical = page_cfg.canonical if page_cfg and page_cfg.canonical else None
-        p_noindex = page_cfg.noindex if page_cfg else False
-        p_schema = page_cfg.schema if page_cfg and page_cfg.schema else None
-        p_og_type = page_cfg.og_type if page_cfg and page_cfg.og_type else "website"
-        return self._wrap(
-            body,
-            path=path,
-            page_title=p_title,
-            page_header=p_header,
-            page_footer=p_footer,
-            page_theme=p_theme,
-            page_desc=p_desc,
-            page_keywords=p_keywords,
-            page_og_image=p_og_image,
-            page_canonical=p_canonical,
-            page_noindex=p_noindex,
-            page_schema=p_schema,
-            page_og_type=p_og_type,
-        )
+            p_desc = page_cfg.description if page_cfg and page_cfg.description else None
+            p_keywords = page_cfg.keywords if page_cfg and page_cfg.keywords else None
+            p_og_image = page_cfg.og_image if page_cfg and page_cfg.og_image else None
+            p_canonical = page_cfg.canonical if page_cfg and page_cfg.canonical else None
+            p_noindex = page_cfg.noindex if page_cfg else False
+            p_schema = page_cfg.schema if page_cfg and page_cfg.schema else None
+            p_og_type = page_cfg.og_type if page_cfg and page_cfg.og_type else "website"
+            return self._wrap(
+                body,
+                path=path,
+                page_title=p_title,
+                page_header=p_header,
+                page_footer=p_footer,
+                page_theme=p_theme,
+                page_desc=p_desc,
+                page_keywords=p_keywords,
+                page_og_image=p_og_image,
+                page_canonical=p_canonical,
+                page_noindex=p_noindex,
+                page_schema=p_schema,
+                page_og_type=p_og_type,
+            )
+        finally:
+            reset_current_path(path_token)
 
     def _not_found(self, path):
         from .widgets import Column, Heading, Text, Button

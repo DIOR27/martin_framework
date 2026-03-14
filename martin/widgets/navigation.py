@@ -4,12 +4,15 @@ Martin — Navigation Widgets
 Widgets que estructuran la navegación de la página.
 
     NavBar     — barra de navegación superior sticky
+    SideMenu   — menú lateral para documentación o paneles
     Footer     — pie de página con zonas left / center / right
     Breadcrumb — ruta de navegación jerárquica
     Tabs       — navegación por pestañas con contenido intercambiable
 """
 
 from ..widget import Widget
+from .._context import get_current_path
+from .._routing import paths_match
 
 
 # =============================================================================
@@ -320,3 +323,106 @@ class Tabs(Widget):
         )
 
         return f'<div style="{wrapper_style}">' + tabs_bar + panels + js + "</div>"
+
+
+# =============================================================================
+# SideMenu
+# =============================================================================
+
+
+class SideMenu(Widget):
+    """
+    Menú lateral vertical con links.
+
+        SideMenu(
+            title="Widgets",
+            items=[
+                ("Text", "#widget-text"),
+                ("Button", "#widget-button"),
+                ("Form", "/forms"),
+            ],
+        )
+
+    Parámetros:
+        title       str       título opcional del menú
+        items       list      lista de (label, href) o dict {"label","href"}
+        sticky      bool      fija el menú durante scroll (default: True)
+        top         int       offset superior en px para sticky
+        width       int|str   ancho del menú
+        bordered    bool      borde del contenedor (default: True)
+    """
+
+    def __init__(
+        self,
+        title=None,
+        items=None,
+        sticky=True,
+        top=84,
+        width=260,
+        bordered=True,
+        id=None,
+        class_name=None,
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.title = title
+        self.items = items or []
+        self.sticky = sticky
+        self.top = top
+        self.width = width
+        self.bordered = bordered
+        self.id = id
+        self.class_name = class_name
+
+    @staticmethod
+    def _item_parts(item):
+        if isinstance(item, (tuple, list)):
+            if not item:
+                return None, None
+            label = item[0]
+            href = item[1] if len(item) > 1 else "#"
+            return label, href
+        if isinstance(item, dict):
+            return item.get("label"), item.get("href", "#")
+        return str(item), "#"
+
+    def render(self):
+        sticky_css = (
+            f"position:sticky;top:{self.top}px;align-self:flex-start;" if self.sticky else ""
+        )
+        width_css = f"width:{self.width}px;" if isinstance(self.width, (int, float)) else f"width:{self.width};"
+        border_css = "border:1px solid var(--border);" if self.bordered else ""
+        base = (
+            f"{sticky_css}{width_css}{border_css}"
+            "background:var(--surface);border-radius:12px;padding:14px;"
+            "display:flex;flex-direction:column;gap:10px"
+        )
+        inline = self._resolve_props(base)
+        attrs = self._attrs(style=inline, id=self.id, **{"class": self.class_name})
+
+        title_html = ""
+        if self.title:
+            title_html = (
+                f'<div style="font-size:13px;font-weight:700;color:var(--text);'
+                f'letter-spacing:.02em;text-transform:uppercase">{self.title}</div>'
+            )
+
+        current_path = get_current_path()
+        links = []
+        for item in self.items:
+            label, href = self._item_parts(item)
+            if label is None:
+                continue
+
+            is_active = paths_match(current_path, href)
+            label_html = label.render() if isinstance(label, Widget) else str(label)
+            active_css = "color:var(--accent);font-weight:600;background:rgba(99,102,241,.10);" if is_active else ""
+            aria_current = ' aria-current="page"' if is_active else ""
+            links.append(
+                f'<a href="{href}"{aria_current} style="display:block;padding:8px 10px;'
+                f'border-radius:8px;text-decoration:none;color:var(--text-muted);'
+                f'font-size:14px;line-height:1.35;transition:all .18s;{active_css}">{label_html}</a>'
+            )
+
+        links_html = "".join(links)
+        return f"<aside{attrs}>{title_html}<nav>{links_html}</nav></aside>"
