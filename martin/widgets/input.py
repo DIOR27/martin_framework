@@ -761,8 +761,6 @@ class MultiSelect(Widget):
             "render();"
             f"}})();</script>"
         )
-
-
 # =============================================================================
 # Slider
 # =============================================================================
@@ -900,18 +898,14 @@ class Slider(Widget):
 
         if not self.is_range:
             # ── Slider simple ─────────────────────────────────────────────
+            # Track visual separado (div) para evitar que theme.py sobreescriba
+            # el background del input con !important.
             pct = (v1 - mn) / (mx - mn) * 100 if mx != mn else 0
-            # Track con color via CSS gradient (actualizado en JS)
-            track_bg = (
-                f"linear-gradient(to right,{color} {pct:.1f}%,"
-                f"var(--border,#334155) {pct:.1f}%)"
-            )
             name_attr = f' name="{self.name}"' if self.name else ""
-            # JS: actualiza track + display sin comillas conflictivas
             js_update = (
                 f"var p=(this.value-{mn})/({mx}-{mn})*100;"
-                f"this.style.background="
-                f"'linear-gradient(to right,{color} '+p+'%,var(--border,#334155) '+p+'%)';"
+                f"var f=document.getElementById('{uid}_fill');"
+                f"if(f)f.style.width=p+'%';"
             )
             if self.show_value:
                 js_update += (
@@ -919,10 +913,18 @@ class Slider(Widget):
                     f"if(d)d.textContent='{self.format}'.replace('{{v}}',this.value);"
                 )
             track_html = (
+                f'<div style="position:relative;height:28px;display:flex;align-items:center">'
+                f'<div style="position:absolute;left:0;right:0;height:6px;'
+                f'border-radius:3px;background:var(--border,#334155)">'
+                f'<div id="{uid}_fill" style="position:absolute;left:0;top:0;height:100%;'
+                f'width:{pct:.1f}%;background:{color};border-radius:3px"></div>'
+                f'</div>'
                 f'<input type="range" id="{uid}" min="{mn}" max="{mx}" '
                 f'step="{st}" value="{v1}"{name_attr}{dis} '
-                f'style="width:100%;background:{track_bg}" '
+                f'style="position:absolute;left:0;right:0;width:100%;'
+                f'margin:0;background:transparent !important;z-index:3;cursor:pointer" '
                 f'oninput="{js_update}">'
+                f'</div>'
             )
             body = hdr + track_html + ticks
 
@@ -2165,7 +2167,7 @@ class ColorPicker(Widget):
                 f'<input type="text" id="{uid}_hex" value="{val}" maxlength="7"'
                 f' placeholder="#000000"{dis}'
                 f' style="width:90px;padding:7px 10px;border:1px solid var(--border-input,var(--border));'
-                f"border-radius:6px;font-size:13px;font-family:monospace;outline:none;"
+                f'border-radius:6px;font-size:13px;font-family:monospace;outline:none;'
                 f'background:var(--input-bg,var(--surface));color:var(--text);transition:border-color .2s"'
                 f' oninput="{uid}_hexInput(this.value)"'
                 f' onblur="{uid}_hexBlur(this)">'
@@ -2173,26 +2175,25 @@ class ColorPicker(Widget):
 
         hidden = (
             f'<input type="hidden" id="{uid}_val" name="{self.name}" value="{val}">'
-            if self.name
-            else ""
+            if self.name else ""
         )
 
         presets_html = ""
         if self.presets:
             dots = "".join(
-                f"<div onclick=\"{uid}_update('{c}')\" "
+                f'<div onclick="{uid}_update(\'{c}\')" '
                 f'title="{c}" '
                 f'style="width:26px;height:26px;border-radius:6px;background:{c};'
-                f"cursor:pointer;border:2px solid transparent;"
-                f"transition:transform .15s,border-color .15s;"
+                f'cursor:pointer;border:2px solid transparent;'
+                f'transition:transform .15s,border-color .15s;'
                 f'box-shadow:0 1px 4px rgba(0,0,0,.2)"'
-                f" onmouseover=\"this.style.transform='scale(1.2)'\""
-                f" onmouseout=\"this.style.transform='scale(1)'\"></div>"
+                f' onmouseover="this.style.transform=\'scale(1.2)\'"'
+                f' onmouseout="this.style.transform=\'scale(1)\'"></div>'
                 for c in self.presets
             )
             presets_html = (
                 f'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">'
-                f"{dots}</div>"
+                f'{dots}</div>'
             )
 
         js = (
@@ -2224,15 +2225,15 @@ class ColorPicker(Widget):
             + f'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
             + f'<label for="{uid}_native" style="cursor:pointer;display:flex;align-items:center;gap:8px">'
             + f'<div id="{uid}_swatch" style="width:38px;height:38px;border-radius:8px;'
-            + f"background:{val};border:2px solid var(--border);"
+            + f'background:{val};border:2px solid var(--border);'
             + f'box-shadow:0 2px 8px rgba(0,0,0,.15);flex-shrink:0;transition:background .1s"></div>'
             + f'<input type="color" id="{uid}_native" value="{val}"{dis} '
             + f'style="position:absolute;opacity:0;width:38px;height:38px;cursor:pointer;border:none;padding:0"'
             + f' oninput="{uid}_update(this.value)">'
             + hex_input
             + hidden
-            + f"</label>"
-            + f"</div>"
+            + f'</label>'
+            + f'</div>'
             + presets_html
             + js
             + "</div>"
@@ -2283,38 +2284,14 @@ class DatePicker(Widget):
     _id_counter = 0
 
     _MONTHS = {
-        "es": [
-            "Enero",
-            "Febrero",
-            "Marzo",
-            "Abril",
-            "Mayo",
-            "Junio",
-            "Julio",
-            "Agosto",
-            "Septiembre",
-            "Octubre",
-            "Noviembre",
-            "Diciembre",
-        ],
-        "en": [
-            "January",
-            "February",
-            "March",
-            "April",
-            "May",
-            "June",
-            "July",
-            "August",
-            "September",
-            "October",
-            "November",
-            "December",
-        ],
+        "es": ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+               "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"],
+        "en": ["January","February","March","April","May","June",
+               "July","August","September","October","November","December"],
     }
     _DAYS = {
-        "es": ["Lu", "Ma", "Mi", "Ju", "Vi", "S\u00e1", "Do"],
-        "en": ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"],
+        "es": ["Lu","Ma","Mi","Ju","Vi","S\u00e1","Do"],
+        "en": ["Mo","Tu","We","Th","Fr","Sa","Su"],
     }
 
     def __init__(
@@ -2421,7 +2398,7 @@ class DatePicker(Widget):
             '<line x1="16" y1="2" x2="16" y2="6"/>'
             '<line x1="8" y1="2" x2="8" y2="6"/>'
             '<line x1="3" y1="10" x2="21" y2="10"/>'
-            "</svg>"
+            '</svg>'
         )
         arrow_icon = (
             '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" '
@@ -2434,23 +2411,20 @@ class DatePicker(Widget):
             trigger_html = (
                 f'<div id="{uid}_trigger" onclick="{uid}_open()"'
                 f' style="display:flex;align-items:center;gap:8px;padding:9px 12px;'
-                f"border:1px solid var(--border-input,var(--border));border-radius:8px;"
-                f"background:var(--input-bg,var(--surface));cursor:pointer;"
+                f'border:1px solid var(--border-input,var(--border));border-radius:8px;'
+                f'background:var(--input-bg,var(--surface));cursor:pointer;'
                 f'transition:border-color .2s;color:var(--text);font-size:14px">'
-                f"{cal_icon}"
+                f'{cal_icon}'
                 f'<span id="{uid}_disp" style="flex:1;color:{"var(--text)" if disp1 else "var(--text-muted)"}">'
-                f"{disp1 or self.placeholder}</span>"
-                f"</div>"
-                + (
-                    f'<input type="hidden" id="{uid}_val" name="{self.name}" value="{self.value}">'
-                    if self.name
-                    else f'<input type="hidden" id="{uid}_val" value="{self.value}">'
-                )
+                f'{disp1 or self.placeholder}</span>'
+                f'</div>'
+                + (f'<input type="hidden" id="{uid}_val" name="{self.name}" value="{self.value}">'
+                   if self.name else f'<input type="hidden" id="{uid}_val" value="{self.value}">')
             )
         else:
             trigger_html = (
                 f'<div style="display:flex;align-items:stretch;'
-                f"border:1px solid var(--border-input,var(--border));border-radius:10px;"
+                f'border:1px solid var(--border-input,var(--border));border-radius:10px;'
                 f'overflow:hidden;background:var(--input-bg,var(--surface))">'
                 f'<div id="{uid}_t1" onclick="{uid}_open(\'start\')"'
                 f' style="display:flex;align-items:center;gap:8px;padding:10px 14px;'
@@ -2460,10 +2434,10 @@ class DatePicker(Widget):
                 f'text-transform:uppercase;color:var(--text-muted)">{self.label_start}</span>'
                 f'<span id="{uid}_d1" style="font-size:14px;'
                 f'color:{"var(--text)" if disp1 else "var(--text-muted)"}">'
-                f"{disp1 or self.placeholder_start}</span>"
-                f"</div></div>"
+                f'{disp1 or self.placeholder_start}</span>'
+                f'</div></div>'
                 f'<div style="display:flex;align-items:center;padding:0 4px;color:var(--text-muted)">'
-                f"{arrow_icon}</div>"
+                f'{arrow_icon}</div>'
                 f'<div id="{uid}_t2" onclick="{uid}_open(\'end\')"'
                 f' style="display:flex;align-items:center;gap:8px;padding:10px 14px;'
                 f'flex:1;cursor:pointer;border-left:1px solid var(--border);transition:background .15s">'
@@ -2472,19 +2446,13 @@ class DatePicker(Widget):
                 f'text-transform:uppercase;color:var(--text-muted)">{self.label_end}</span>'
                 f'<span id="{uid}_d2" style="font-size:14px;'
                 f'color:{"var(--text)" if disp2 else "var(--text-muted)"}">'
-                f"{disp2 or self.placeholder_end}</span>"
-                f"</div></div>"
-                f"</div>"
-                + (
-                    f'<input type="hidden" id="{uid}_v1" name="{self.name_start}" value="{self.value}">'
-                    if self.name_start
-                    else f'<input type="hidden" id="{uid}_v1" value="{self.value}">'
-                )
-                + (
-                    f'<input type="hidden" id="{uid}_v2" name="{self.name_end}" value="{self.value_end}">'
-                    if self.name_end
-                    else f'<input type="hidden" id="{uid}_v2" value="{self.value_end}">'
-                )
+                f'{disp2 or self.placeholder_end}</span>'
+                f'</div></div>'
+                f'</div>'
+                + (f'<input type="hidden" id="{uid}_v1" name="{self.name_start}" value="{self.value}">'
+                   if self.name_start else f'<input type="hidden" id="{uid}_v1" value="{self.value}">')
+                + (f'<input type="hidden" id="{uid}_v2" name="{self.name_end}" value="{self.value_end}">'
+                   if self.name_end else f'<input type="hidden" id="{uid}_v2" value="{self.value_end}">')
             )
 
         calendar_html = (
@@ -2495,7 +2463,7 @@ class DatePicker(Widget):
             f'<span id="{uid}_lbl" style="font-size:14px;font-weight:700;color:var(--text)"></span>'
             f'<button type="button" onclick="{uid}_next()" style="background:none;border:none;'
             f'cursor:pointer;padding:4px 8px;border-radius:6px;color:var(--text);font-size:18px">&rsaquo;</button>'
-            f"</div>"
+            f'</div>'
             f'<div id="{uid}_grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px"></div>'
             f'<div style="display:flex;justify-content:space-between;margin-top:12px;'
             f'border-top:1px solid var(--border);padding-top:10px">'
@@ -2503,7 +2471,7 @@ class DatePicker(Widget):
             f'color:var(--text-muted);background:none;border:none;cursor:pointer">Limpiar</button>'
             f'<button type="button" onclick="{uid}_close()" style="font-size:13px;font-weight:600;'
             f'color:var(--accent);background:none;border:none;cursor:pointer">Aceptar</button>'
-            f"</div></div>"
+            f'</div></div>'
         )
 
         js = f"""<script>(function(){{
@@ -2599,12 +2567,11 @@ document.addEventListener('click',function(e){{
 }});
 
 updDisp();
-}})();</script>""".replace(
-            "{uid}", uid
-        )
+}})();</script>""".replace("{uid}", uid)
 
         return (
-            css + f'<div id="{uid}_wrap" style="position:relative;display:inline-flex;'
+            css
+            + f'<div id="{uid}_wrap" style="position:relative;display:inline-flex;'
             f'flex-direction:column;width:100%{w_extra}">'
             + label_html
             + trigger_html

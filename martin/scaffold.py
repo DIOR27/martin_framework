@@ -62,7 +62,7 @@ MAIN_TEMPLATE = (
         App, Router,
         NavBar, Footer,
         Heading, Text, Link, Row, Button,
-        TextStyle, ThemeToggle,
+        TextStyle,
     )
     from pages.home import home
     from pages.components import components
@@ -88,7 +88,6 @@ MAIN_TEMPLATE = (
             Link("Componentes",  href="/components", style="color:var(--text-muted);text-decoration:none;font-size:14px"),
         ],
         actions=[
-            ThemeToggle(),
             Button("Comenzar", href="/components", radius=8),
         ],
     )
