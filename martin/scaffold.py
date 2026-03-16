@@ -108,7 +108,6 @@ MAIN_TEMPLATE = (
         header=_nav,
         footer=_footer,
         # logo="logo.png",  # archivo en assets/ — reemplaza el auto-detectado
-        # SEO global del sitio
         description="PROJECT_DESC",
         lang="es",
     )
@@ -125,92 +124,139 @@ HOME_TEMPLATE = (
     textwrap.dedent(
         """
     from martin import (
-        Column, Row, Grid, Section, Card,
-        Heading, Text, Paragraph, Button, Icon, Badge,
-        Border, Shadow, TextStyle, Glass, GradientText, MeshBackground, Colors,
+        Column,
+        Row,
+        Grid,
+        Card,
+        Heading,
+        Paragraph,
+        Text,
+        Button,
+        Code,
+        Divider,
+        Raw,
         PageConfig,
     )
 
 
-    def home():
-        hero = Section(
-            id="hero",
-            style=(
-                "text-align:center;align-items:center;display:flex;"
-                "flex-direction:column;gap:24px;min-height:85vh;justify-content:center"
-            ),
-            children=[
-                Badge("v0.2.0 \\u2014 ahora disponible"),
-                Heading(
-                    "PROJECT_NAME", level=1,
-                    style=[GradientText.aurora(), TextStyle(size=72, weight="800", letter_spacing=-3)],
-                ),
-                Paragraph(
-                    "PROJECT_DESC",
-                    style=TextStyle(size=20, color="var(--text-muted)", line_height=1.7),
-                    width=580,
-                ),
-                Row(gap=12, children=[
-                    Button(
-                        "Empezar \\u2192", href="/components",
-                        background=Colors.indigo, color="#fff",
-                        radius=10, padding=16,
-                        style="font-size:15px;font-weight:700;border:none",
-                    ),
-                    Button(
-                        "Ver en GitHub", href="https://github.com",
-                        variant="ghost", radius=10, padding=16,
-                        style="font-size:15px",
-                    ),
-                ]),
-            ],
-        )
+    _HERO_CSS = Raw(\"\"\"<style>
+    .hero-gradient {
+        background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 60%, transparent) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    .feature-card { transition: transform .2s, box-shadow .2s; }
+    .feature-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 32px rgba(0,0,0,.12);
+    }
+    </style>\"\"\")
 
-        features = Section(
-            id="features",
-            background="var(--surface)",
-            style="display:flex;flex-direction:column;gap:48px;align-items:center",
-            children=[
-                Column(gap=8, style="text-align:center;align-items:center", children=[
-                    Heading("Todo es un widget", level=2,
-                            style=TextStyle(size=36, weight="800")),
-                    Paragraph(
-                        "Construye cualquier interfaz anidando widgets Python. Sin HTML, sin CSS manual.",
-                        style=TextStyle(size=16, color="var(--text-muted)"),
-                    ),
-                ]),
-                Grid(
-                    columns="repeat(auto-fill, minmax(260px, 1fr))",
-                    gap=20, width="100%%",
-                    children=[_feature(icon, title, desc) for icon, title, desc in [
-                        ("\\U0001f9e9", "Widget tree",      "Comp\\u00f3n interfaces anidando componentes Python, como Flutter."),
-                        ("\\U0001f3a8", "Estilos propios",  "Glass(), GradientText(), Shadow()... sin escribir CSS."),
-                        ("\\u26a1",     "Hot reload",       "Guarda el fichero y el navegador se actualiza al instante."),
-                        ("\\U0001f5fa\\ufe0f", "Multi-p\\u00e1gina", "Router declarativo. Cada p\\u00e1gina en su propio fichero."),
-                        ("\\U0001f4e6", "Zero deps",        "Solo stdlib de Python. Sin dependencias de terceros."),
-                        ("\\U0001f680", "Export est\\u00e1tico", "martin export \\u2192 HTML/CSS/JS listo para cualquier hosting."),
-                    ]],
-                ),
-            ],
-        )
+
+    _FEATURES = [
+        ("\\u26a1", "R\\u00e1pido",     "Servidor de desarrollo con hot-reload. Exporta HTML est\\u00e1tico listo para producci\\u00f3n."),
+        ("\\U0001f9e9", "Composable",   "Construye interfaces complejas con widgets simples y reutilizables."),
+        ("\\U0001f3a8", "Elegante",     "Tema oscuro/claro autom\\u00e1tico. CSS moderno listo para usar desde el primer momento."),
+        ("\\U0001f40d", "Solo Python",  "Sin HTML, sin CSS, sin JavaScript. Todo se expresa en Python puro."),
+    ]
+
+
+    def home():
+        features = [
+            Card(
+                class_name="feature-card",
+                padding=24,
+                radius=14,
+                children=[
+                    Row([
+                        Text(icon, style="font-size:26px"),
+                        Heading(title, level=3, style="font-size:16px;margin:0"),
+                    ], gap=10, align="center"),
+                    Paragraph(desc, style="font-size:14px;color:var(--text-muted);margin-top:8px;line-height:1.6"),
+                ],
+            )
+            for icon, title, desc in _FEATURES
+        ]
 
         return Column(
-            style=MeshBackground.themed(),
-            children=[hero, features],
-        ), PageConfig(title="Inicio \\u2014 PROJECT_NAME", description="PROJECT_DESC")
-
-
-    def _feature(icon, title, desc):
-        return Card(
-            padding=24,
+            gap=0,
             children=[
-                Column(gap=12, children=[
-                    Icon(icon, size=32),
-                    Heading(title, level=3, style=TextStyle(size=15, weight="700")),
-                    Text(desc,  style=TextStyle(size=13, color="var(--text-muted)", line_height=1.6)),
-                ]),
+                _HERO_CSS,
+
+                # ── Hero ──────────────────────────────────────────────────
+                Column(
+                    gap=20,
+                    padding=64,
+                    style="max-width:860px;margin:0 auto;align-items:center;text-align:center;padding-top:96px;padding-bottom:80px",
+                    children=[
+                        Row([
+                            Text(
+                                "PROJECT_NAME",
+                                style=(
+                                    "font-size:13px;font-weight:600;letter-spacing:.08em;"
+                                    "text-transform:uppercase;color:var(--accent);"
+                                    "background:color-mix(in srgb,var(--accent) 12%,transparent);"
+                                    "padding:4px 12px;border-radius:999px;"
+                                    "border:1px solid color-mix(in srgb,var(--accent) 30%,transparent)"
+                                ),
+                            ),
+                        ], justify="center"),
+                        Heading(
+                            "PROJECT_DESC",
+                            level=1,
+                            class_name="hero-gradient",
+                            style="font-size:clamp(36px,6vw,64px);font-weight:800;letter-spacing:-2px;line-height:1.1;margin:0",
+                        ),
+                        Paragraph(
+                            "Construido con Martin Framework \\u2014 Python para la web, sin complicaciones.",
+                            style="font-size:18px;color:var(--text-muted);max-width:560px;line-height:1.6;margin:0",
+                        ),
+                        Row(
+                            gap=12,
+                            justify="center",
+                            style="margin-top:8px",
+                            children=[
+                                Button("Ver componentes", href="/components", style="padding:11px 24px;font-size:15px"),
+                                Button("GitHub", href="https://github.com", variant="ghost", style="padding:11px 24px;font-size:15px"),
+                            ],
+                        ),
+                    ],
+                ),
+
+                # ── Features ──────────────────────────────────────────────
+                Column(
+                    padding=48,
+                    gap=28,
+                    style="max-width:1100px;margin:0 auto;padding-top:0",
+                    children=[
+                        Divider(),
+                        Heading("\\u00bfPor qu\\u00e9 Martin?", level=2, style="font-size:26px;font-weight:700;text-align:center"),
+                        Grid(columns=2, gap=16, children=features),
+                    ],
+                ),
+
+                # ── Quick start ────────────────────────────────────────────
+                Column(
+                    padding=48,
+                    gap=20,
+                    style="max-width:760px;margin:0 auto",
+                    children=[
+                        Divider(),
+                        Heading("Inicio r\\u00e1pido", level=2, style="font-size:26px;font-weight:700"),
+                        Code(
+                            "martin new mi_proyecto\\ncd mi_proyecto\\nmartin run",
+                            language="bash",
+                            block=True,
+                        ),
+                        Paragraph(
+                            "Tu aplicaci\\u00f3n estar\\u00e1 disponible en http://localhost:3908",
+                            style="font-size:14px;color:var(--text-muted)",
+                        ),
+                    ],
+                ),
             ],
-        )
+        ), PageConfig(title="Inicio \\u2014 PROJECT_NAME", description="PROJECT_DESC")
     """
     ).strip()
     + "\n"
@@ -225,6 +271,7 @@ COMPONENTS_TEMPLATE = (
         Heading, Text, Paragraph, Link, Code, Button, Icon, Badge, Alert,
         Image, Avatar, NavBar, Footer, Tabs, Breadcrumb,
         Table, Modal, TextField, TextArea, Select, MultiSelect, Checkbox,
+        Slider, ColorPicker, DatePicker,
         WordCloud, Map, Timeline, TimelineItem, Hero,
         Gallery, GalleryItem, Carousel, CarouselItem,
         CookieBanner, CookieCategory,
@@ -235,14 +282,11 @@ COMPONENTS_TEMPLATE = (
     from martin.widgets import __all__ as MARTIN_WIDGETS
 
 
-    # ── Helpers ──────────────────────────────────────────────────────────────
-
     def _slug(name: str) -> str:
         return name.lower().replace("_", "-")
 
 
     def _sec(title, subtitle, children, widget_name=None):
-        \"\"\"Tarjeta de sección con ancla para el SideMenu.\"\"\"
         anchor_id = f"widget-{_slug(widget_name or title)}"
         return Card(
             id=anchor_id,
@@ -260,73 +304,12 @@ COMPONENTS_TEMPLATE = (
         )
 
 
-    # ── Snippets de código ────────────────────────────────────────────────────
-
-    SNIPPETS: dict = {
-        "Container":     "Container(children=[Text('Contenido')], padding=16)",
-        "Row":           "Row([Text('A'), Text('B')], gap=8)",
-        "Column":        "Column([Heading('Titulo'), Paragraph('Desc')], gap=8)",
-        "Grid":          "Grid(columns=3, gap=12, children=[Card(), Card(), Card()])",
-        "Stack":         "Stack([Image('bg.jpg'), Text('Sobre imagen')])",
-        "Card":          "Card(padding=20, children=[Heading('Card'), Text('Texto')])",
-        "Section":       "Section(children=[Heading('Seccion')], padding=48)",
-        "Spacer":        "Spacer(height=32)",
-        "Divider":       "Divider()",
-        "Text":          "Text('Texto corto')",
-        "Heading":       "Heading('Titulo principal', level=1)",
-        "Paragraph":     "Paragraph('Texto largo para descripcion...')",
-        "Link":          "Link('Ir a inicio', href='/')",
-        "Code":          "Code('print(\\"hola\\")', language='python')",
-        "Image":         "Image('https://picsum.photos/320/180', radius=10)",
-        "Video":         "Video(src='https://example.com/video.mp4')",
-        "Icon":          "Icon('\\u2728', size=26)",
-        "Avatar":        "Avatar(src='https://i.pravatar.cc/64', size=48)",
-        "Button":        "Button('Guardar', on_click='alert(\\'ok\\')')",
-        "TextField":     "TextField(name='email', placeholder='correo@dominio.com')",
-        "TextArea":      "TextArea(name='bio', placeholder='Cu\\u00e9ntanos algo...')",
-        "Checkbox":      "Checkbox(name='acepto', label='Acepto los t\\u00e9rminos')",
-        "Select":        "Select(name='pais', options=['Ecuador', 'Colombia', 'Peru'])",
-        "MultiSelect":   "MultiSelect(name='tags', options=['Python', 'Web', 'UI'])",
-        "Badge":         "Badge('Nuevo', color='var(--accent)')",
-        "Alert":         "Alert('Operaci\\u00f3n completada', kind='success')",
-        "NavBar":        "NavBar(brand=Heading('Marca', level=4), links=[Link('Inicio', href='/')])",
-        "SideMenu":      "SideMenu(title='Menu', items=[('Inicio', '/'), ('Docs', '/components')])",
-        "Footer":        "Footer(left=Text('\\u00a9 2026'), right=Link('Inicio', href='/'))",
-        "Breadcrumb":    "Breadcrumb([('Inicio', '/'), ('Componentes', '/components')])",
-        "Tabs":          "Tabs([('General', Text('Tab 1')), ('Avanzado', Text('Tab 2'))])",
-        "Table":         "Table(headers=['Nombre', 'Rol'], rows=[['Ana', 'Admin'], ['Luis', 'Dev']])",
-        "Modal":         "Modal(\\n    id='demo',\\n    title='Confirmaci\\u00f3n',\\n    children=[\\n        Text('\\u00bfEst\\u00e1s seguro?'),\\n        Button('Cerrar', on_click=\\"closeModal('demo')\\"),\\n    ],\\n)",
-        "ThemeToggle":   "ThemeToggle()",
-        "ApiCall":       "ApiCall('/api/demo', method='GET', target='resultado')",
-        "ResultBox":     "ResultBox(id='resultado')",
-        "Raw":           "Raw('<b>HTML directo</b>')",
-        "Ref":           "Ref(id='mi_valor')",
-        "Accordion":     "Accordion([\\n    AccordionItem('\\u00bfC\\u00f3mo funciona?', Text('Abre y cierra con clic.')),\\n])",
-        "Calendar":      "Calendar(events=[CalendarEvent(title='Lanzamiento', date='2026-06-01')])",
-        "Hero":          "Hero(\\n    title='Bienvenido',\\n    subtitle='Una gran idea',\\n    actions=[Button('Empezar', href='/')],\\n)",
-        "Gallery":       "Gallery([\\n    GalleryItem(src='https://picsum.photos/400/300', caption='Foto 1'),\\n])",
-        "Carousel":      "Carousel([\\n    CarouselItem(image='/assets/icon.webp', title='Slide 1', subtitle='Desc.'),\\n])",
-        "WordCloud":     "WordCloud(words=[('Python', 90), ('Web', 70), ('Martin', 60)])",
-        "Map":           "Map(lat=-2.9, lng=-79.0, zoom=13)",
-        "Timeline":      "Timeline([\\n    TimelineItem(title='Inicio', date='Ene 2026', body='Primer commit.'),\\n])",
-        "Chart":         "Chart(\\n    labels=['Ene', 'Feb', 'Mar'],\\n    datasets=[ChartDataset('Ventas', [10, 25, 18])],\\n)",
-        "Testimonials":  "Testimonials([\\n    TestimonialItem(text='Incre\\u00edble.', author='Mar\\u00eda', role='Dev'),\\n])",
-        "SlideCarousel": "SlideCarousel([\\n    SlideItem(title='Slide 1', body='Descripci\\u00f3n.'),\\n])",
-        "Pricing":       "Pricing([\\n    PricingPlan(name='Pro', price='$9', features=['Feature A'], highlighted=True),\\n])",
-        "FAQ":           "FAQ([\\n    FAQItem(question='\\u00bfEst\\u00e1 en pip?', answer='S\\u00ed: pip install martin'),\\n])",
-        "CookieBanner":  "CookieBanner(\\n    message='Usamos cookies para mejorar la experiencia.',\\n    privacy_url='/privacidad',\\n)",
-        "CookieCategory":"CookieCategory(name='analytics', label='Anal\\u00edtica', description='Google Analytics')",
-    }
-
-
-    # ── Secciones con widgets reales ─────────────────────────────────────────
-
     def _sections():
         all_w = set(MARTIN_WIDGETS)
 
         secs = []
 
-        # Layout
+        # ── Layout ────────────────────────────────────────────────────────
         if "Card" in all_w:
             secs.append(_sec("Layout", "Row, Column, Grid, Card, Section — los bloques estructurales.", [
                 Row([
@@ -344,26 +327,23 @@ COMPONENTS_TEMPLATE = (
                     ])]),
                 ], gap=16, wrap=True),
                 Grid(columns=3, gap=16, children=[
-                    Container(
-                        padding=16, radius=8,
-                        background="var(--surface-2,var(--surface))",
-                        style="border:1px solid var(--border);text-align:center",
-                        children=[Text(f"Celda {i+1}", style=TextStyle(size=13, color="var(--text-muted)"))],
-                    ) for i in range(3)
+                    Container(padding=16, radius=8,
+                              background="var(--surface-2,var(--surface))",
+                              style="border:1px solid var(--border);text-align:center",
+                              children=[Text(f"Celda {i+1}", style=TextStyle(size=13, color="var(--text-muted)"))],
+                              ) for i in range(3)
                 ]),
             ], widget_name="Layout"))
 
-        # Texto
+        # ── Texto ─────────────────────────────────────────────────────────
         if "Heading" in all_w:
             secs.append(_sec("Texto", "Heading (h1-h6), Text, Paragraph, Link, Code.", [
                 Heading("Heading nivel 1", level=1),
                 Heading("Heading nivel 2", level=2),
                 Heading("Heading nivel 3", level=3),
-                Paragraph(
-                    "Paragraph para bloques de texto. Tiene line-height:1.6 por defecto. "
-                    "Ideal para descripciones, onboardings o contenido editorial.",
-                    style=TextStyle(size=15, color="var(--text-muted)"),
-                ),
+                Paragraph("Paragraph para bloques de texto. Tiene line-height:1.6 por defecto. "
+                           "Ideal para descripciones, onboardings o contenido editorial.",
+                           style=TextStyle(size=15, color="var(--text-muted)")),
                 Row(gap=8, wrap=True, children=[
                     Text("Text normal"),
                     Text("Text muted",  color="var(--text-muted)"),
@@ -376,26 +356,20 @@ COMPONENTS_TEMPLATE = (
                 Code('def hola():\\n    return 42', block=True, language="python"),
             ], widget_name="Texto"))
 
-        # Code
+        # ── Code ──────────────────────────────────────────────────────────
         if "Code" in all_w:
-            secs.append(_sec("Code", "Bloques de c\\u00f3digo: syntax highlighting, bot\\u00f3n copiar, numeraci\\u00f3n, modo editable.", [
+            secs.append(_sec("Code", "Syntax highlighting, bot\\u00f3n copiar, numeraci\\u00f3n, modo editable.", [
                 Column(gap=20, children=[
-                    Code(
-                        content="from martin import App, Router, Column, Heading\\n\\nrouter = Router()\\nrouter.add('/', lambda: Column([Heading('Hola')]))\\nApp(router=router).run()",
-                        language="python", filename="main.py", copy=True,
-                    ),
-                    Code(
-                        content='[\\n  { "id": 1, "nombre": "Ana", "rol": "Admin" },\\n  { "id": 2, "nombre": "Pedro", "rol": "Editor" }\\n]',
-                        language="json", line_numbers=True, copy=True, filename="data.json",
-                    ),
-                    Code(
-                        content="pip install martin\\nmartin new mi_proyecto\\ncd mi_proyecto\\nmartin run",
-                        language="bash", copy=True,
-                    ),
+                    Code("from martin import App, Router, Column, Heading\\n\\nrouter = Router()\\nrouter.add('/', lambda: Column([Heading('Hola')]))\\nApp(router=router).run()",
+                         language="python", filename="main.py", copy=True),
+                    Code('[\\n  { "id": 1, "nombre": "Ana", "rol": "Admin" },\\n  { "id": 2, "nombre": "Pedro", "rol": "Editor" }\\n]',
+                         language="json", line_numbers=True, copy=True, filename="data.json"),
+                    Code("pip install martin\\nmartin new mi_proyecto\\ncd mi_proyecto\\nmartin run",
+                         language="bash", copy=True),
                 ]),
             ], widget_name="Code"))
 
-        # Badge & Alert
+        # ── Badge & Alert ─────────────────────────────────────────────────
         if "Badge" in all_w:
             secs.append(_sec("Badge & Alert", "Badge para etiquetas. Alert para mensajes de estado.", [
                 Row(gap=8, wrap=True, children=[
@@ -414,7 +388,7 @@ COMPONENTS_TEMPLATE = (
                 ]),
             ], widget_name="Badge"))
 
-        # Button
+        # ── Button ────────────────────────────────────────────────────────
         if "Button" in all_w:
             secs.append(_sec("Button", "Variantes, con enlace y con acci\\u00f3n JS.", [
                 Row(gap=8, wrap=True, children=[
@@ -432,7 +406,7 @@ COMPONENTS_TEMPLATE = (
                 ]),
             ], widget_name="Button"))
 
-        # Inputs
+        # ── Inputs ────────────────────────────────────────────────────────
         if "TextField" in all_w:
             secs.append(_sec("Inputs", "TextField, TextArea, Select, MultiSelect, Checkbox.", [
                 Column(gap=16, children=[
@@ -461,14 +435,71 @@ COMPONENTS_TEMPLATE = (
                 ]),
             ], widget_name="TextField"))
 
-        # Avatar & Image
+        # ── Slider ────────────────────────────────────────────────────────
+        if "Slider" in all_w:
+            secs.append(_sec("Slider", "Control deslizante simple o de rango doble.", [
+                Column(gap=24, children=[
+                    Slider(label="Volumen", min=0, max=100, value=70, format="{v}%"),
+                    Slider(label="Temperatura", min=16, max=30, value=22, step=1,
+                           format="{v}\\u00b0C", show_ticks=True, color="#f59e0b"),
+                    Slider(
+                        label="Rango de precio",
+                        min=0, max=1000, value=150, value_max=600,
+                        range=True, format="${v}", step=10, color=Colors.indigo,
+                    ),
+                ]),
+            ], widget_name="Slider"))
+
+        # ── ColorPicker ───────────────────────────────────────────────────
+        if "ColorPicker" in all_w:
+            secs.append(_sec("ColorPicker", "Selector de color con swatch, hex editable y presets.", [
+                Row(gap=32, wrap=True, children=[
+                    ColorPicker(
+                        label="Color de marca",
+                        value="#6366f1",
+                        presets=["#6366f1","#f59e0b","#ef4444","#22c55e","#0ea5e9","#8b5cf6","#ec4899"],
+                    ),
+                    ColorPicker(
+                        label="Color de fondo",
+                        value="#1e293b",
+                        show_hex=True,
+                    ),
+                ]),
+            ], widget_name="ColorPicker"))
+
+        # ── DatePicker ────────────────────────────────────────────────────
+        if "DatePicker" in all_w:
+            secs.append(_sec("DatePicker", "Selector de fecha simple o rango al estilo reservas de hotel/vuelo.", [
+                Column(gap=24, children=[
+                    DatePicker(label="Fecha de nacimiento", value="2000-01-15"),
+                    DatePicker(
+                        label="Fechas de estancia",
+                        range=True,
+                        value="2026-06-10",
+                        value_end="2026-06-17",
+                        label_start="Check-in",
+                        label_end="Check-out",
+                        min_date="2026-01-01",
+                    ),
+                    DatePicker(
+                        label="Vuelo de ida y vuelta",
+                        range=True,
+                        label_start="Ida",
+                        label_end="Vuelta",
+                        placeholder_start="\\u00bfCu\\u00e1ndo sales?",
+                        placeholder_end="\\u00bfCu\\u00e1ndo vuelves?",
+                    ),
+                ]),
+            ], widget_name="DatePicker"))
+
+        # ── Avatar & Image ────────────────────────────────────────────────
         if "Avatar" in all_w:
             secs.append(_sec("Avatar & Image", "Avatares con imagen o iniciales. Im\\u00e1genes con estilos.", [
                 Row(gap=12, align="center", wrap=True, children=[
                     Avatar(initials="AB"),
                     Avatar(initials="CD", background=Colors.indigo, color="#fff"),
-                    Avatar(initials="EF", background="#f59e0b",    color="#fff", width=56, height=56),
-                    Avatar(initials="GH", background="#ef4444",    color="#fff"),
+                    Avatar(initials="EF", background="#f59e0b", color="#fff", width=56, height=56),
+                    Avatar(initials="GH", background="#ef4444", color="#fff"),
                     Avatar("/assets/icon.webp"),
                 ]),
                 Row(gap=16, wrap=True, children=[
@@ -478,7 +509,7 @@ COMPONENTS_TEMPLATE = (
                 ]),
             ], widget_name="Avatar"))
 
-        # NavBar & Footer
+        # ── NavBar & Footer ───────────────────────────────────────────────
         if "NavBar" in all_w:
             secs.append(_sec("NavBar & Footer", "Cabecera y pie de p\\u00e1gina totalmente declarativos.", [
                 NavBar(
@@ -510,7 +541,7 @@ COMPONENTS_TEMPLATE = (
                 ),
             ], widget_name="NavBar"))
 
-        # Tabs
+        # ── Tabs ──────────────────────────────────────────────────────────
         if "Tabs" in all_w:
             secs.append(_sec("Tabs", "Navegaci\\u00f3n por pesta\\u00f1as con contenido diferente en cada una.", [
                 Tabs([
@@ -523,7 +554,7 @@ COMPONENTS_TEMPLATE = (
                     ("Seguridad", Column(gap=12, padding=8, children=[
                         Heading("Seguridad", level=4),
                         TextField(placeholder="Contrase\\u00f1a actual", type="password"),
-                        TextField(placeholder="Nueva contrase\\u00f1a", type="password"),
+                        TextField(placeholder="Nueva contrase\\u00f1a",  type="password"),
                         Button("Actualizar", variant="danger"),
                     ])),
                     ("Notificaciones", Column(gap=12, padding=8, children=[
@@ -535,23 +566,23 @@ COMPONENTS_TEMPLATE = (
                 ]),
             ], widget_name="Tabs"))
 
-        # Table
+        # ── Table ─────────────────────────────────────────────────────────
         if "Table" in all_w:
             secs.append(_sec("Table", "Tabla interactiva: sort por columna, b\\u00fasqueda y paginaci\\u00f3n.", [
                 Table(
                     headers=["Nombre", "Ciudad", "Rol", "Estado", "Acci\\u00f3n"],
                     rows=[
-                        [Row([Avatar(initials="AG", background=Colors.indigo, color="#fff", width=28, height=28), Spacer(8), Text("Ana Garc\\u00eda")],   align="center"), "Bogot\\u00e1",  Text("Admin"),  Badge("Activo",    background="#22c55e"),                               Button("Ver", variant="ghost", padding=4, radius=4)],
+                        [Row([Avatar(initials="AG", background=Colors.indigo, color="#fff", width=28, height=28), Spacer(8), Text("Ana Garc\\u00eda")],   align="center"), "Bogot\\u00e1",   Text("Admin"),  Badge("Activo",    background="#22c55e"),                               Button("Ver", variant="ghost", padding=4, radius=4)],
                         [Row([Avatar(initials="PL", background="#f59e0b",    color="#fff", width=28, height=28), Spacer(8), Text("Pedro L\\u00f3pez")],  align="center"), "Medell\\u00edn", Text("Editor"), Badge("Inactivo",  background="var(--border)", color="var(--text-muted)"), Button("Ver", variant="ghost", padding=4, radius=4)],
-                        [Row([Avatar(initials="MS", background="#ef4444",    color="#fff", width=28, height=28), Spacer(8), Text("Mar\\u00eda Silva")],  align="center"), "Cali",          Text("Viewer"), Badge("Activo",    background="#22c55e"),                               Button("Ver", variant="ghost", padding=4, radius=4)],
-                        [Row([Avatar(initials="JR", background="#8b5cf6",    color="#fff", width=28, height=28), Spacer(8), Text("Juan Ram\\u00edrez")], align="center"), "Cartagena",     Text("Admin"),  Badge("Activo",    background="#22c55e"),                               Button("Ver", variant="ghost", padding=4, radius=4)],
-                        [Row([Avatar(initials="LT", background="#ec4899",    color="#fff", width=28, height=28), Spacer(8), Text("Laura Torres")],       align="center"), "Bogot\\u00e1",  Text("Editor"), Badge("Pendiente", background="#f59e0b"),                               Button("Ver", variant="ghost", padding=4, radius=4)],
+                        [Row([Avatar(initials="MS", background="#ef4444",    color="#fff", width=28, height=28), Spacer(8), Text("Mar\\u00eda Silva")],  align="center"), "Cali",           Text("Viewer"), Badge("Activo",    background="#22c55e"),                               Button("Ver", variant="ghost", padding=4, radius=4)],
+                        [Row([Avatar(initials="JR", background="#8b5cf6",    color="#fff", width=28, height=28), Spacer(8), Text("Juan Ram\\u00edrez")], align="center"), "Cartagena",      Text("Admin"),  Badge("Activo",    background="#22c55e"),                               Button("Ver", variant="ghost", padding=4, radius=4)],
+                        [Row([Avatar(initials="LT", background="#ec4899",    color="#fff", width=28, height=28), Spacer(8), Text("Laura Torres")],       align="center"), "Bogot\\u00e1",   Text("Editor"), Badge("Pendiente", background="#f59e0b"),                               Button("Ver", variant="ghost", padding=4, radius=4)],
                     ],
                     striped=True, searchable=True, sortable=True, page_size=4,
                 ),
             ], widget_name="Table"))
 
-        # Modal
+        # ── Modal ─────────────────────────────────────────────────────────
         if "Modal" in all_w:
             secs.append(_sec("Modal", "Ventana modal. Usa openModal(id) para abrirla.", [
                 Row(gap=8, children=[
@@ -591,17 +622,13 @@ COMPONENTS_TEMPLATE = (
                 ),
             ], widget_name="Modal"))
 
-        # Breadcrumb
+        # ── Breadcrumb ────────────────────────────────────────────────────
         if "Breadcrumb" in all_w:
             secs.append(_sec("Breadcrumb", "Ruta de navegaci\\u00f3n.", [
-                Breadcrumb([
-                    ("Inicio",     "/"),
-                    ("Productos",  "/productos"),
-                    ("Zapatillas", None),
-                ]),
+                Breadcrumb([("Inicio", "/"), ("Productos", "/productos"), ("Zapatillas", None)]),
             ], widget_name="Breadcrumb"))
 
-        # GradientText & Glass
+        # ── GradientText & Glass ──────────────────────────────────────────
         secs.append(_sec("GradientText & Glass", "Estilos especiales de texto y fondo.", [
             Column(gap=12, children=[
                 Heading("Aurora gradient",
@@ -612,54 +639,40 @@ COMPONENTS_TEMPLATE = (
                         style=[GradientText.rose_gold(), TextStyle(size=32, weight="800")]),
             ]),
             Row(gap=16, wrap=True, children=[
-                Column(
-                    gap=8, padding=20,
-                    style=[Glass.dark(blur=16, opacity=0.08),
-                           Border(radius=12), "width:180px;text-align:center"],
-                    children=[Icon("\\U0001f52e", size=32), Text("Glass dark", style=TextStyle(size=14, weight="600"))],
-                ),
-                Column(
-                    gap=8, padding=20,
-                    style=[Glass.light(blur=16, opacity=0.5),
-                           Border(radius=12), "width:180px;text-align:center"],
-                    children=[Icon("\\u2728", size=32), Text("Glass light", style=TextStyle(size=14, weight="600"))],
-                ),
+                Column(gap=8, padding=20,
+                       style=[Glass.dark(blur=16, opacity=0.08), Border(radius=12), "width:180px;text-align:center"],
+                       children=[Icon("\\U0001f52e", size=32), Text("Glass dark",  style=TextStyle(size=14, weight="600"))]),
+                Column(gap=8, padding=20,
+                       style=[Glass.light(blur=16, opacity=0.5), Border(radius=12), "width:180px;text-align:center"],
+                       children=[Icon("\\u2728",    size=32), Text("Glass light", style=TextStyle(size=14, weight="600"))]),
             ]),
         ], widget_name="GradientText"))
 
-        # Timeline
+        # ── Timeline ──────────────────────────────────────────────────────
         if "Timeline" in all_w:
             secs.append(_sec("Timeline", "L\\u00ednea de tiempo vertical.", [
                 Timeline(items=[
-                    TimelineItem(
-                        title="Proyecto iniciado",
-                        description="Se crea el repositorio y la estructura base del proyecto.",
-                        date="Enero 2024", icon="\\U0001f680", color=Colors.indigo,
-                    ),
-                    TimelineItem(
-                        title="Primera versi\\u00f3n",
-                        description="Se publican los widgets b\\u00e1sicos: Container, Row, Column, Button.",
-                        date="Marzo 2024", icon="\\u2705", color="#22c55e",
-                    ),
-                    TimelineItem(
-                        title="Refactor v0.2",
-                        description="Coherencia total de API. Nuevos widgets: NavBar, Footer, Tabs, Table, Modal.",
-                        date="2025", icon="\\u26a1", color="#f59e0b", tag="Actual",
-                    ),
+                    TimelineItem(title="Proyecto iniciado",
+                                 description="Se crea el repositorio y la estructura base.",
+                                 date="Enero 2024", icon="\\U0001f680", color=Colors.indigo),
+                    TimelineItem(title="Primera versi\\u00f3n",
+                                 description="Widgets b\\u00e1sicos: Container, Row, Column, Button.",
+                                 date="Marzo 2024", icon="\\u2705", color="#22c55e"),
+                    TimelineItem(title="Refactor v0.2",
+                                 description="Coherencia total de API. NavBar, Footer, Tabs, Table, Modal.",
+                                 date="2025", icon="\\u26a1", color="#f59e0b", tag="Actual"),
                 ]),
             ], widget_name="Timeline"))
 
-        # Hero
+        # ── Hero ──────────────────────────────────────────────────────────
         if "Hero" in all_w:
             secs.append(_sec("Hero", "Banner principal de p\\u00e1gina.", [
                 Hero(
                     badge=Badge("Ejemplo de Hero"),
                     title=Heading("Construye r\\u00e1pido.", level=2,
                                   style=[GradientText.aurora(), TextStyle(size=40, weight="800")]),
-                    subtitle=Paragraph(
-                        "Un Hero con imagen, layout split y fondo con mesh.",
-                        style=TextStyle(size=15, color="var(--text-muted)"),
-                    ),
+                    subtitle=Paragraph("Un Hero con imagen, layout split y fondo con mesh.",
+                                       style=TextStyle(size=15, color="var(--text-muted)")),
                     actions=[
                         Button("Empezar", background=Colors.indigo, color="#fff", radius=10),
                         Button("Ver docs", variant="ghost", radius=10),
@@ -671,51 +684,43 @@ COMPONENTS_TEMPLATE = (
                 ),
             ], widget_name="Hero"))
 
-        # Gallery
+        # ── Gallery ───────────────────────────────────────────────────────
         if "Gallery" in all_w:
             secs.append(_sec("Gallery", "Galer\\u00eda de im\\u00e1genes con lightbox.", [
                 Gallery(
                     items=[
-                        GalleryItem("/assets/icon.webp", title="Imagen 1", description="Descripci\\u00f3n de la imagen 1"),
+                        GalleryItem("/assets/icon.webp", title="Imagen 1", description="Descripci\\u00f3n 1"),
                         GalleryItem("/assets/icon.webp", title="Imagen 2"),
                         GalleryItem("/assets/icon.webp", title="Imagen 3", span_cols=2),
                         GalleryItem("/assets/icon.webp", title="Imagen 4"),
-                        GalleryItem("/assets/icon.webp", title="Imagen 5", description="Con enlace", url="https://example.com"),
+                        GalleryItem("/assets/icon.webp", title="Imagen 5", url="https://example.com"),
                         GalleryItem("/assets/icon.webp", title="Imagen 6"),
                     ],
                     columns=3, gap=8, img_height=180, radius=8, lightbox=True,
                 ),
             ], widget_name="Gallery"))
 
-        # Carousel
+        # ── Carousel ──────────────────────────────────────────────────────
         if "Carousel" in all_w:
-            secs.append(_sec("Carousel", "Carrusel de tarjetas con flechas y dots.", [
+            secs.append(_sec("Carousel", "Carrusel de tarjetas y cinta de logos.", [
                 Carousel(
                     items=[
-                        CarouselItem(image="/assets/icon.webp", title="Slide 1", subtitle="Descripci\\u00f3n del primer slide."),
-                        CarouselItem(image="/assets/icon.webp", title="Slide 2", subtitle="Descripci\\u00f3n del segundo slide."),
-                        CarouselItem(image="/assets/icon.webp", title="Slide 3", subtitle="Con link al hacer clic.", url="https://example.com"),
-                        CarouselItem(image="/assets/icon.webp", title="Slide 4", subtitle="\\u00daltimo slide."),
+                        CarouselItem(image="/assets/icon.webp", title=f"Slide {i+1}",
+                                     subtitle=f"Descripci\\u00f3n del slide {i+1}.")
+                        for i in range(4)
                     ],
                     mode="slides", visible=3, gap=16, loop=True, autoplay=3000,
                 ),
                 Spacer(16),
-                Text("Modo brands (cinta infinita de logos):",
-                     style=TextStyle(size=12, weight="600", color="var(--text-muted)")),
+                Text("Modo brands:", style=TextStyle(size=12, weight="600", color="var(--text-muted)")),
                 Carousel(
-                    items=[
-                        CarouselItem(image="/assets/icon.webp", title="Marca A", url="https://example.com"),
-                        CarouselItem(image="/assets/icon.webp", title="Marca B"),
-                        CarouselItem(image="/assets/icon.webp", title="Marca C"),
-                        CarouselItem(image="/assets/icon.webp", title="Marca D"),
-                        CarouselItem(image="/assets/icon.webp", title="Marca E"),
-                    ],
+                    items=[CarouselItem(image="/assets/icon.webp", title=f"Marca {c}") for c in "ABCDE"],
                     mode="brands", brand_height=48, brand_gap=64, speed=25,
                     brand_filter="grayscale(100%) opacity(0.5)",
                 ),
             ], widget_name="Carousel"))
 
-        # Map
+        # ── Map ───────────────────────────────────────────────────────────
         if "Map" in all_w:
             secs.append(_sec("Map", "Mapa interactivo con marcadores.", [
                 Map(
@@ -730,7 +735,7 @@ COMPONENTS_TEMPLATE = (
                 ),
             ], widget_name="Map"))
 
-        # WordCloud
+        # ── WordCloud ─────────────────────────────────────────────────────
         if "WordCloud" in all_w:
             secs.append(_sec("WordCloud", "Nube de palabras interactiva.", [
                 WordCloud(
@@ -740,20 +745,16 @@ COMPONENTS_TEMPLATE = (
                 ),
             ], widget_name="WordCloud"))
 
-        # CookieBanner
+        # ── CookieBanner ──────────────────────────────────────────────────
         if "CookieBanner" in all_w:
             secs.append(_sec("CookieBanner", "Banner de cookies GDPR con persistencia.", [
                 CookieBanner(
                     title="Este sitio usa cookies",
                     description="Usamos cookies propias y de terceros para mejorar tu experiencia.",
                     categories=[
-                        CookieCategory("necessary", "Necesarias",
-                                       "Imprescindibles para el funcionamiento.",
-                                       default=True, required=True),
-                        CookieCategory("analytics", "Anal\\u00edticas",
-                                       "Mejoran el sitio.", default=False),
-                        CookieCategory("marketing", "Marketing",
-                                       "Publicidad relevante.", default=False),
+                        CookieCategory("necessary", "Necesarias",     "Imprescindibles.", default=True, required=True),
+                        CookieCategory("analytics", "Anal\\u00edticas", "Mejoran el sitio.", default=False),
+                        CookieCategory("marketing", "Marketing",       "Publicidad relevante.", default=False),
                     ],
                     position="bottom",
                     storage_key="martin_cookie_consent_demo",
@@ -764,8 +765,6 @@ COMPONENTS_TEMPLATE = (
         return secs
 
 
-    # ── Menú lateral ─────────────────────────────────────────────────────────
-
     _MENU_ITEMS = [
         ("Layout",       "widget-layout"),
         ("Texto",        "widget-texto"),
@@ -773,6 +772,9 @@ COMPONENTS_TEMPLATE = (
         ("Badge & Alert","widget-badge"),
         ("Button",       "widget-button"),
         ("Inputs",       "widget-textfield"),
+        ("Slider",       "widget-slider"),
+        ("ColorPicker",  "widget-colorpicker"),
+        ("DatePicker",   "widget-datepicker"),
         ("Avatar",       "widget-avatar"),
         ("NavBar",       "widget-navbar"),
         ("Tabs",         "widget-tabs"),
@@ -789,8 +791,6 @@ COMPONENTS_TEMPLATE = (
         ("CookieBanner", "widget-cookiebanner"),
     ]
 
-
-    # ── Vista principal ───────────────────────────────────────────────────────
 
     def components():
         side_items = [(label, f"#{anchor}") for label, anchor in _MENU_ITEMS]
@@ -826,10 +826,8 @@ COMPONENTS_TEMPLATE = (
                     style="flex:1;min-width:0;max-width:900px",
                     children=[
                         Column(gap=8, children=[
-                            Heading(
-                                "Componentes",
-                                style=[GradientText.aurora(), TextStyle(size=48, weight="800")],
-                            ),
+                            Heading("Componentes",
+                                    style=[GradientText.aurora(), TextStyle(size=48, weight="800")]),
                             Paragraph(
                                 "Widgets disponibles con demos en vivo. "
                                 "Haz clic en cualquier elemento para ver c\\u00f3mo funciona.",

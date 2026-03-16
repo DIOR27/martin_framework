@@ -761,3 +761,844 @@ class MultiSelect(Widget):
             "render();"
             f"}})();</script>"
         )
+# =============================================================================
+# Slider
+# =============================================================================
+
+
+class Slider(Widget):
+    """
+    Control deslizante (range input) con valor visible y tick marks opcionales.
+
+    Uso básico:
+        Slider(min=0, max=100, value=40)
+
+    Con etiqueta y paso:
+        Slider(label="Volumen", min=0, max=100, value=75, step=5)
+
+    Doble rango (valor mínimo y máximo):
+        Slider(label="Rango de precio", min=0, max=1000, value=200, value_max=800, range=True)
+
+    Con ticks y formato:
+        Slider(min=0, max=100, value=50, show_ticks=True,
+               format="{v}%", suffix="%")
+
+    Parámetros:
+        label       str     etiqueta encima del slider
+        min         int     valor mínimo (default: 0)
+        max         int     valor máximo (default: 100)
+        value       int     valor inicial (o valor inferior en range=True)
+        value_max   int     valor superior en modo range
+        step        int     incremento (default: 1)
+        range       bool    modo doble cursor para seleccionar un rango
+        show_value  bool    muestra el valor actual (default: True)
+        show_ticks  bool    dibuja marcas en los extremos y valor
+        format      str     formato del valor, usar {v} como placeholder. Ej: "{v}%"
+        name        str     nombre del input para formularios
+        id          str     id del elemento
+        disabled    bool    deshabilita el control
+        color       str     color del rango activo (default: var(--accent))
+    """
+
+    _id_counter = 0
+
+    def __init__(
+        self,
+        label=None,
+        min=0,
+        max=100,
+        value=None,
+        value_max=None,
+        step=1,
+        range=False,
+        show_value=True,
+        show_ticks=False,
+        format="{v}",
+        name=None,
+        id=None,
+        disabled=False,
+        color="var(--accent)",
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.label = label
+        self.min = min
+        self.max = max
+        self.value = value if value is not None else min
+        self.value_max = value_max if value_max is not None else max
+        self.step = step
+        self.is_range = range
+        self.show_value = show_value
+        self.show_ticks = show_ticks
+        self.format = format
+        self.name = name
+        self.disabled = disabled
+        self.color = color
+        Slider._id_counter += 1
+        self.uid = id or f"slider_{Slider._id_counter}"
+
+    def _fmt(self, v):
+        return self.format.replace("{v}", str(v))
+
+    def render(self):
+        uid = self.uid
+        mn, mx, st = self.min, self.max, self.step
+        v1 = self.value
+        v2 = self.value_max
+        color = self.color
+        disabled_attr = " disabled" if self.disabled else ""
+        extra = self._resolve_props()
+        wrapper_extra = f";{extra}" if extra else ""
+
+        # ── CSS compartido ────────────────────────────────────────────────
+        css = (
+            f"<style>"
+            f"#{uid}_wrap input[type=range]{{-webkit-appearance:none;appearance:none;"
+            f"height:6px;border-radius:3px;outline:none;cursor:pointer;"
+            f"background:transparent;width:100%}}"
+            f"#{uid}_wrap input[type=range]::-webkit-slider-thumb{{-webkit-appearance:none;"
+            f"appearance:none;width:18px;height:18px;border-radius:50%;"
+            f"background:{color};cursor:pointer;border:2px solid var(--surface);"
+            f"box-shadow:0 1px 4px rgba(0,0,0,0.25);transition:transform .15s}}"
+            f"#{uid}_wrap input[type=range]::-moz-range-thumb{{width:18px;height:18px;"
+            f"border-radius:50%;background:{color};cursor:pointer;"
+            f"border:2px solid var(--surface);box-shadow:0 1px 4px rgba(0,0,0,0.25)}}"
+            f"#{uid}_wrap input[type=range]:hover::-webkit-slider-thumb{{transform:scale(1.15)}}"
+            f"#{uid}_wrap input[type=range]:disabled{{opacity:0.45;cursor:not-allowed}}"
+            f"</style>"
+        )
+
+        label_html = ""
+        if self.label:
+            label_html = (
+                f'<div style="display:flex;justify-content:space-between;'
+                f'align-items:center;margin-bottom:8px">'
+                f'<span style="font-size:13px;font-weight:600;color:var(--text)">{self.label}</span>'
+                + (
+                    f'<span id="{uid}_disp" style="font-size:13px;font-weight:600;'
+                    f'color:{color}">{self._fmt(v1)}'
+                    + (f" — {self._fmt(v2)}" if self.is_range else "")
+                    + "</span>"
+                    if self.show_value
+                    else ""
+                )
+                + "</div>"
+            )
+        elif self.show_value:
+            label_html = (
+                f'<div style="text-align:right;margin-bottom:6px">'
+                f'<span id="{uid}_disp" style="font-size:13px;font-weight:600;color:{color}">'
+                f"{self._fmt(v1)}"
+                + (f" — {self._fmt(v2)}" if self.is_range else "")
+                + "</span></div>"
+            )
+
+        ticks_html = ""
+        if self.show_ticks:
+            ticks_html = (
+                f'<div style="display:flex;justify-content:space-between;'
+                f'margin-top:4px;font-size:11px;color:var(--text-muted)">'
+                f"<span>{self._fmt(mn)}</span><span>{self._fmt(mx)}</span></div>"
+            )
+
+        if not self.is_range:
+            # ── Slider simple ─────────────────────────────────────────────
+            pct = (v1 - mn) / (mx - mn) * 100 if mx != mn else 0
+            track_style = (
+                f"background:linear-gradient(to right,{color} {pct:.1f}%,"
+                f"var(--border) {pct:.1f}%)"
+            )
+            name_attr = f' name="{self.name}"' if self.name else ""
+            _grad = f"linear-gradient(to right,{color} '+p+'%,var(--border) '+p+'%)"
+            _disp_js = (
+                f"var d=document.getElementById('{uid}_disp');"
+                f"if(d)d.textContent='{self.format}'.replace('{{v}}',el.value);"
+                if self.show_value
+                else ""
+            )
+            _oninput = (
+                f"(function(el){{"
+                f"var p=(el.value-{mn})/({mx}-{mn})*100;"
+                f"el.style.background='{_grad}';" + _disp_js + f"}})(this)"
+            )
+            range_html = (
+                f'<input type="range" id="{uid}" min="{mn}" max="{mx}" step="{st}" '
+                f'value="{v1}"{name_attr}{disabled_attr} '
+                f'style="{track_style}" '
+                f'oninput="{_oninput}">'
+            )
+            hidden = (
+                f'<input type="hidden" name="{self.name}_val" id="{uid}_val" value="{v1}">'
+                if self.name
+                else ""
+            )
+            body = label_html + range_html + ticks_html + hidden
+
+        else:
+            # ── Slider de rango doble ─────────────────────────────────────
+            # Se superponen dos inputs con position:absolute + JS que sincroniza
+            p1 = (v1 - mn) / (mx - mn) * 100 if mx != mn else 0
+            p2 = (v2 - mn) / (mx - mn) * 100 if mx != mn else 100
+            name1 = f' name="{self.name}_min"' if self.name else ""
+            name2 = f' name="{self.name}_max"' if self.name else ""
+            range_html = (
+                f'<div style="position:relative;height:24px;margin:4px 0">'
+                f'<div id="{uid}_track" style="position:absolute;top:50%;left:0;right:0;'
+                f'height:6px;border-radius:3px;transform:translateY(-50%);">'
+                f'<div style="position:absolute;left:0;right:0;height:100%;'
+                f'background:var(--border);border-radius:3px"></div>'
+                f'<div id="{uid}_fill" style="position:absolute;'
+                f"left:{p1:.1f}%;right:{100-p2:.1f}%;height:100%;"
+                f'background:{color};border-radius:3px"></div>'
+                f"</div>"
+                f'<input type="range" id="{uid}_min" min="{mn}" max="{mx}" step="{st}" '
+                f'value="{v1}"{name1}{disabled_attr} '
+                f'style="position:absolute;width:100%;pointer-events:none;'
+                f'background:transparent;top:50%;transform:translateY(-50%)" '
+                f'oninput="{uid}_sync()">'
+                f'<input type="range" id="{uid}_max" min="{mn}" max="{mx}" step="{st}" '
+                f'value="{v2}"{name2}{disabled_attr} '
+                f'style="position:absolute;width:100%;pointer-events:none;'
+                f'background:transparent;top:50%;transform:translateY(-50%)" '
+                f'oninput="{uid}_sync()">'
+                f"</div>"
+            )
+            js = (
+                f"<script>(function(){{"
+                f"window.{uid}_sync=function(){{"
+                f"var a=document.getElementById('{uid}_min');"
+                f"var b=document.getElementById('{uid}_max');"
+                f"var f=document.getElementById('{uid}_fill');"
+                f"var d=document.getElementById('{uid}_disp');"
+                f"var mn={mn},mx={mx};"
+                f"var v1=parseFloat(a.value),v2=parseFloat(b.value);"
+                # mantener v1 <= v2
+                f"if(v1>v2){{if(this===a)a.value=v2;else b.value=v1;v1=parseFloat(a.value);v2=parseFloat(b.value);}}"
+                f"var p1=(v1-mn)/(mx-mn)*100,p2=(v2-mn)/(mx-mn)*100;"
+                # habilitar pointer-events solo en el thumb relevante (truco CSS)
+                f"a.style.zIndex=v1>mx-10?'5':'3';"
+                f"if(f){{f.style.left=p1+'%';f.style.right=(100-p2)+'%';}}"
+                f"if(d){{var fmt='{self.format}';"
+                f"d.textContent=fmt.replace('{{v}}',v1)+' \u2014 '+fmt.replace('{{v}}',v2);}}"
+                f"}};"
+                # habilitar pointer events solo en el thumb
+                f"var ra=document.getElementById('{uid}_min');"
+                f"var rb=document.getElementById('{uid}_max');"
+                f"[ra,rb].forEach(function(el){{"
+                f"el.style.pointerEvents='none';"
+                f"el.addEventListener('mousedown',function(){{el.style.pointerEvents='all';}});"
+                f"el.addEventListener('touchstart',function(){{el.style.pointerEvents='all';}});"
+                f"el.addEventListener('mouseup',function(){{el.style.pointerEvents='none';{uid}_sync();}});"
+                f"el.addEventListener('touchend',function(){{el.style.pointerEvents='none';{uid}_sync();}});"
+                f"}});"
+                # thumb siempre visible
+                f"ra.style.pointerEvents='all';"
+                f"rb.style.pointerEvents='all';"
+                f"{uid}_sync();"
+                f"}})();</script>"
+            )
+            body = label_html + range_html + ticks_html + js
+
+        return (
+            css
+            + f'<div id="{uid}_wrap" style="width:100%;user-select:none{wrapper_extra}">'
+            + body
+            + "</div>"
+        )
+
+
+# =============================================================================
+# ColorPicker
+# =============================================================================
+
+
+class ColorPicker(Widget):
+    """
+    Selector de color con swatch visual y input hex editable.
+
+    Uso básico:
+        ColorPicker(value="#6366f1")
+
+    Con etiqueta y colores predefinidos:
+        ColorPicker(
+            label="Color de marca",
+            value="#6366f1",
+            presets=["#6366f1","#f59e0b","#ef4444","#22c55e","#0ea5e9"],
+        )
+
+    Solo swatch sin hex:
+        ColorPicker(value="#ff0000", show_hex=False)
+
+    Parámetros:
+        label       str     etiqueta encima del picker
+        value       str     color inicial en hex (default: "#6366f1")
+        presets     list    lista de colores hex para selección rápida
+        show_hex    bool    muestra campo de texto hex editable (default: True)
+        show_alpha  bool    muestra slider de opacidad (experimental)
+        name        str     nombre del input para formularios
+        id          str     id del elemento
+        disabled    bool    deshabilita el control
+    """
+
+    _id_counter = 0
+
+    def __init__(
+        self,
+        label=None,
+        value="#6366f1",
+        presets=None,
+        show_hex=True,
+        name=None,
+        id=None,
+        disabled=False,
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.label = label
+        self.value = value
+        self.presets = presets or []
+        self.show_hex = show_hex
+        self.name = name
+        self.disabled = disabled
+        ColorPicker._id_counter += 1
+        self.uid = id or f"cp_{ColorPicker._id_counter}"
+
+    def render(self):
+        uid = self.uid
+        val = self.value
+        disabled_attr = " disabled" if self.disabled else ""
+        extra = self._resolve_props()
+        wrapper_extra = f";{extra}" if extra else ""
+
+        label_html = ""
+        if self.label:
+            label_html = (
+                f'<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px">'
+                f"{self.label}</div>"
+            )
+
+        # Swatch + native color input (oculto, abre el picker del SO)
+        swatch = (
+            f'<div style="position:relative;display:inline-flex;align-items:center;'
+            f'gap:10px;flex-wrap:wrap">'
+            f'<label for="{uid}_native" style="cursor:pointer;display:flex;align-items:center;gap:8px">'
+            f'<div id="{uid}_swatch" style="width:36px;height:36px;border-radius:8px;'
+            f"background:{val};border:2px solid var(--border);"
+            f'box-shadow:0 2px 8px rgba(0,0,0,0.15);transition:background .1s;flex-shrink:0"></div>'
+            f'<input type="color" id="{uid}_native" value="{val}"{disabled_attr} '
+            f'style="position:absolute;opacity:0;width:36px;height:36px;cursor:pointer;border:none;padding:0"'
+            f' oninput="{uid}_update(this.value)">'
+            + (
+                f'<input type="text" id="{uid}_hex" value="{val}" maxlength="7"'
+                f' placeholder="#000000"{disabled_attr}'
+                f' style="width:90px;padding:7px 10px;border:1px solid var(--border-input,var(--border));'
+                f"border-radius:6px;font-size:13px;font-family:monospace;outline:none;"
+                f'background:var(--input-bg,var(--surface));color:var(--text);transition:border-color .2s"'
+                f' oninput="{uid}_hexInput(this.value)"'
+                f' onblur="{uid}_hexBlur(this)">'
+                if self.show_hex
+                else ""
+            )
+            + (
+                f'<input type="hidden" id="{uid}_val" name="{self.name}" value="{val}">'
+                if self.name
+                else ""
+            )
+            + "</label></div>"
+        )
+
+        # Presets
+        presets_html = ""
+        if self.presets:
+            dots = "".join(
+                f"<div onclick=\"{uid}_update('{c}')\" "
+                f'style="width:24px;height:24px;border-radius:6px;background:{c};'
+                f"cursor:pointer;border:2px solid transparent;transition:transform .15s,border-color .15s;"
+                f'box-shadow:0 1px 4px rgba(0,0,0,.2)"'
+                f" onmouseover=\"this.style.transform='scale(1.2)'\""
+                f" onmouseout=\"this.style.transform='scale(1)'\"></div>"
+                for c in self.presets
+            )
+            presets_html = f'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">{dots}</div>'
+
+        js = (
+            f"<script>(function(){{"
+            f"window.{uid}_update=function(hex){{"
+            f"var sw=document.getElementById('{uid}_swatch');"
+            f"var ni=document.getElementById('{uid}_native');"
+            f"var hx=document.getElementById('{uid}_hex');"
+            f"var hv=document.getElementById('{uid}_val');"
+            f"if(sw)sw.style.background=hex;"
+            f"if(ni)ni.value=hex;"
+            f"if(hx)hx.value=hex;"
+            f"if(hv)hv.value=hex;"
+            f"}};"
+            f"window.{uid}_hexInput=function(v){{"
+            f"if(/^#[0-9a-fA-F]{{6}}$/.test(v)){{{uid}_update(v);}}"
+            f"}};"
+            f"window.{uid}_hexBlur=function(el){{"
+            f"if(!/^#[0-9a-fA-F]{{6}}$/.test(el.value)){{"
+            f"var cur=document.getElementById('{uid}_native').value;"
+            f"el.value=cur;}}"
+            f"}};"
+            f"}})();</script>"
+        )
+
+        return (
+            f'<div id="{uid}_wrap" style="display:inline-flex;flex-direction:column{wrapper_extra}">'
+            + label_html
+            + swatch
+            + presets_html
+            + js
+            + "</div>"
+        )
+
+
+# =============================================================================
+# DatePicker
+# =============================================================================
+
+
+class DatePicker(Widget):
+    """
+    Selector de fecha o rango de fechas con calendario desplegable,
+    al estilo de las páginas de reservas de hoteles o vuelos.
+
+    Fecha simple:
+        DatePicker(label="Fecha de nacimiento", value="2000-01-15")
+
+    Rango de fechas (check-in / check-out):
+        DatePicker(
+            label="Fechas de estancia",
+            range=True,
+            value="2026-06-01",
+            value_end="2026-06-07",
+            label_start="Check-in",
+            label_end="Check-out",
+        )
+
+    Con fecha mínima y máxima:
+        DatePicker(range=True, min_date="2026-01-01", max_date="2027-12-31")
+
+    Parámetros:
+        label           str     etiqueta general encima del picker
+        value           str     fecha inicial seleccionada (ISO: YYYY-MM-DD)
+        value_end       str     fecha final en modo rango
+        range           bool    habilita selección de rango (default: False)
+        label_start     str     etiqueta del campo de inicio (default: "Inicio")
+        label_end       str     etiqueta del campo de fin (default: "Fin")
+        placeholder     str     texto de ayuda en campo simple
+        placeholder_start str   texto de ayuda en campo inicio
+        placeholder_end str     texto de ayuda en campo fin
+        min_date        str     fecha mínima seleccionable (ISO)
+        max_date        str     fecha máxima seleccionable (ISO)
+        locale          str     código de idioma para nombres de meses/días (default: "es")
+        name            str     nombre del input para formularios (simple)
+        name_start      str     nombre del campo inicio en formularios
+        name_end        str     nombre del campo fin en formularios
+        id              str     id base del elemento
+        disabled        bool    deshabilita el control
+        format          str     formato de visualización: "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD"
+    """
+
+    _id_counter = 0
+
+    _MONTHS = {
+        "es": [
+            "Enero",
+            "Febrero",
+            "Marzo",
+            "Abril",
+            "Mayo",
+            "Junio",
+            "Julio",
+            "Agosto",
+            "Septiembre",
+            "Octubre",
+            "Noviembre",
+            "Diciembre",
+        ],
+        "en": [
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+        ],
+    }
+    _DAYS = {
+        "es": ["Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do"],
+        "en": ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"],
+    }
+
+    def __init__(
+        self,
+        label=None,
+        value=None,
+        value_end=None,
+        range=False,
+        label_start="Inicio",
+        label_end="Fin",
+        placeholder="Seleccionar fecha",
+        placeholder_start="Fecha inicio",
+        placeholder_end="Fecha fin",
+        min_date=None,
+        max_date=None,
+        locale="es",
+        name=None,
+        name_start=None,
+        name_end=None,
+        id=None,
+        disabled=False,
+        format="DD/MM/YYYY",
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.label = label
+        self.value = value or ""
+        self.value_end = value_end or ""
+        self.is_range = range
+        self.label_start = label_start
+        self.label_end = label_end
+        self.placeholder = placeholder
+        self.placeholder_start = placeholder_start
+        self.placeholder_end = placeholder_end
+        self.min_date = min_date or ""
+        self.max_date = max_date or ""
+        self.locale = locale if locale in self._MONTHS else "es"
+        self.name = name
+        self.name_start = name_start or (f"{name}_start" if name else "")
+        self.name_end = name_end or (f"{name}_end" if name else "")
+        self.disabled = disabled
+        self.fmt = format
+        DatePicker._id_counter += 1
+        self.uid = id or f"dp_{DatePicker._id_counter}"
+
+    def _display(self, iso):
+        """Convierte YYYY-MM-DD al formato de display."""
+        if not iso or len(iso) < 10:
+            return ""
+        y, m, d = iso[:4], iso[5:7], iso[8:10]
+        f = self.fmt
+        return f.replace("YYYY", y).replace("MM", m).replace("DD", d)
+
+    def render(self):
+        uid = self.uid
+        extra = self._resolve_props()
+        wrapper_extra = f";{extra}" if extra else ""
+        disabled_attr = " disabled" if self.disabled else ""
+
+        months_js = _json.dumps(self._MONTHS[self.locale])
+        days_js = _json.dumps(self._DAYS[self.locale])
+        min_js = _json.dumps(self.min_date)
+        max_js = _json.dumps(self.max_date)
+        fmt_js = _json.dumps(self.fmt)
+        is_range_js = "true" if self.is_range else "false"
+        val1_js = _json.dumps(self.value)
+        val2_js = _json.dumps(self.value_end)
+
+        # ── CSS ────────────────────────────────────────────────────────────
+        css = (
+            f"<style>"
+            f"#{uid}_cal{{position:absolute;z-index:10050;"
+            f"background:var(--dropdown-bg,var(--surface));"
+            f"border:1px solid var(--border-input,var(--border));"
+            f"border-radius:14px;box-shadow:0 16px 48px rgba(0,0,0,.25);"
+            f"padding:16px;min-width:300px;user-select:none;display:none}}"
+            f"#{uid}_cal .dp-day{{width:36px;height:36px;display:flex;"
+            f"align-items:center;justify-content:center;border-radius:8px;"
+            f"cursor:pointer;font-size:13px;transition:background .12s,color .12s}}"
+            f"#{uid}_cal .dp-day:hover:not(.dp-disabled){{background:var(--accent);"
+            f"color:#fff}}"
+            f"#{uid}_cal .dp-selected{{background:var(--accent);color:#fff;font-weight:700}}"
+            f"#{uid}_cal .dp-in-range{{background:color-mix(in srgb,var(--accent) 18%,transparent);"
+            f"border-radius:0}}"
+            f"#{uid}_cal .dp-range-end{{border-radius:0 8px 8px 0}}"
+            f"#{uid}_cal .dp-range-start{{border-radius:8px 0 0 8px}}"
+            f"#{uid}_cal .dp-disabled{{opacity:.35;cursor:not-allowed;pointer-events:none}}"
+            f"#{uid}_cal .dp-today{{box-shadow:inset 0 0 0 2px var(--accent)}}"
+            f"#{uid}_cal .dp-other-month{{opacity:.4}}"
+            f"</style>"
+        )
+
+        # ── Label principal ────────────────────────────────────────────────
+        label_html = ""
+        if self.label:
+            label_html = (
+                f'<div style="font-size:13px;font-weight:600;color:var(--text);'
+                f'margin-bottom:8px">{self.label}</div>'
+            )
+
+        # ── Campos de entrada ──────────────────────────────────────────────
+        field_style = (
+            "display:flex;align-items:center;gap:8px;"
+            "padding:9px 12px;border:1px solid var(--border-input,var(--border));"
+            "border-radius:8px;background:var(--input-bg,var(--surface));"
+            "cursor:pointer;transition:border-color .2s;min-width:140px;"
+            "color:var(--text);font-size:14px"
+        )
+        cal_icon = (
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" '
+            'stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+            'stroke-linejoin="round" style="flex-shrink:0;opacity:.5">'
+            '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>'
+            '<line x1="16" y1="2" x2="16" y2="6"/>'
+            '<line x1="8" y1="2" x2="8" y2="6"/>'
+            '<line x1="3" y1="10" x2="21" y2="10"/>'
+            "</svg>"
+        )
+        arrow_icon = (
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" '
+            'stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+            'style="opacity:.4;flex-shrink:0">'
+            '<path d="M5 12h14M12 5l7 7-7 7"/></svg>'
+        )
+
+        disp1 = self._display(self.value)
+        disp2 = self._display(self.value_end)
+
+        if not self.is_range:
+            ph = self.placeholder if not disp1 else ""
+            trigger_html = (
+                f'<div id="{uid}_trigger" onclick="{uid}_open(\'start\')" '
+                f'style="{field_style}"{disabled_attr}>'
+                f"{cal_icon}"
+                f'<span id="{uid}_disp" style="flex:1;color:{"var(--text)" if disp1 else "var(--text-muted)"}">'
+                f"{disp1 or self.placeholder}</span>"
+                f"</div>"
+                f'<input type="hidden" id="{uid}_val" '
+                + (f'name="{self.name}" ' if self.name else "")
+                + f'value="{self.value}">'
+            )
+        else:
+            # Dos campos estilo hoteles conectados
+            trigger_html = (
+                f'<div style="display:flex;align-items:stretch;gap:0;'
+                f"border:1px solid var(--border-input,var(--border));border-radius:10px;"
+                f'overflow:hidden;background:var(--input-bg,var(--surface))">'
+                # campo inicio
+                f'<div id="{uid}_t1" onclick="{uid}_open(\'start\')" '
+                f'style="display:flex;align-items:center;gap:8px;padding:10px 14px;'
+                f'flex:1;cursor:pointer;transition:background .15s">'
+                f'<div style="display:flex;flex-direction:column;gap:2px">'
+                f'<span style="font-size:10px;font-weight:700;letter-spacing:.06em;'
+                f'text-transform:uppercase;color:var(--text-muted)">{self.label_start}</span>'
+                f'<span id="{uid}_d1" style="font-size:14px;color:{"var(--text)" if disp1 else "var(--text-muted)"}">'
+                f"{disp1 or self.placeholder_start}</span>"
+                f"</div></div>"
+                # separador
+                f'<div style="display:flex;align-items:center;padding:0 4px;'
+                f'color:var(--text-muted)">{arrow_icon}</div>'
+                # campo fin
+                f'<div id="{uid}_t2" onclick="{uid}_open(\'end\')" '
+                f'style="display:flex;align-items:center;gap:8px;padding:10px 14px;'
+                f'flex:1;cursor:pointer;border-left:1px solid var(--border);transition:background .15s">'
+                f'<div style="display:flex;flex-direction:column;gap:2px">'
+                f'<span style="font-size:10px;font-weight:700;letter-spacing:.06em;'
+                f'text-transform:uppercase;color:var(--text-muted)">{self.label_end}</span>'
+                f'<span id="{uid}_d2" style="font-size:14px;color:{"var(--text)" if disp2 else "var(--text-muted)"}">'
+                f"{disp2 or self.placeholder_end}</span>"
+                f"</div></div>"
+                f"</div>"
+                f'<input type="hidden" id="{uid}_val1" '
+                + (f'name="{self.name_start}" ' if self.name_start else "")
+                + f'value="{self.value}">'
+                f'<input type="hidden" id="{uid}_val2" '
+                + (f'name="{self.name_end}" ' if self.name_end else "")
+                + f'value="{self.value_end}">'
+            )
+
+        # ── Calendario (se renderiza con JS) ───────────────────────────────
+        calendar_html = (
+            f'<div id="{uid}_cal" role="dialog" aria-modal="true">'
+            f'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
+            f'<button onclick="{uid}_prevMonth()" style="background:none;border:none;cursor:pointer;'
+            f'padding:4px 8px;border-radius:6px;color:var(--text);font-size:16px">&lsaquo;</button>'
+            f'<span id="{uid}_month_lbl" style="font-size:14px;font-weight:700;color:var(--text)"></span>'
+            f'<button onclick="{uid}_nextMonth()" style="background:none;border:none;cursor:pointer;'
+            f'padding:4px 8px;border-radius:6px;color:var(--text);font-size:16px">&rsaquo;</button>'
+            f"</div>"
+            f'<div id="{uid}_grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px"></div>'
+            + (
+                f'<div style="display:flex;justify-content:space-between;margin-top:12px;'
+                f'border-top:1px solid var(--border);padding-top:10px">'
+                f'<button onclick="{uid}_clear()" style="font-size:12px;color:var(--text-muted);'
+                f'background:none;border:none;cursor:pointer">Limpiar</button>'
+                f'<button onclick="{uid}_close()" style="font-size:13px;font-weight:600;'
+                f'color:var(--accent);background:none;border:none;cursor:pointer">Aceptar</button>'
+                f"</div>"
+            )
+            + f"</div>"
+        )
+
+        # ── JavaScript ─────────────────────────────────────────────────────
+        js = (
+            f"<script>(function(){{"
+            f"var U='{uid}',MONTHS={months_js},DAYS={days_js};"
+            f"var isRange={is_range_js};"
+            f"var sel1={val1_js},sel2={val2_js};"
+            f"var minD={min_js},maxD={max_js};"
+            f"var fmt={fmt_js};"
+            f"var curYear=new Date().getFullYear();"
+            f"var curMonth=new Date().getMonth();"
+            f"var activeField='start';"  # qué campo se está editando
+            f"var hoverDate=null;"
+            # parse ISO
+            f"function parseISO(s){{if(!s)return null;"
+            f"var p=s.split('-');if(p.length<3)return null;"
+            f"return new Date(+p[0],+p[1]-1,+p[2]);}}"
+            # format to display
+            f"function fmtDisp(iso){{"
+            f"if(!iso)return '';"
+            f"var p=iso.split('-');if(p.length<3)return iso;"
+            f"return fmt.replace('DD',p[2]).replace('MM',p[1]).replace('YYYY',p[0]);}}"
+            # format to ISO
+            f"function toISO(y,m,d){{"
+            f"return y+'-'+(m<9?'0':'')+(m+1)+'-'+(d<10?'0':'')+d;}}"
+            # compare ISO strings
+            f"function cmp(a,b){{return a<b?-1:a>b?1:0;}}"
+            # render grid
+            f"function render(){{"
+            f"var lbl=document.getElementById(U+'_month_lbl');"
+            f"if(lbl)lbl.textContent=MONTHS[curMonth]+' '+curYear;"
+            f"var grid=document.getElementById(U+'_grid');"
+            f"if(!grid)return;"
+            f"var html='';"
+            # day headers
+            f"DAYS.forEach(function(d){{html+='<div style=\"font-size:11px;font-weight:700;"
+            f"color:var(--text-muted);text-align:center;padding:4px 0\">'+d+'</div>';}});"
+            # first day of month (Mon=0)
+            f"var first=new Date(curYear,curMonth,1).getDay();"
+            f"first=(first+6)%7;"  # lunes primero
+            f"var days=new Date(curYear,curMonth+1,0).getDate();"
+            f"var prevDays=new Date(curYear,curMonth,0).getDate();"
+            f"var today=toISO(new Date().getFullYear(),new Date().getMonth(),new Date().getDate());"
+            # prev month padding
+            f"for(var i=first-1;i>=0;i--){{"
+            f"html+='<div class=\"dp-day dp-other-month\" style=\"pointer-events:none\">'+(prevDays-i)+'</div>';}}"
+            # days of month
+            f"for(var d=1;d<=days;d++){{"
+            f"var iso=toISO(curYear,curMonth,d);"
+            f"var cls='dp-day';"
+            f"if(minD&&iso<minD)cls+=' dp-disabled';"
+            f"if(maxD&&iso>maxD)cls+=' dp-disabled';"
+            f"if(iso===today)cls+=' dp-today';"
+            # range highlighting
+            f"var lo=sel1&&sel2?Math.min(cmp(sel1,sel2)===1?1:0,0)>=0?sel1:sel2:null;"  # menor
+            f"var lo=sel1&&sel2?(sel1<sel2?sel1:sel2):null;"
+            f"var hi=sel1&&sel2?(sel1<sel2?sel2:sel1):null;"
+            f"if(isRange&&lo&&hi&&iso>lo&&iso<hi)cls+=' dp-in-range';"
+            f"if(isRange&&lo&&iso===lo)cls+=' dp-selected dp-range-start';"
+            f"if(isRange&&hi&&iso===hi)cls+=' dp-selected dp-range-end';"
+            f"if(!isRange&&iso===sel1)cls+=' dp-selected';"
+            f"html+='<div class=\"'+cls+'\" data-iso=\"'+iso+'\" onclick=\"'+U+'_pick(\\''+iso+'\\')\">';"
+            f"html+=d+'</div>';}}"
+            # fill remaining cells
+            f"var total=first+days;"
+            f"var rem=(7-total%7)%7;"
+            f"for(var d=1;d<=rem;d++){{"
+            f"html+='<div class=\"dp-day dp-other-month\" style=\"pointer-events:none\">'+d+'</div>';}}"
+            f"grid.innerHTML=html;}}"
+            # open calendar
+            f"window.{uid}_open=function(field){{"
+            f"activeField=field;"
+            f"var cal=document.getElementById(U+'_cal');"
+            f"if(!cal)return;"
+            # posicionar debajo del trigger
+            f"var trigger=document.getElementById(U+(isRange?(field==='start'?'_t1':'_t2'):'_trigger'));"
+            f"var wrap=document.getElementById(U+'_wrap');"
+            f"if(trigger&&wrap){{"
+            f"var tr=trigger.getBoundingClientRect(),wr=wrap.getBoundingClientRect();"
+            f"cal.style.top=(tr.bottom-wr.top+6)+'px';"
+            f"var left=tr.left-wr.left;"
+            f"var calW=310;var wrapW=wrap.offsetWidth;"
+            f"if(left+calW>wrapW)left=Math.max(0,wrapW-calW);"
+            f"cal.style.left=left+'px';}}"
+            # ir al mes del valor seleccionado
+            f"var refDate=parseISO(field==='end'&&sel2?sel2:sel1);"
+            f"if(refDate){{curYear=refDate.getFullYear();curMonth=refDate.getMonth();}}"
+            f"render();"
+            f"cal.style.display='block';"
+            f"}};"
+            # close
+            f"window.{uid}_close=function(){{"
+            f"var cal=document.getElementById(U+'_cal');"
+            f"if(cal)cal.style.display='none';"
+            f"}};"
+            # clear
+            f"window.{uid}_clear=function(){{"
+            f"sel1='';sel2='';"
+            f"_updateDisplay();"
+            f"render();"
+            f"}};"
+            # pick date
+            f"window.{uid}_pick=function(iso){{"
+            f"if(isRange){{"
+            f"if(activeField==='start'||(!sel1&&!sel2)){{"
+            f"sel1=iso;sel2='';"
+            f"activeField='end';"  # auto-avanzar al campo fin
+            f"render();"
+            # reabrir para seleccionar fin
+            f"}}else{{"
+            f"if(iso<sel1){{sel2=sel1;sel1=iso;}}else{{sel2=iso;}}"
+            f"_updateDisplay();"
+            f"render();"
+            f"{uid}_close();}}"
+            f"}}else{{"
+            f"sel1=iso;"
+            f"_updateDisplay();"
+            f"render();"
+            f"{uid}_close();}}"
+            f"}};"
+            # update display fields
+            f"function _updateDisplay(){{"
+            f"if(isRange){{"
+            f"var d1=document.getElementById(U+'_d1');"
+            f"var d2=document.getElementById(U+'_d2');"
+            f"var v1=document.getElementById(U+'_val1');"
+            f"var v2=document.getElementById(U+'_val2');"
+            f"if(d1){{d1.textContent=fmtDisp(sel1)||'{self.placeholder_start}';"
+            f"d1.style.color=sel1?'var(--text)':'var(--text-muted)';}}"
+            f"if(d2){{d2.textContent=fmtDisp(sel2)||'{self.placeholder_end}';"
+            f"d2.style.color=sel2?'var(--text)':'var(--text-muted)';}}"
+            f"if(v1)v1.value=sel1;"
+            f"if(v2)v2.value=sel2;"
+            f"}}else{{"
+            f"var d=document.getElementById(U+'_disp');"
+            f"var v=document.getElementById(U+'_val');"
+            f"if(d){{d.textContent=fmtDisp(sel1)||'{self.placeholder}';"
+            f"d.style.color=sel1?'var(--text)':'var(--text-muted)';}}"
+            f"if(v)v.value=sel1;}}"
+            f"}}"
+            # prev/next month
+            f"window.{uid}_prevMonth=function(){{"
+            f"curMonth--;if(curMonth<0){{curMonth=11;curYear--;}}render();}};"
+            f"window.{uid}_nextMonth=function(){{"
+            f"curMonth++;if(curMonth>11){{curMonth=0;curYear++;}}render();}};"
+            # cerrar al hacer clic fuera
+            f"document.addEventListener('click',function(e){{"
+            f"var cal=document.getElementById(U+'_cal');"
+            f"var wrap=document.getElementById(U+'_wrap');"
+            f"if(cal&&wrap&&!wrap.contains(e.target))cal.style.display='none';"
+            f"}});"
+            # inicializar display
+            f"_updateDisplay();"
+            f"}})();</script>"
+        )
+
+        return (
+            css + f'<div id="{uid}_wrap" style="position:relative;display:inline-flex;'
+            f'flex-direction:column;width:100%{wrapper_extra}">'
+            + label_html
+            + trigger_html
+            + calendar_html
+            + js
+            + "</div>"
+        )

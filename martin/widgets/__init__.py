@@ -7,7 +7,17 @@ Public widget exports grouped by category modules.
 from .layout import Container, Row, Column, Grid, Stack, Card, Section, Spacer, Divider
 from .text import Text, Heading, Paragraph, Link, Code
 from .media import Image, Video, Icon, Avatar
-from .input import Button, TextField, TextArea, Checkbox, Select, MultiSelect
+from .input import (
+    Button,
+    TextField,
+    TextArea,
+    Checkbox,
+    Select,
+    MultiSelect,
+    Slider,
+    ColorPicker,
+    DatePicker,
+)
 from .feedback import Badge, Alert
 from .navigation import NavBar, SideMenu, Footer, Breadcrumb, Tabs
 from .data import Table
@@ -63,6 +73,9 @@ __all__ = [
     "Checkbox",
     "Select",
     "MultiSelect",
+    "Slider",
+    "ColorPicker",
+    "DatePicker",
     # Feedback
     "Badge",
     "Alert",
