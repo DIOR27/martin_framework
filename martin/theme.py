@@ -153,6 +153,16 @@ select {
 .pw-opt:hover, .pw-mopt:hover {
   background: var(--surface-2) !important;
 }
+
+/* Scrollbar temático */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-input, rgba(129,140,248,.3));
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+* { scrollbar-width: thin; scrollbar-color: var(--border-input, rgba(129,140,248,.3)) transparent; }
 """
 
 # ── Botón toggle de tema ──────────────────────────────────────────────────────
