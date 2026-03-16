@@ -1,9 +1,9 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="martin",
-    version="0.1.0",
-    description="Build webs with Python, Flutter-style",
+    name="martin-framework",
+    version="0.3.0",
+    description="Build webs with pure Python",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     python_requires=">=3.9",
@@ -14,5 +14,7 @@ setup(
         "Development Status :: 3 - Alpha",
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
+        "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+        "Topic :: Software Development :: Libraries :: Application Frameworks",
     ],
 )

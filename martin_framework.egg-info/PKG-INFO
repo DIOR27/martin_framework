@@ -1,7 +1,7 @@
 Metadata-Version: 2.4
-Name: martin
-Version: 0.1.0
-Summary: Build webs with Python, Flutter-style
+Name: martin-framework
+Version: 0.3.0
+Summary: Build webs with pure Python
 License: MIT
 Requires-Python: >=3.9
 Description-Content-Type: text/markdown
