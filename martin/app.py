@@ -573,7 +573,7 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
 <html lang="{self.lang}" data-theme="{theme}">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>{title}</title>
 {seo_html}
   <style>
@@ -582,6 +582,12 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
            line-height: 1.5; min-height: 100vh; }}
     img {{ display: block; max-width: 100%; }}
     a {{ color: inherit; }}
+    :root {{
+      --sa-top:    env(safe-area-inset-top,    0px);
+      --sa-bottom: env(safe-area-inset-bottom, 0px);
+      --sa-left:   env(safe-area-inset-left,   0px);
+      --sa-right:  env(safe-area-inset-right,  0px);
+    }}
     {THEME_CSS}
     {self.global_styles}
   </style>

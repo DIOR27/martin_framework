@@ -446,3 +446,335 @@ class CookieBanner(Widget):
 
         return banner_html + js
 
+"""
+Martin — SafeArea Widget
+
+Replica el comportamiento de SafeArea de Flutter:
+detecta el dispositivo, notch/Dynamic Island, barras del sistema
+y aplica padding automático usando CSS env(safe-area-inset-*).
+"""
+
+from ..widget import Widget
+
+
+class SafeArea(Widget):
+    """
+    Envuelve contenido respetando las zonas no seguras del dispositivo:
+    notch, Dynamic Island, barra de estado, barra de navegación inferior,
+    esquinas redondeadas, etc.
+
+    Requiere que el viewport tenga ``viewport-fit=cover`` — Martin lo
+    añade automáticamente al meta viewport cuando detecta un SafeArea
+    en la página (ver app.py).
+
+    Uso básico — proteger todo el contenido:
+        SafeArea(
+            children=[MiContenido()],
+        )
+
+    Solo lados específicos:
+        SafeArea(top=True, bottom=True, left=False, right=False,
+                 children=[NavBar(...)])
+
+    Con padding adicional encima del safe-area:
+        SafeArea(top=True, extra_top=16, children=[...])
+
+    Como wrapper de página completa:
+        SafeArea(
+            full=True,
+            children=[Column([...])]
+        )
+
+    Obtener las medidas desde JS (para animaciones, etc.):
+        SafeArea(on_ready="miCallback(insets)")
+        # insets = { top, bottom, left, right, hasNotch,
+        #            deviceType, viewportWidth, viewportHeight }
+
+    Parámetros:
+        top           bool    aplica inset superior (default: True)
+        bottom        bool    aplica inset inferior (default: True)
+        left          bool    aplica inset izquierdo (default: True)
+        right         bool    aplica inset derecho (default: True)
+        extra_top     int     padding extra sobre el inset top (px)
+        extra_bottom  int     padding extra sobre el inset bottom (px)
+        extra_left    int     padding extra sobre el inset left (px)
+        extra_right   int     padding extra sobre el inset right (px)
+        min_top       int     padding mínimo top aunque no haya notch (px)
+        min_bottom    int     padding mínimo bottom (px)
+        full          bool    ocupa 100vw × 100dvh (útil como root)
+        tag           str     elemento HTML (default: "div")
+        on_ready      str     JS llamado con el objeto insets cuando se calcula
+        debug         bool    muestra overlay con las medidas (dev only)
+        child         Widget  hijo único
+        children      list    lista de hijos
+        id            str     id del elemento
+        class_name    str     clase CSS adicional
+    """
+
+    _id_counter = 0
+
+    def __init__(
+        self,
+        top=True,
+        bottom=True,
+        left=True,
+        right=True,
+        extra_top=0,
+        extra_bottom=0,
+        extra_left=0,
+        extra_right=0,
+        min_top=0,
+        min_bottom=0,
+        full=False,
+        tag="div",
+        on_ready=None,
+        debug=False,
+        child=None,
+        children=None,
+        id=None,
+        class_name=None,
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.top = top
+        self.bottom = bottom
+        self.left = left
+        self.right = right
+        self.extra_top = extra_top
+        self.extra_bottom = extra_bottom
+        self.extra_left = extra_left
+        self.extra_right = extra_right
+        self.min_top = min_top
+        self.min_bottom = min_bottom
+        self.full = full
+        self.tag = tag
+        self.on_ready = on_ready
+        self.debug = debug
+        self.class_name = class_name
+        if child is not None and children is None:
+            children = [child]
+        self.children = children or []
+        SafeArea._id_counter += 1
+        self.uid = id or f"sa_{SafeArea._id_counter}"
+
+    # ── CSS env() helpers ────────────────────────────────────────────────────
+
+    def _inset_css(self):
+        """
+        Construye el padding CSS usando env(safe-area-inset-*) con fallback a 0px.
+        El extra padding se suma usando calc().
+        El min_* garantiza un mínimo aunque el dispositivo no tenga notch.
+        """
+
+        def _side(use, inset_name, extra, minimum):
+            if not use:
+                return f"{extra}px" if extra else "0px"
+            base = f"env({inset_name}, 0px)"
+            parts = [base]
+            if extra:
+                parts.append(f"{extra}px")
+            css = f"calc({' + '.join(parts)})" if len(parts) > 1 else base
+            if minimum:
+                css = f"max({minimum}px, {css})"
+            return css
+
+        pt = _side(self.top, "safe-area-inset-top", self.extra_top, self.min_top)
+        pb = _side(
+            self.bottom, "safe-area-inset-bottom", self.extra_bottom, self.min_bottom
+        )
+        pl = _side(self.left, "safe-area-inset-left", self.extra_left, 0)
+        pr = _side(self.right, "safe-area-inset-right", self.extra_right, 0)
+
+        return (
+            f"padding-top:{pt};padding-bottom:{pb};padding-left:{pl};padding-right:{pr}"
+        )
+
+    # ── JavaScript de detección ──────────────────────────────────────────────
+
+    def _build_js(self):
+        uid = self.uid
+        on_ready_call = f"({self.on_ready})(insets);" if self.on_ready else ""
+        debug_js = (
+            f"""
+            var dbg = document.getElementById('{uid}_debug');
+            if (dbg) {{
+                dbg.innerHTML =
+                    '<b>SafeArea</b><br>' +
+                    'top: ' + insets.top + 'px<br>' +
+                    'bottom: ' + insets.bottom + 'px<br>' +
+                    'left: ' + insets.left + 'px<br>' +
+                    'right: ' + insets.right + 'px<br>' +
+                    'notch: ' + insets.hasNotch + '<br>' +
+                    'device: ' + insets.deviceType + '<br>' +
+                    (insets.dynamicIsland ? 'Dynamic Island<br>' : '') +
+                    insets.viewportWidth + '×' + insets.viewportHeight;
+            }}
+            """
+            if self.debug
+            else ""
+        )
+
+        return f"""
+<script>
+(function() {{
+    var uid = '{uid}';
+    var el  = document.getElementById(uid);
+    if (!el) return;
+
+    function getInsets() {{
+        // Leer las CSS env() variables reales usando un elemento temporal
+        var probe = document.createElement('div');
+        probe.style.cssText = [
+            'position:fixed',
+            'top:env(safe-area-inset-top,0px)',
+            'bottom:env(safe-area-inset-bottom,0px)',
+            'left:env(safe-area-inset-left,0px)',
+            'right:env(safe-area-inset-right,0px)',
+            'pointer-events:none',
+            'visibility:hidden',
+            'z-index:-1'
+        ].join(';');
+        document.body.appendChild(probe);
+        var cs  = window.getComputedStyle(probe);
+        var top    = parseFloat(cs.top)    || 0;
+        var bottom = parseFloat(cs.bottom) || 0;
+        var left   = parseFloat(cs.left)   || 0;
+        var right  = parseFloat(cs.right)  || 0;
+        document.body.removeChild(probe);
+
+        // Detección de dispositivo
+        var ua = navigator.userAgent || '';
+        var isIOS     = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        var isAndroid = /Android/.test(ua);
+        var isMobile  = isIOS || isAndroid || window.innerWidth < 768;
+        var isTablet  = isMobile && window.innerWidth >= 600;
+
+        var deviceType = 'desktop';
+        if (isTablet)       deviceType = 'tablet';
+        else if (isMobile)  deviceType = 'mobile';
+
+        // Detección de notch / Dynamic Island
+        var hasNotch      = top > 20;
+        var dynamicIsland = isIOS && top >= 54;  // DI comienza en ~54px
+
+        // Dimensiones de viewport (dvh si disponible)
+        var vw = window.innerWidth;
+        var vh = window.innerHeight;
+
+        // Orientación
+        var orientation = (screen.orientation && screen.orientation.type)
+            || (window.innerWidth > window.innerHeight ? 'landscape' : 'portrait');
+
+        return {{
+            top:           top,
+            bottom:        bottom,
+            left:          left,
+            right:         right,
+            hasNotch:      hasNotch,
+            dynamicIsland: dynamicIsland,
+            deviceType:    deviceType,
+            isIOS:         isIOS,
+            isAndroid:     isAndroid,
+            isMobile:      isMobile,
+            isTablet:      isTablet,
+            orientation:   orientation,
+            viewportWidth: vw,
+            viewportHeight: vh,
+            pixelRatio:    window.devicePixelRatio || 1,
+        }};
+    }}
+
+    function apply() {{
+        var insets = getInsets();
+
+        // Exponer globalmente como martin.safeArea para JS del usuario
+        if (!window.martin) window.martin = {{}};
+        window.martin.safeArea = insets;
+        window.martin.safeArea.elementId = uid;
+
+        // Aplicar como CSS custom properties en el elemento
+        el.style.setProperty('--sa-top',    insets.top    + 'px');
+        el.style.setProperty('--sa-bottom', insets.bottom + 'px');
+        el.style.setProperty('--sa-left',   insets.left   + 'px');
+        el.style.setProperty('--sa-right',  insets.right  + 'px');
+
+        // También en :root para acceso global
+        document.documentElement.style.setProperty('--sa-top',    insets.top    + 'px');
+        document.documentElement.style.setProperty('--sa-bottom', insets.bottom + 'px');
+        document.documentElement.style.setProperty('--sa-left',   insets.left   + 'px');
+        document.documentElement.style.setProperty('--sa-right',  insets.right  + 'px');
+
+        // data-* para CSS attribute selectors
+        el.dataset.deviceType  = insets.deviceType;
+        el.dataset.hasNotch    = insets.hasNotch;
+        el.dataset.orientation = insets.orientation;
+
+        // Callback del usuario
+        {on_ready_call}
+
+        // Debug overlay
+        {debug_js}
+    }}
+
+    // Ejecutar al cargar y al cambiar orientación / resize
+    if (document.readyState === 'loading') {{
+        document.addEventListener('DOMContentLoaded', apply);
+    }} else {{
+        apply();
+    }}
+
+    // Recalcular en resize y orientationchange (el notch puede variar en landscape)
+    var _saTimer;
+    function _saDebounce() {{
+        clearTimeout(_saTimer);
+        _saTimer = setTimeout(apply, 150);
+    }}
+    window.addEventListener('resize',            _saDebounce);
+    window.addEventListener('orientationchange', _saDebounce);
+}})();
+</script>
+"""
+
+    # ── Debug overlay ─────────────────────────────────────────────────────────
+
+    def _debug_overlay(self):
+        if not self.debug:
+            return ""
+        return (
+            f'<div id="{self.uid}_debug" style="'
+            "position:fixed;bottom:80px;right:12px;z-index:99999;"
+            "background:rgba(0,0,0,0.82);color:#fff;font-size:11px;"
+            "font-family:monospace;padding:10px 14px;border-radius:10px;"
+            "line-height:1.7;pointer-events:none;backdrop-filter:blur(8px);"
+            'border:1px solid rgba(255,255,255,0.15)">'
+            "calculando..."
+            "</div>"
+        )
+
+    # ── render ───────────────────────────────────────────────────────────────
+
+    def render(self):
+        uid = self.uid
+        inset_css = self._inset_css()
+
+        base_css = inset_css + ";box-sizing:border-box"
+        if self.full:
+            base_css += ";width:100%;min-height:100dvh"
+
+        inline = self._resolve_props(base_css)
+        inner = self._render_children(self.children)
+
+        attrs = self._attrs(
+            style=inline,
+            id=uid,
+            **{"class": self.class_name},
+        )
+
+        html = (
+            f"<{self.tag}{attrs}>"
+            + inner
+            + f"</{self.tag}>"
+            + self._debug_overlay()
+            + self._build_js()
+        )
+        return html
