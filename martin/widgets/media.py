@@ -5,9 +5,12 @@ Widgets para mostrar contenido visual y multimedia.
 
     Image   — imagen responsive (<img>)
     Video   — video HTML5 (<video>)
-    Icon    — ícono (emoji, SVG inline, carácter especial)
+    Icon    — ícono (emoji, SVG inline, Font Awesome, Bootstrap Icons, etc.)
+    IconPack — carga hojas de estilo de librerías de iconos vía CDN
     Avatar  — avatar circular con imagen o iniciales
 """
+
+import html as _html
 
 from ..widget import Widget
 
@@ -90,19 +93,117 @@ class Video(Widget):
 
 class Icon(Widget):
     """
-    Ícono: emoji, carácter especial, SVG inline, etc.
+    Ícono: emoji, carácter especial, SVG inline o librerías por clases.
 
         Icon("🚀")
         Icon("🚀", size=32, margin=8)
         Icon("<svg ...>", size=24)
+        Icon(name="house", provider="fa", variant="solid")     # Font Awesome
+        Icon(name="alarm", provider="material-symbols")         # Google Symbols
+        Icon(icon_class="bi bi-airplane")                       # clases directas
     """
 
-    def __init__(self, icon=None, size=20, child=None, children=None, **kwargs):
+    _PROVIDER_ALIASES = {
+        "fa": "fontawesome",
+        "font-awesome": "fontawesome",
+        "fontawesome": "fontawesome",
+        "bootstrap": "bootstrap-icons",
+        "bootstrap-icons": "bootstrap-icons",
+        "bi": "bootstrap-icons",
+        "material-symbols": "material-symbols",
+        "material_symbols": "material-symbols",
+        "material-icons": "material-icons",
+        "material_icons": "material-icons",
+        "mdi": "mdi",
+    }
+
+    def __init__(
+        self,
+        icon=None,
+        size=20,
+        child=None,
+        children=None,
+        name=None,
+        provider=None,
+        variant=None,
+        icon_class=None,
+        class_name=None,
+        **kwargs,
+    ):
         self._props = Widget._extract_props(kwargs)
         self.icon = icon
         self.size = size
         self.child = child
         self.children = children
+        self.name = name
+        self.provider = self._normalize_provider(provider)
+        self.variant = variant
+        self.icon_class = icon_class
+        self.class_name = class_name
+
+    @classmethod
+    def _normalize_provider(cls, provider):
+        if not provider:
+            return None
+        key = str(provider).strip().lower()
+        return cls._PROVIDER_ALIASES.get(key, key)
+
+    def _font_class_icon(self):
+        if self.icon_class:
+            base = str(self.icon_class).strip()
+            if self.class_name:
+                base = f"{base} {self.class_name}".strip()
+            return "i", base, ""
+
+        if self.name and not self.provider:
+            base = str(self.name).strip()
+            if self.class_name:
+                base = f"{base} {self.class_name}".strip()
+            return "i", base, ""
+
+        if not self.name:
+            return None
+
+        name = str(self.name).strip()
+        extra = f" {self.class_name.strip()}" if self.class_name else ""
+
+        if self.provider == "fontawesome":
+            v = (self.variant or "solid").strip().lower()
+            fa_variant = {
+                "solid": "fa-solid",
+                "regular": "fa-regular",
+                "brands": "fa-brands",
+                "light": "fa-light",
+                "thin": "fa-thin",
+                "duotone": "fa-duotone",
+            }.get(v, "fa-solid")
+            token = name if name.startswith("fa-") else f"fa-{name}"
+            return "i", f"{fa_variant} {token}{extra}", ""
+
+        if self.provider == "bootstrap-icons":
+            token = name if name.startswith("bi-") else f"bi-{name}"
+            return "i", f"bi {token}{extra}", ""
+
+        if self.provider == "mdi":
+            token = name if name.startswith("mdi-") else f"mdi-{name}"
+            return "i", f"mdi {token}{extra}", ""
+
+        if self.provider == "material-icons":
+            cls = f"material-icons{extra}"
+            return "span", cls.strip(), name
+
+        if self.provider == "material-symbols":
+            v = (self.variant or "outlined").strip().lower()
+            if v not in {"outlined", "rounded", "sharp"}:
+                v = "outlined"
+            cls = f"material-symbols-{v}{extra}"
+            return "span", cls.strip(), name
+
+        if self.provider:
+            cls = f"{self.provider} {name}{extra}".strip()
+            return "i", cls, ""
+
+        return None
 
     def render(self):
         base = (
@@ -110,8 +211,95 @@ class Icon(Widget):
             f"display:inline-flex; align-items:center"
         )
         inline = self._resolve_props(base)
-        inner = self._resolve_inner(self.icon, self.child, self.children)
-        return f'<span style="{inline}" aria-hidden="true">{inner}</span>'
+        has_aria_label = bool(self._get_universal_attrs().get("aria-label"))
+        outer_attrs = self._attrs(
+            style=inline,
+            aria_hidden=(None if has_aria_label else "true"),
+        )
+
+        font_icon = self._font_class_icon()
+        if font_icon:
+            tag, classes, text = font_icon
+            icon_attrs = self._attrs(
+                **{
+                    "class": classes,
+                    "style": "font-size:inherit;line-height:1;display:inline-block",
+                }
+            )
+            if text:
+                txt = _html.escape(str(text))
+                inner = f"<{tag}{icon_attrs}>{txt}</{tag}>"
+            else:
+                inner = f"<{tag}{icon_attrs}></{tag}>"
+        else:
+            inner = self._resolve_inner(self.icon, self.child, self.children)
+        return f"<span{outer_attrs}>{inner}</span>"
+
+
+# =============================================================================
+# IconPack
+# =============================================================================
+
+
+class IconPack(Widget):
+    """
+    Carga librerías de iconos desde CDN para usar con `Icon(provider=...)`.
+
+        IconPack("fontawesome")
+        IconPack(["fontawesome", "bootstrap-icons", "mdi"])
+        IconPack(["material-symbols", "material-icons"])
+    """
+
+    _ALIASES = Icon._PROVIDER_ALIASES
+    _CDN_MAP = {
+        "fontawesome": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/{version}/css/all.min.css",
+        "bootstrap-icons": "https://cdn.jsdelivr.net/npm/bootstrap-icons@{version}/font/bootstrap-icons.min.css",
+        "mdi": "https://cdn.jsdelivr.net/npm/@mdi/font@{version}/css/materialdesignicons.min.css",
+        "material-symbols": "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0",
+        "material-icons": "https://fonts.googleapis.com/icon?family=Material+Icons",
+    }
+    _DEFAULT_VERSION = {
+        "fontawesome": "6.5.2",
+        "bootstrap-icons": "1.11.3",
+        "mdi": "7.4.47",
+    }
+
+    def __init__(self, providers="fontawesome", versions=None, **kwargs):
+        self._props = Widget._extract_props(kwargs)
+        self.providers = providers
+        self.versions = versions or {}
+
+    def _provider_list(self):
+        raw = self.providers
+        if isinstance(raw, str):
+            raw = [raw]
+        out = []
+        for item in raw or []:
+            key = str(item).strip().lower()
+            name = self._ALIASES.get(key, key)
+            if name in self._CDN_MAP and name not in out:
+                out.append(name)
+        return out
+
+    def _href_for(self, provider):
+        tpl = self._CDN_MAP.get(provider)
+        if not tpl:
+            return None
+        if "{version}" in tpl:
+            version = self.versions.get(provider) or self._DEFAULT_VERSION.get(provider)
+            return tpl.format(version=version)
+        return tpl
+
+    def render(self):
+        links = []
+        for provider in self._provider_list():
+            href = self._href_for(provider)
+            if not href:
+                continue
+            links.append(
+                f'<link rel="stylesheet" href="{_html.escape(str(href), quote=True)}" />'
+            )
+        return "".join(links)
 
 
 # =============================================================================

@@ -79,6 +79,12 @@ class AccessibilityTests(unittest.TestCase):
         html = Modal(id="m2", children=[Text("Body")]).render()
         self.assertIn('aria-label="Dialogo"', html)
 
+    def test_modal_runtime_helpers_are_present_even_if_flag_is_true(self):
+        Modal._SCRIPT_READY = True
+        html = Modal(id="m3", title="Demo", children=[Text("Body")]).render()
+        self.assertIn("window.openModal", html)
+        self.assertIn("window.closeModal", html)
+
     def test_select_defaults_and_roles(self):
         Select._id_counter = 0
         html = Select(

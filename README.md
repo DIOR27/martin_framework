@@ -141,7 +141,7 @@ MARTIN ships with a growing set of UI primitives:
 -   Layout: `Row`, `Column`, `Grid`, `Stack`, `Spacer`
 -   Containers: `Container`, `Card`
 -   Typography: `Heading`, `Text`, `Paragraph`
--   Media: `Image`, `Video`, `Icon`
+-   Media: `Image`, `Video`, `Icon`, `IconPack`
 -   Forms: `TextField`, `Checkbox`, `Select`, `MultiSelect`
 -   UI Elements: `Button`, `Badge`, `Avatar`, `Divider`
 -   Data Visuals: `WordCloud`, `Map`, `Timeline`
@@ -209,6 +209,36 @@ Table(
 ```
 
 For richer PDF exports you can optionally include `jsPDF` with `Script(...)`.
+
+------------------------------------------------------------------------
+
+## Icon Libraries
+
+You can load popular icon libraries from Python and use them with `Icon`.
+
+``` python
+from martin import Row, IconPack, Icon
+
+Row(
+    children=[
+        IconPack(["fontawesome", "bootstrap-icons", "material-symbols"]),
+        Icon(name="house", provider="fa", variant="solid", size=18),
+        Icon(name="airplane", provider="bi", size=18),
+        Icon(name="flight_takeoff", provider="material-symbols", variant="rounded", size=20),
+    ],
+    gap=10,
+)
+```
+
+You can also pass direct icon classes:
+
+``` python
+Icon(name="fa-solid fa-user")
+Icon(icon_class="mdi mdi-calendar")
+```
+
+Supported providers: `fa`/`fontawesome`, `bi`/`bootstrap-icons`,
+`mdi`, `material-icons`, `material-symbols`.
 
 ------------------------------------------------------------------------
 

@@ -273,7 +273,6 @@ COMPONENTS_TEMPLATE = (
         Slider, ColorPicker, DatePicker,
         WordCloud, Map, Timeline, TimelineItem, Hero,
         Gallery, GalleryItem, Carousel, CarouselItem,
-        CookieBanner, CookieCategory,
         Border, Shadow, TextStyle, Glass, GradientText, MeshBackground, Colors,
         SideMenu, Raw,
         PageConfig,
@@ -508,38 +507,6 @@ COMPONENTS_TEMPLATE = (
                 ]),
             ], widget_name="Avatar"))
 
-        # ── NavBar & Footer ───────────────────────────────────────────────
-        if "NavBar" in all_w:
-            secs.append(_sec("NavBar & Footer", "Cabecera y pie de p\\u00e1gina totalmente declarativos.", [
-                NavBar(
-                    brand=Row([
-                        Image("/assets/icon.webp", width=28, height=28, radius=6),
-                        Text("MiApp", style=TextStyle(weight="800", size=17)),
-                    ], gap=8, align="center"),
-                    links=[
-                        Link("Inicio",    href="/",         style="color:var(--text);text-decoration:none;font-size:14px;font-weight:500"),
-                        Link("Productos", href="/productos", style="color:var(--text-muted);text-decoration:none;font-size:14px"),
-                        Link("Blog",      href="/blog",     style="color:var(--text-muted);text-decoration:none;font-size:14px"),
-                    ],
-                    actions=[
-                        Button("Login",    variant="ghost", radius=8),
-                        Button("Registro", radius=8),
-                    ],
-                ),
-                Spacer(16),
-                Footer(
-                    left=Text("\\u00a9 2025 MiApp", style=TextStyle(size=13, color="var(--text-muted)")),
-                    center=Row([
-                        Link("T\\u00e9rminos",  href="/terminos",   style="font-size:13px;color:var(--text-muted);text-decoration:none"),
-                        Link("Privacidad", href="/privacidad", style="font-size:13px;color:var(--text-muted);text-decoration:none"),
-                    ], gap=16),
-                    right=Row([
-                        Button("Twitter", variant="ghost", padding=6, radius=6),
-                        Button("GitHub",  variant="ghost", padding=6, radius=6),
-                    ], gap=4),
-                ),
-            ], widget_name="NavBar"))
-
         # ── Tabs ──────────────────────────────────────────────────────────
         if "Tabs" in all_w:
             secs.append(_sec("Tabs", "Navegaci\\u00f3n por pesta\\u00f1as con contenido diferente en cada una.", [
@@ -704,11 +671,11 @@ COMPONENTS_TEMPLATE = (
             secs.append(_sec("Carousel", "Carrusel de tarjetas y cinta de logos.", [
                 Carousel(
                     items=[
-                        CarouselItem(image="/assets/icon.webp", title=f"Slide {i+1}",
-                                     subtitle=f"Descripci\\u00f3n del slide {i+1}.")
+                        CarouselItem(image="/assets/icon.webp")
                         for i in range(4)
                     ],
-                    mode="slides", visible=3, gap=16, loop=True, autoplay=3000,
+                    mode="slides", visible=3, gap=12, loop=True, autoplay=2500,
+                    arrows=False, dots=True, img_height=320,
                 ),
                 Spacer(16),
                 Text("Modo brands:", style=TextStyle(size=12, weight="600", color="var(--text-muted)")),
@@ -744,23 +711,6 @@ COMPONENTS_TEMPLATE = (
                 ),
             ], widget_name="WordCloud"))
 
-        # ── CookieBanner ──────────────────────────────────────────────────
-        if "CookieBanner" in all_w:
-            secs.append(_sec("CookieBanner", "Banner de cookies GDPR con persistencia.", [
-                CookieBanner(
-                    title="Este sitio usa cookies",
-                    description="Usamos cookies propias y de terceros para mejorar tu experiencia.",
-                    categories=[
-                        CookieCategory("necessary", "Necesarias",     "Imprescindibles.", default=True, required=True),
-                        CookieCategory("analytics", "Anal\\u00edticas", "Mejoran el sitio.", default=False),
-                        CookieCategory("marketing", "Marketing",       "Publicidad relevante.", default=False),
-                    ],
-                    position="bottom",
-                    storage_key="martin_cookie_consent_demo",
-                    privacy_url="/about",
-                ),
-            ], widget_name="CookieBanner"))
-
         return secs
 
 
@@ -787,7 +737,6 @@ COMPONENTS_TEMPLATE = (
         ("Carousel",     "widget-carousel"),
         ("Map",          "widget-map"),
         ("WordCloud",    "widget-wordcloud"),
-        ("CookieBanner", "widget-cookiebanner"),
     ]
 
 

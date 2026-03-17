@@ -44,6 +44,7 @@ from .widgets import (
     Image,
     Video,
     Icon,
+    IconPack,
     Avatar,
     # Interaction
     Button,
@@ -153,6 +154,7 @@ __all__ = [
     "Image",
     "Video",
     "Icon",
+    "IconPack",
     "Avatar",
     "Button",
     "TextField",

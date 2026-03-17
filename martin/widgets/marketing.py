@@ -753,6 +753,7 @@ class Carousel(Widget):
             ],
             mode="slides",
             visible=1,          # cuántos slides se ven a la vez
+            mobile_visible=1,   # en móvil mostrar solo 1 (o el valor indicado)
             gap=16,             # espacio entre slides
             loop=True,          # vuelve al inicio al llegar al final
             autoplay=0,         # 0 = desactivado; ms entre avance automático (ej: 3000)
@@ -784,6 +785,8 @@ class Carousel(Widget):
         mode           "slides" | "brands"
         loop           bool
         autoplay       int   ms (solo slides; 0 = desactivado)
+        mobile_visible int   visibles en móvil (default: 1)
+        mobile_arrows  bool  mostrar flechas en móvil (default: False)
         radius         int   border-radius de cada item
         url / url_target     prop universal del widget wrapper
     """
@@ -794,6 +797,7 @@ class Carousel(Widget):
                  # slides
                  visible=1, gap=16, loop=True, autoplay=0,
                  arrows=True, dots=True, img_height=320,
+                 mobile_visible=1, mobile_arrows=False, mobile_breakpoint=768,
                  # brands
                  brand_height=48,
                  brand_filter="grayscale(100%) opacity(0.55)",
@@ -810,6 +814,9 @@ class Carousel(Widget):
         self.arrows        = arrows
         self.dots          = dots
         self.img_height    = img_height
+        self.mobile_visible = mobile_visible
+        self.mobile_arrows = mobile_arrows
+        self.mobile_breakpoint = mobile_breakpoint
         self.brand_height  = brand_height
         self.brand_filter  = brand_filter
         self.brand_filter_hover = brand_filter_hover  # None = sin filtro (color)
@@ -966,7 +973,13 @@ class Carousel(Widget):
         items    = [i for i in self.items if isinstance(i, CarouselItem)]
         n        = len(items)
         gap      = self.gap
-        visible  = self.visible
+        visible  = max(1, int(self.visible))
+        mobile_visible = self.mobile_visible
+        if mobile_visible is None:
+            mobile_visible = visible
+        mobile_visible = max(1, int(mobile_visible))
+        bp = max(320, int(self.mobile_breakpoint or 768))
+        mobile_arrows = bool(self.mobile_arrows)
         loop     = self.loop
         autoplay = self.autoplay
         arrows   = self.arrows
@@ -976,7 +989,9 @@ class Carousel(Widget):
         extra    = self._resolve_props()
 
         # Número de posiciones navegables
-        positions = max(n - visible + 1, 1)  # dots count = positions
+        positions = max(n if loop else (n - visible + 1), 1)
+        mobile_positions = max(n if loop else (n - min(mobile_visible, max(n, 1)) + 1), 1)
+        max_positions = max(positions, mobile_positions)
 
         slide_width = "calc((100% - " + str(gap * (visible - 1)) + "px) / " + str(visible) + ")"
 
@@ -997,8 +1012,9 @@ class Carousel(Widget):
         # y los últimos `visible` al inicio → infinite clone technique
         clones_after  = ""
         clones_before = ""
+        clone_count = min(max(visible, mobile_visible), n) if loop else 0
         if loop:
-            for idx in range(min(visible, n)):
+            for idx in range(clone_count):
                 content_s = self._render_item_content(items[idx], radius_css)
                 clones_after += (
                     '<div data-clone="after" style="'
@@ -1008,7 +1024,7 @@ class Carousel(Widget):
                     'overflow:hidden;' + radius_css + '">'
                     + content_s + '</div>'
                 )
-            for idx in range(n - min(visible, n), n):
+            for idx in range(n - clone_count, n):
                 content_s = self._render_item_content(items[idx], radius_css)
                 clones_before += (
                     '<div data-clone="before" style="'
@@ -1021,9 +1037,9 @@ class Carousel(Widget):
 
         # Dots: one per navigable position
         dots_html = ""
-        if dots and positions > 1:
+        if dots and max_positions > 1:
             dot_items = ""
-            for i in range(positions):
+            for i in range(max_positions):
                 active = "var(--accent)" if i == 0 else "var(--border)"
                 scale  = "transform:scale(1.3);" if i == 0 else ""
                 dot_items += (
@@ -1077,30 +1093,61 @@ class Carousel(Widget):
         js = (
             ';(function(){'
             'if(!window._car)window._car={};'
-            'var uid="' + uid + '",n=' + str(n) + ',vis=' + str(visible) + ',gap=' + str(gap) + ','
+            'var uid="' + uid + '",n=' + str(n) + ',dvis=' + str(visible) + ',mvis=' + str(mobile_visible) + ',gap=' + str(gap) + ','
+            'bp=' + str(bp) + ',mobileArrows=' + ('true' if mobile_arrows else 'false') + ','
             'loop=' + ('true' if loop else 'false') + ','
             'positions=' + str(positions) + ','
+            'maxDots=' + str(max_positions) + ','
             'autoplay=' + str(autoplay) + ';'
-            'var cur=0;'  # cur = index into real slides (0..n-1)
+            'var cur=0,curVis=dvis,isMobile=false;'  # cur = index into real slides (0..n-1)
             'var transitioning=false;'
             'var track=document.getElementById(uid+"_track");'
             'var vp=document.getElementById(uid+"_viewport");'
+            'if(!track||!vp||n<=0)return;'
+
+            'function _vis(){'
+            '  isMobile=!!(window.matchMedia&&window.matchMedia("(max-width:"+bp+"px)").matches);'
+            '  var v=isMobile?mvis:dvis;'
+            '  v=Math.max(1,Math.min(v,n));'
+            '  return v;'
+            '}'
+
+            'function _positions(){'
+            '  if(loop)return Math.max(n,1);'
+            '  return Math.max(n-curVis+1,1);'
+            '}'
 
             'function _sw(){'
-            '  return vp?(vp.offsetWidth-gap*(vis-1))/vis:0;'
+            '  return vp?(vp.offsetWidth-gap*(curVis-1))/curVis:0;'
             '}'
 
             # offset: if loop, track starts with `vis` clone slides before real slides
             'function _offset(idx){'
             '  var sw=_sw();'
-            '  var base=loop?vis:0;'
+            '  var base=loop?' + str(clone_count) + ':0;'
             '  return (base+idx)*(sw+gap);'
+            '}'
+
+            'function _syncDots(){'
+            '  for(var i=0;i<maxDots;i++){'
+            '    var d=document.getElementById(uid+"_dot"+i);'
+            '    if(!d)continue;'
+            '    d.style.display=i<positions?"inline-block":"none";'
+            '  }'
+            '}'
+
+            'function _syncArrows(){'
+            '  var show=(!isMobile)||mobileArrows;'
+            '  var bpv=document.getElementById(uid+"_prev");'
+            '  var bnx=document.getElementById(uid+"_next");'
+            '  if(bpv)bpv.style.display=show?"flex":"none";'
+            '  if(bnx)bnx.style.display=show?"flex":"none";'
             '}'
 
             'function _updateDots(){'
             '  var disp=((cur%n)+n)%n;'
-            '  var dotIdx=Math.min(disp,positions-1);'
-            '  for(var i=0;i<positions;i++){'
+            '  var dotIdx=loop?disp:Math.min(cur,positions-1);'
+            '  for(var i=0;i<maxDots;i++){'
             '    var d=document.getElementById(uid+"_dot"+i);'
             '    if(d){'
             '      var active=i===dotIdx;'
@@ -1116,8 +1163,27 @@ class Carousel(Widget):
             '}'
 
             'function _go(idx){'
-            '  cur=((idx%n)+n)%n;'
+            '  if(loop){cur=((idx%n)+n)%n;}'
+            '  else{'
+            '    var mx=Math.max(n-curVis,0);'
+            '    cur=Math.max(0,Math.min(idx,mx));'
+            '  }'
             '  _moveTo(cur,true);'
+            '  _updateDots();'
+            '}'
+
+            'function _syncMode(){'
+            '  curVis=_vis();'
+            '  positions=_positions();'
+            '  if(!loop){'
+            '    var mx=Math.max(n-curVis,0);'
+            '    if(cur>mx)cur=mx;'
+            '  }else{cur=((cur%n)+n)%n;}'
+            '  var wcss="calc((100% - "+(gap*(curVis-1))+"px) / "+curVis+")";'
+            '  for(var i=0;i<track.children.length;i++)track.children[i].style.width=wcss;'
+            '  _syncDots();'
+            '  _syncArrows();'
+            '  _moveTo(cur,false);'
             '  _updateDots();'
             '}'
 
@@ -1134,7 +1200,7 @@ class Carousel(Widget):
             '  go:function(i){_go(i);},'
             '  next:function(){'
             '    if(transitioning)return;'
-            '    if(!loop&&cur>=n-vis)return;'
+            '    if(!loop&&cur>=n-curVis)return;'
             '    transitioning=true;'
             '    cur=cur+1;'
             '    _moveTo(cur,true);'
@@ -1157,10 +1223,10 @@ class Carousel(Widget):
             'if(bn)bn.addEventListener("click",function(){window._car[uid].next();});'
             # Wire dots
             '(function(){'
-            '  for(var i=0;i<positions;i++){'
+            '  for(var i=0;i<maxDots;i++){'
             '    (function(idx){'
             '      var d=document.getElementById(uid+"_dot"+idx);'
-            '      if(d)d.addEventListener("click",function(){_go(idx);});'
+            '      if(d)d.addEventListener("click",function(){if(idx<positions)_go(idx);});'
             '    })(i);'
             '  }'
             '})();'
@@ -1195,13 +1261,12 @@ class Carousel(Widget):
 
             # Init position (accounting for clones at start)
             'function _init(){'
-            '  _moveTo(0,false);'
-            '  _updateDots();'
+            '  _syncMode();'
             '}'
             'if(document.readyState==="loading"){'
             '  document.addEventListener("DOMContentLoaded",_init);'
             '} else {_init();}'
-            'window.addEventListener("resize",function(){_moveTo(cur,false);});'
+            'window.addEventListener("resize",function(){_syncMode();});'
             '})();'
         )
 

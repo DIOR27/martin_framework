@@ -34,6 +34,11 @@ martin_framework.egg-info/entry_points.txt
 martin_framework.egg-info/requires.txt
 martin_framework.egg-info/top_level.txt
 tests/test_accessibility.py
+tests/test_datepicker_feedback.py
+tests/test_icon_support.py
 tests/test_request_and_security.py
+tests/test_responsive_widgets.py
 tests/test_special_widgets_snapshots.py
+tests/test_table_exports.py
+tests/test_table_widget.py
 tests/test_universal_attrs.py

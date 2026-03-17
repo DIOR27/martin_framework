@@ -6,7 +6,7 @@ Public widget exports grouped by category modules.
 
 from .layout import Container, Row, Column, Grid, Stack, Card, Section, Spacer, Divider
 from .text import Text, Heading, Paragraph, Link, Code
-from .media import Image, Video, Icon, Avatar
+from .media import Image, Video, Icon, IconPack, Avatar
 from .input import (
     Button,
     TextField,
@@ -81,6 +81,7 @@ __all__ = [
     "Image",
     "Video",
     "Icon",
+    "IconPack",
     "Avatar",
     # Interaction
     "Button",
