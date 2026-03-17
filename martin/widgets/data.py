@@ -237,6 +237,8 @@ class Table(Widget):
                 f'var _colQ=new Array({ncols}).fill("");'
                 f"var _order=[];"
                 f"for(var _i=0;_i<_n;_i++)_order.push(_i);"
+                f"var _rowsEls=[];"
+                f"for(var _ri=0;_ri<_n;_ri++)_rowsEls.push(document.getElementById(uid+\"_r\"+_ri));"
                 # match: row must pass global AND all active column filters
                 f"function _match(idx){{"
                 f"  var row=_data[idx];"
@@ -276,13 +278,12 @@ class Table(Widget):
                 f"function _render(){{"
                 f'  var tbody=document.getElementById(uid+"_tbody");'
                 f"  if(!tbody)return;"
-                f'  var allRows=tbody.querySelectorAll("tr");'
-                f'  for(var i=0;i<allRows.length;i++)allRows[i].style.display="none";'
                 f"  var start=_page*_ps,end=Math.min(start+_ps,_order.length);"
                 f"  var vis=[];"
+                f'  tbody.innerHTML="";'
                 f"  for(var i=start;i<end;i++){{"
-                f'    var r=document.getElementById(uid+"_r"+_order[i]);'
-                f'    if(r){{r.style.display="";vis.push(r);}}'
+                f"    var r=_rowsEls[_order[i]];"
+                f'    if(r){{r.style.display="";tbody.appendChild(r);vis.push(r);}}'
                 f"  }}"
             )
 
