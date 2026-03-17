@@ -217,6 +217,14 @@ Contributions, feedback, and experimentation are welcome.
 
 ------------------------------------------------------------------------
 
+## Changelog
+
+Release history and migration notes are tracked in:
+
+`CHANGELOG.md`
+
+------------------------------------------------------------------------
+
 ## License
 
 MIT License

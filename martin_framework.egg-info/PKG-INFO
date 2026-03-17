@@ -1,13 +1,16 @@
 Metadata-Version: 2.4
 Name: martin-framework
-Version: 0.3.0
+Version: 0.4.0
 Summary: Build webs with pure Python
-License: MIT
+License-Expression: MIT
+Classifier: Development Status :: 3 - Alpha
+Classifier: Programming Language :: Python :: 3
+Classifier: Topic :: Internet :: WWW/HTTP :: Dynamic Content
+Classifier: Topic :: Software Development :: Libraries :: Application Frameworks
 Requires-Python: >=3.9
 Description-Content-Type: text/markdown
 Provides-Extra: dev
 Requires-Dist: watchdog>=3.0; extra == "dev"
-Dynamic: requires-python
 
 <p align="center">
   <img src="martin/assets/default_icon.webp" width="140" alt="MARTIN logo">
@@ -55,6 +58,12 @@ For development with enhanced hot-reload support:
 
 ``` bash
 pip install martin[dev]
+```
+
+Run test suite:
+
+``` bash
+python -m unittest discover -s tests
 ```
 
 ------------------------------------------------------------------------
@@ -150,6 +159,7 @@ MARTIN ships with a growing set of UI primitives:
 -   Forms: `TextField`, `Checkbox`, `Select`, `MultiSelect`
 -   UI Elements: `Button`, `Badge`, `Avatar`, `Divider`
 -   Data Visuals: `WordCloud`, `Map`, `Timeline`
+-   Utility: `Raw`, `Script`, `Stylesheet`, `StyleTag`, `ThemeToggle`
 
 ------------------------------------------------------------------------
 
@@ -175,6 +185,22 @@ And a built-in color palette via:
 Colors.indigo
 Colors.gray_500
 ```
+
+All widgets also support universal HTML attributes from Python:
+
+``` python
+Row(
+    children=[...],
+    role="group",
+    tabindex=0,
+    aria_label="Barra de acciones",
+    data_testid="actions-row",
+)
+```
+
+Several interactive widgets also generate sensible a11y defaults automatically
+(`aria-label`) when possible, while still allowing explicit overrides.
+This includes controls like `Select`, `MultiSelect`, `ColorPicker`, and `DatePicker`.
 
 ------------------------------------------------------------------------
 
@@ -202,6 +228,14 @@ The goal is to evolve into a powerful yet minimal framework for building
 modern web interfaces using Python.
 
 Contributions, feedback, and experimentation are welcome.
+
+------------------------------------------------------------------------
+
+## Changelog
+
+Release history and migration notes are tracked in:
+
+`CHANGELOG.md`
 
 ------------------------------------------------------------------------
 

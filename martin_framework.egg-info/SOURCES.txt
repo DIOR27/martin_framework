@@ -33,3 +33,7 @@ martin_framework.egg-info/dependency_links.txt
 martin_framework.egg-info/entry_points.txt
 martin_framework.egg-info/requires.txt
 martin_framework.egg-info/top_level.txt
+tests/test_accessibility.py
+tests/test_request_and_security.py
+tests/test_special_widgets_snapshots.py
+tests/test_universal_attrs.py

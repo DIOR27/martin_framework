@@ -1,6 +1,6 @@
 """Martin — Build webs with Python, Flutter-style."""
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 from .app import App, Router, PageConfig
 from .response import Response, Request
