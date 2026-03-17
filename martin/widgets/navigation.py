@@ -45,6 +45,8 @@ class NavBar(Widget):
         bordered   bool     borde inferior (default: True)
     """
 
+    _id_counter = 0
+
     def __init__(
         self, brand=None, links=None, actions=None, sticky=True, bordered=True, **kwargs
     ):
@@ -54,11 +56,14 @@ class NavBar(Widget):
         self.actions = actions or []
         self.sticky = sticky
         self.bordered = bordered
+        NavBar._id_counter += 1
+        self.uid = f"nav_{NavBar._id_counter}"
 
     def _default_a11y_attrs(self):
         return {"aria-label": "Barra de navegacion"}
 
     def render(self):
+        uid = self.uid
         sticky_css = "position:sticky; top:0; z-index:100; " if self.sticky else ""
         border_css = "border-bottom:1px solid var(--border); " if self.bordered else ""
         base = (
@@ -66,6 +71,7 @@ class NavBar(Widget):
             f"background:var(--surface); "
             f"display:flex; align-items:center; "
             f"padding:0 32px; height:64px; gap:32px; "
+            f"max-width:100%; box-sizing:border-box; "
             f"backdrop-filter:blur(12px); "
             f"-webkit-backdrop-filter:blur(12px)"
         )
@@ -81,30 +87,88 @@ class NavBar(Widget):
                 + "</a>"
             )
 
-        # Links (center)
+        links_items = "".join(
+            (lk.render() if isinstance(lk, Widget) else str(lk))
+            for lk in self.links
+        )
+        actions_items = "".join(
+            (a.render() if isinstance(a, Widget) else str(a)) for a in self.actions
+        )
+        has_menu = bool(links_items or actions_items)
+
         links_html = ""
-        if self.links:
-            items = "".join(
-                (lk.render() if isinstance(lk, Widget) else str(lk))
-                for lk in self.links
-            )
+        if links_items:
             links_html = (
-                f'<nav aria-label="Principal" style="display:flex;align-items:center;gap:24px;'
-                f'flex:1;justify-content:center">{items}</nav>'
+                f'<nav id="{uid}_links" aria-label="Principal" style="display:flex;align-items:center;gap:24px;'
+                f"min-width:0;overflow-x:auto;overflow-y:hidden;white-space:nowrap;flex:1;justify-content:center\">"
+                f"{links_items}</nav>"
             )
 
-        # Actions (right)
         actions_html = ""
-        if self.actions:
-            items = "".join(
-                (a.render() if isinstance(a, Widget) else str(a)) for a in self.actions
-            )
+        if actions_items:
             actions_html = (
-                f'<div style="display:flex;align-items:center;'
-                f'gap:8px;flex-shrink:0">{items}</div>'
+                f'<div id="{uid}_actions" style="display:flex;align-items:center;'
+                f'gap:8px;flex-shrink:0">{actions_items}</div>'
             )
 
-        return f'<header role="banner" style="{inline}">{brand_html}{links_html}{actions_html}</header>'
+        menu_html = ""
+        burger_html = ""
+        if has_menu:
+            burger_html = (
+                f'<button id="{uid}_burger" type="button" aria-label="Abrir menu" '
+                f'aria-controls="{uid}_menu" aria-expanded="false" '
+                f'style="display:none;align-items:center;justify-content:center;'
+                f'width:38px;height:38px;border:1px solid var(--border);border-radius:10px;'
+                f'background:var(--surface);color:var(--text);cursor:pointer;flex-shrink:0;font-size:18px">☰</button>'
+            )
+            menu_html = (
+                f'<div id="{uid}_menu" style="display:flex;align-items:center;gap:18px;'
+                f'flex:1;min-width:0;justify-content:space-between">{links_html}{actions_html}</div>'
+            )
+
+        css = (
+            f"<style>"
+            f"#{uid}{{overflow-x:clip}}"
+            f"#{uid}_links::-webkit-scrollbar{{display:none}}"
+            f"#{uid}_menu{{box-sizing:border-box}}"
+            f"@media(max-width:840px){{"
+            f"#{uid}{{height:64px!important;min-height:64px;padding:0 14px!important;gap:10px!important;"
+            f"justify-content:space-between;position:relative;z-index:120}}"
+            f"#{uid}_burger{{display:inline-flex!important}}"
+            f"#{uid}_menu{{display:none!important;position:absolute;top:calc(100% + 8px);left:10px;right:10px;"
+            f"background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 14px 36px rgba(0,0,0,.24);"
+            f"padding:12px;flex-direction:column;align-items:stretch;gap:12px;z-index:140}}"
+            f"#{uid}[data-mobile-open='1'] #{uid}_menu{{display:flex!important}}"
+            f"#{uid}_links{{flex:none!important;justify-content:flex-start!important;white-space:normal!important;overflow:visible!important;flex-wrap:wrap;gap:14px!important}}"
+            f"#{uid}_actions{{justify-content:flex-start;flex-wrap:wrap}}"
+            f"}}"
+            f"</style>"
+        )
+
+        js = ""
+        if has_menu:
+            js = (
+                f"<script>(function(){{"
+                f'var root=document.getElementById("{uid}");'
+                f'var btn=document.getElementById("{uid}_burger");'
+                f"if(!root||!btn||root.dataset.martinNavBound)return;"
+                f'root.dataset.martinNavBound="1";'
+                f"function isMobile(){{return window.matchMedia&&window.matchMedia('(max-width:840px)').matches;}}"
+                f"function closeMenu(){{root.setAttribute('data-mobile-open','0');btn.setAttribute('aria-expanded','false');}}"
+                f"function toggleMenu(){{"
+                f"  if(!isMobile())return;"
+                f"  var open=root.getAttribute('data-mobile-open')==='1';"
+                f"  if(open)closeMenu();"
+                f"  else{{root.setAttribute('data-mobile-open','1');btn.setAttribute('aria-expanded','true');}}"
+                f"}}"
+                f"btn.addEventListener('click',function(e){{e.stopPropagation();toggleMenu();}});"
+                f"document.addEventListener('click',function(e){{if(!isMobile())return;if(!root.contains(e.target))closeMenu();}});"
+                f"document.addEventListener('keydown',function(e){{if(e.key==='Escape')closeMenu();}});"
+                f"window.addEventListener('resize',function(){{if(!isMobile())closeMenu();}});"
+                f"}})();</script>"
+            )
+
+        return f'{css}<header id="{uid}" data-mobile-open="0" role="banner" style="{inline}">{brand_html}{menu_html}{burger_html}</header>{js}'
 
 
 # =============================================================================

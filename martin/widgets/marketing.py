@@ -1064,13 +1064,13 @@ class Carousel(Widget):
         arrows_html = ""
         if arrows:
             arrows_html = (
-                '<button id="' + uid + '_prev" style="' + btn_base + 'left:-20px;">&#8249;</button>'
-                '<button id="' + uid + '_next" style="' + btn_base + 'right:-20px;">&#8250;</button>'
+                '<button id="' + uid + '_prev" style="' + btn_base + 'left:8px;">&#8249;</button>'
+                '<button id="' + uid + '_next" style="' + btn_base + 'right:8px;">&#8250;</button>'
             )
 
         # Layout: wrapper has overflow:visible so arrows aren't clipped
         # viewport clips the slides track
-        wrapper_style = "position:relative;overflow:visible;" + extra
+        wrapper_style = "position:relative;overflow:hidden;" + extra
         track_style   = "display:flex;gap:" + str(gap) + "px;will-change:transform;"
 
         html = (
