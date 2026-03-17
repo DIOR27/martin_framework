@@ -77,6 +77,8 @@ class AccessibilityTests(unittest.TestCase):
         self.assertIn("data-mobile-open=\"0\"", html)
         self.assertIn("_burger", html)
         self.assertIn("_menu", html)
+        self.assertIn("flex-direction:column", html)
+        self.assertIn("_links > *{display:block;width:100%}", html)
 
     def test_explicit_aria_label_override_wins(self):
         html = Button("Guardar", aria_label="Accion primaria").render()

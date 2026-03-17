@@ -362,7 +362,8 @@ class Map(Widget):
 
         wrapper_style = (
             "position:relative;border-radius:12px;overflow:hidden;"
-            "width:100%;height:" + h + "px;box-shadow:0 4px 24px rgba(0,0,0,0.12)"
+            "width:100%;height:" + h + "px;box-shadow:0 4px 24px rgba(0,0,0,0.12);"
+            "z-index:0;isolation:isolate;contain:paint"
         )
         if extra:
             wrapper_style += ";" + extra
@@ -373,7 +374,7 @@ class Map(Widget):
             search_html = (
                 '<div id="' + uid + '_sbar" style="'
                 'position:absolute;top:10px;left:50%;transform:translateX(-50%);'
-                'z-index:1000;display:flex;gap:0;width:min(340px,78%);'
+                'z-index:30;display:flex;gap:0;width:min(340px,78%);'
                 'box-shadow:0 2px 14px rgba(0,0,0,0.22);border-radius:9px;overflow:hidden">'
                 '<input id="' + uid + '_q" type="text" placeholder="Buscar lugar..." '
                 'autocomplete="off" '
@@ -393,7 +394,7 @@ class Map(Widget):
         if self.geolocation:
             geo_html = (
                 '<button id="' + uid + '_geo" title="Mi ubicaci\u00f3n actual" '
-                'style="position:absolute;bottom:86px;right:10px;z-index:1000;'
+                'style="position:absolute;bottom:86px;right:10px;z-index:30;'
                 'width:34px;height:34px;background:#fff;'
                 'border:2px solid rgba(0,0,0,0.25);border-radius:4px;cursor:pointer;'
                 'font-size:16px;display:flex;align-items:center;justify-content:center;'
@@ -579,7 +580,7 @@ class Map(Widget):
         return (
             '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>'
             + '<div style="' + wrapper_style + '">'
-            + '<div id="' + uid + '" style="width:100%;height:' + h + 'px"></div>'
+            + '<div id="' + uid + '" style="position:relative;z-index:1;width:100%;height:' + h + 'px"></div>'
             + search_html
             + geo_html
             + '</div>'
