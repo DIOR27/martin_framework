@@ -3,7 +3,7 @@ Martin — Data Widgets
 
 Widgets para mostrar información estructurada.
 
-    Table — tabla interactiva con sort, búsqueda por columna y paginación
+    Table — tabla interactiva con sort, búsqueda, paginación y exportación
 """
 
 import json as _j
@@ -19,7 +19,7 @@ from ..widget import Widget
 
 class Table(Widget):
     """
-    Tabla de datos interactiva con sort por columna, búsqueda y paginación.
+    Tabla de datos interactiva con sort por columna, búsqueda, paginación y exportación.
 
     Uso básico:
         Table(
@@ -36,6 +36,7 @@ class Table(Widget):
             searchable=True,   # barra de búsqueda global + filtro por columna
             sortable=True,     # clic en cabecera para ordenar asc/desc
             page_size=10,      # paginación
+            export_formats=["csv", "json", "excel", "pdf"],
         )
 
     Con widgets en celdas (funcionales; no participan en sort/search):
@@ -56,6 +57,9 @@ class Table(Widget):
         searchable bool        búsqueda global + filtros por columna (default: False)
         sortable   bool        ordenación al clic en encabezado (default: False)
         page_size  int | None  filas por página, None = sin paginación
+        export_formats list    formatos de exportación: csv/json/excel/pdf
+        export_filename str    nombre base del archivo exportado
+        export_scope   str     "filtered" (default) o "page"
     """
 
     _id_counter = 0
@@ -69,6 +73,9 @@ class Table(Widget):
         searchable=False,
         sortable=False,
         page_size=None,
+        export_formats=None,
+        export_filename="table_export",
+        export_scope="filtered",
         **kwargs,
     ):
         self._props = Widget._extract_props(kwargs)
@@ -79,6 +86,9 @@ class Table(Widget):
         self.searchable = searchable
         self.sortable = sortable
         self.page_size = page_size
+        self.export_formats = self._normalize_export_formats(export_formats)
+        self.export_filename = str(export_filename or "table_export")
+        self.export_scope = "page" if export_scope == "page" else "filtered"
         Table._id_counter += 1
         self.uid = f"tbl_{Table._id_counter}"
 
@@ -100,6 +110,20 @@ class Table(Widget):
             )
             return " ".join(t.split())
         return str(cell)
+
+    @staticmethod
+    def _normalize_export_formats(value):
+        if value is True:
+            value = ["csv", "json", "excel", "pdf"]
+        if not value:
+            return []
+        allowed = {"csv", "json", "excel", "pdf"}
+        out = []
+        for item in value:
+            fmt = str(item).strip().lower()
+            if fmt in allowed and fmt not in out:
+                out.append(fmt)
+        return out
 
     # ------------------------------------------------------------------
     # render
@@ -187,7 +211,7 @@ class Table(Widget):
 
         rows_plain_js = _j.dumps([p for p, _ in rows_data])
 
-        # ── global search bar ──────────────────────────────────────────
+        # ── toolbar (search + export) ─────────────────────────────────
         global_search = ""
         if self.searchable:
             global_search = (
@@ -198,6 +222,29 @@ class Table(Widget):
                 f"font-size:13px;width:100%;box-sizing:border-box;background:var(--surface);"
                 f'color:var(--text);outline:none"/>'
                 f"</div>"
+            )
+
+        export_buttons = ""
+        if self.export_formats:
+            labels = {
+                "csv": "CSV",
+                "json": "JSON",
+                "excel": "EXCEL",
+                "pdf": "PDF",
+            }
+            btn_style = (
+                "padding:6px 10px;border:1px solid var(--border);border-radius:7px;"
+                "background:var(--surface);color:var(--text);font-size:12px;cursor:pointer"
+            )
+            export_buttons = (
+                f'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'
+                + "".join(
+                    f'<button type="button" data-export="{fmt}" '
+                    f'onclick="{uid}_export(\'{fmt}\')" style="{btn_style}">'
+                    f"Exportar {labels[fmt]}</button>"
+                    for fmt in self.export_formats
+                )
+                + "</div>"
             )
 
         # ── pagination bar ─────────────────────────────────────────────
@@ -218,17 +265,27 @@ class Table(Widget):
             )
 
         # ── JavaScript ────────────────────────────────────────────────
-        needs_js = self.searchable or self.sortable or bool(self.page_size)
+        needs_js = (
+            self.searchable
+            or self.sortable
+            or bool(self.page_size)
+            or bool(self.export_formats)
+        )
         js = ""
 
         if needs_js:
             n = len(rows_data)
             ps = self.page_size or n or 1
+            headers_plain_js = _j.dumps([self._to_plain(h) for h in self.headers])
+            export_formats_js = _j.dumps(self.export_formats)
+            export_filename_js = _j.dumps(self.export_filename)
+            export_scope_js = _j.dumps(self.export_scope)
 
             js = (
                 f"<script>(function(){{"
                 f"var uid={_j.dumps(uid)};"
                 f"var _data={rows_plain_js};"
+                f"var _headers={headers_plain_js};"
                 f"var _n={n};"
                 f"var _ps={ps};"
                 f"var _page=0;"
@@ -236,9 +293,104 @@ class Table(Widget):
                 f'var _globalQ="";'
                 f'var _colQ=new Array({ncols}).fill("");'
                 f"var _order=[];"
+                f"var _exportFormats={export_formats_js};"
+                f"var _exportFilename={export_filename_js};"
+                f"var _exportScope={export_scope_js};"
                 f"for(var _i=0;_i<_n;_i++)_order.push(_i);"
                 f"var _rowsEls=[];"
                 f"for(var _ri=0;_ri<_n;_ri++)_rowsEls.push(document.getElementById(uid+\"_r\"+_ri));"
+                f"function _fname(ext){{return _exportFilename + '.' + ext;}}"
+                f"function _download(name,blob){{"
+                f"  var a=document.createElement('a');"
+                f"  var url=URL.createObjectURL(blob);"
+                f"  a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();"
+                f"  setTimeout(function(){{URL.revokeObjectURL(url);}},1000);"
+                f"}}"
+                f"function _csvEsc(v){{"
+                f"  var s=String(v==null?'':v);"
+                f"  if(s.indexOf('\"')>=0)s=s.replace(/\"/g,'\"\"');"
+                f"  if(/[\",\\n]/.test(s))s='\"'+s+'\"';"
+                f"  return s;"
+                f"}}"
+                f"function _htmlEsc(v){{"
+                f"  return String(v==null?'':v)"
+                f"    .replace(/&/g,'&amp;').replace(/</g,'&lt;')"
+                f"    .replace(/>/g,'&gt;').replace(/\"/g,'&quot;');"
+                f"}}"
+                f"function _exportRows(){{"
+                f"  if(_exportScope==='page'){{"
+                f"    var s=_page*_ps,e=Math.min(s+_ps,_order.length);"
+                f"    return _order.slice(s,e);"
+                f"  }}"
+                f"  return _order.slice();"
+                f"}}"
+                f"function _doCsv(){{"
+                f"  var idxs=_exportRows();"
+                f"  var lines=[];"
+                f"  if(_headers.length)lines.push(_headers.map(_csvEsc).join(','));"
+                f"  for(var i=0;i<idxs.length;i++)lines.push(_data[idxs[i]].map(_csvEsc).join(','));"
+                f"  _download(_fname('csv'),new Blob([lines.join('\\n')],{{type:'text/csv;charset=utf-8;'}}));"
+                f"}}"
+                f"function _doJson(){{"
+                f"  var idxs=_exportRows();"
+                f"  var out=[];"
+                f"  for(var i=0;i<idxs.length;i++){{"
+                f"    var row=_data[idxs[i]],obj={{}};"
+                f"    for(var c=0;c<row.length;c++){{"
+                f"      var k=_headers[c]||('col_'+(c+1));"
+                f"      obj[k]=row[c];"
+                f"    }}"
+                f"    out.push(obj);"
+                f"  }}"
+                f"  _download(_fname('json'),new Blob([JSON.stringify(out,null,2)],{{type:'application/json;charset=utf-8;'}}));"
+                f"}}"
+                f"function _doExcel(){{"
+                f"  var idxs=_exportRows();"
+                f"  var html='<table><thead><tr>';"
+                f"  for(var c=0;c<_headers.length;c++)html+='<th>'+_htmlEsc(_headers[c])+'</th>';"
+                f"  html+='</tr></thead><tbody>';"
+                f"  for(var i=0;i<idxs.length;i++){{"
+                f"    var row=_data[idxs[i]];"
+                f"    html+='<tr>';"
+                f"    for(var c=0;c<row.length;c++)html+='<td>'+_htmlEsc(row[c])+'</td>';"
+                f"    html+='</tr>';"
+                f"  }}"
+                f"  html+='</tbody></table>';"
+                f"  var doc='\\ufeff<html><head><meta charset=\"utf-8\"></head><body>'+html+'</body></html>';"
+                f"  _download(_fname('xls'),new Blob([doc],{{type:'application/vnd.ms-excel;charset=utf-8;'}}));"
+                f"}}"
+                f"function _doPdf(){{"
+                f"  var idxs=_exportRows();"
+                f"  if(window.jspdf&&window.jspdf.jsPDF){{"
+                f"    var pdf=new window.jspdf.jsPDF({{orientation:'landscape'}});"
+                f"    var y=12,lh=7,maxW=270,maxY=pdf.internal.pageSize.getHeight()-10;"
+                f"    if(_headers.length){{pdf.text(_headers.join(' | '),10,y);y+=lh;}}"
+                f"    for(var i=0;i<idxs.length;i++){{"
+                f"      var txt=_data[idxs[i]].join(' | ');"
+                f"      var lines=pdf.splitTextToSize(txt,maxW);"
+                f"      for(var j=0;j<lines.length;j++){{"
+                f"        if(y>maxY){{pdf.addPage();y=12;}}"
+                f"        pdf.text(lines[j],10,y);y+=lh;"
+                f"      }}"
+                f"    }}"
+                f"    pdf.save(_fname('pdf'));"
+                f"    return;"
+                f"  }}"
+                f"  var w=window.open('','_blank');"
+                f"  if(!w)return;"
+                f"  var html='<table border=\"1\" cellspacing=\"0\" cellpadding=\"6\"><thead><tr>';"
+                f"  for(var c=0;c<_headers.length;c++)html+='<th>'+_htmlEsc(_headers[c])+'</th>';"
+                f"  html+='</tr></thead><tbody>';"
+                f"  for(var i=0;i<idxs.length;i++){{"
+                f"    var row=_data[idxs[i]];"
+                f"    html+='<tr>';"
+                f"    for(var c=0;c<row.length;c++)html+='<td>'+_htmlEsc(row[c])+'</td>';"
+                f"    html+='</tr>';"
+                f"  }}"
+                f"  html+='</tbody></table>';"
+                f"  w.document.write('<html><head><title>'+_fname('pdf')+'</title></head><body>'+html+'</body></html>');"
+                f"  w.document.close();w.focus();w.print();"
+                f"}}"
                 # match: row must pass global AND all active column filters
                 f"function _match(idx){{"
                 f"  var row=_data[idx];"
@@ -349,11 +501,23 @@ class Table(Widget):
                     f"}});"
                 )
 
+            if self.export_formats:
+                js += (
+                    f'window[uid+"_export"]=function(fmt){{'
+                    f"  if(_exportFormats.indexOf(fmt)<0)return;"
+                    f"  if(fmt==='csv')return _doCsv();"
+                    f"  if(fmt==='json')return _doJson();"
+                    f"  if(fmt==='excel')return _doExcel();"
+                    f"  if(fmt==='pdf')return _doPdf();"
+                    f"}};"
+                )
+
             js += f"_apply();}})()</script>"
 
         return (
             f'<div style="{wrapper_style}">'
             + global_search
+            + export_buttons
             + f'<table style="{base}">{thead}{tbody}</table>'
             + pagination_html
             + f"</div>"

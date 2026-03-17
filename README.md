@@ -188,6 +188,28 @@ Several interactive widgets also generate sensible a11y defaults automatically
 (`aria-label`) when possible, while still allowing explicit overrides.
 This includes controls like `Select`, `MultiSelect`, `ColorPicker`, and `DatePicker`.
 
+`Table` also supports built-in client-side export utilities from Python:
+
+``` python
+from martin import Table
+
+Table(
+    headers=["Nombre", "Ciudad", "Rol"],
+    rows=[
+        ["Ana Garcia", "Bogota", "Admin"],
+        ["Pedro Lopez", "Medellin", "Editor"],
+    ],
+    searchable=True,
+    sortable=True,
+    page_size=10,
+    export_formats=["csv", "json", "excel", "pdf"],  # or True for all
+    export_filename="usuarios",
+    export_scope="filtered",  # "filtered" or "page"
+)
+```
+
+For richer PDF exports you can optionally include `jsPDF` with `Script(...)`.
+
 ------------------------------------------------------------------------
 
 ## Exporting Static Sites

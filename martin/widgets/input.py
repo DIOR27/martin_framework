@@ -2652,7 +2652,7 @@ window[U+'_clear']=function(){{s1='';s2='';updDisp();render();}};
 
 window[U+'_pick']=function(iso){{
   if(isR){{
-    if(af==='start'||(!s1&&!s2)){{s1=iso;s2='';af='end';render();}}
+    if(af==='start'||(!s1&&!s2)){{s1=iso;s2='';af='end';updDisp();render();}}
     else{{if(iso<s1){{s2=s1;s1=iso;}}else{{s2=iso;}}updDisp();render();{uid}_close();}}
   }}else{{s1=iso;updDisp();render();{uid}_close();}}
 }};
