@@ -4,6 +4,9 @@ Martin — Special Widgets
 Widgets especiales y utilitarios de alto nivel.
 
     Raw            — inyecta HTML sin procesamiento
+    Script         — inyecta JavaScript inline o externo
+    Stylesheet     — carga CSS externo con <link rel="stylesheet">
+    StyleTag       — inyecta CSS inline con <style>
     ThemeToggle    — alterna tema dark/light/auto
     CookieCategory — configuración de categoría de cookies
     CookieBanner   — banner GDPR con persistencia
@@ -30,6 +33,126 @@ class Raw(Widget):
 
     def render(self):
         return self.html
+
+
+class Script(Widget):
+    """
+    Carga JavaScript desde Python (externo o inline).
+
+    Ejemplos:
+        Script(src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js", defer=True)
+        Script(code="window.APP_READY = true;")
+        Script(src="https://esm.sh/lodash-es", module=True)
+    """
+
+    def __init__(
+        self,
+        src=None,
+        code=None,
+        type="text/javascript",
+        module=False,
+        defer=False,
+        async_load=False,
+        crossorigin=None,
+        integrity=None,
+        referrer_policy=None,
+        nonce=None,
+        no_module=False,
+        id=None,
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.src = src
+        self.code = code or ""
+        self.type = type
+        self.module = module
+        self.defer = defer
+        self.async_load = async_load
+        self.crossorigin = crossorigin
+        self.integrity = integrity
+        self.referrer_policy = referrer_policy
+        self.nonce = nonce
+        self.no_module = no_module
+        self.id = id
+
+    def render(self):
+        script_type = "module" if self.module else self.type
+        attrs = self._attrs(
+            src=self.src,
+            type=script_type,
+            defer=self.defer,
+            **{"async": self.async_load},
+            crossorigin=self.crossorigin,
+            integrity=self.integrity,
+            referrerpolicy=self.referrer_policy,
+            nonce=self.nonce,
+            nomodule=self.no_module,
+            id=self.id,
+        )
+        if self.src:
+            return f"<script{attrs}></script>"
+        return f"<script{attrs}>{self.code}</script>"
+
+
+class Stylesheet(Widget):
+    """
+    Carga CSS externo con <link>.
+
+    Ejemplos:
+        Stylesheet("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css")
+        Stylesheet("/assets/custom.css", media="print")
+    """
+
+    def __init__(
+        self,
+        href,
+        rel="stylesheet",
+        media=None,
+        crossorigin=None,
+        integrity=None,
+        referrer_policy=None,
+        id=None,
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.href = href
+        self.rel = rel
+        self.media = media
+        self.crossorigin = crossorigin
+        self.integrity = integrity
+        self.referrer_policy = referrer_policy
+        self.id = id
+
+    def render(self):
+        attrs = self._attrs(
+            rel=self.rel,
+            href=self.href,
+            media=self.media,
+            crossorigin=self.crossorigin,
+            integrity=self.integrity,
+            referrerpolicy=self.referrer_policy,
+            id=self.id,
+        )
+        return f"<link{attrs}>"
+
+
+class StyleTag(Widget):
+    """
+    Inyecta CSS inline desde Python.
+
+    Ejemplo:
+        StyleTag(".hero { text-wrap: balance; }")
+    """
+
+    def __init__(self, css, id=None, media=None, **kwargs):
+        self._props = Widget._extract_props(kwargs)
+        self.css = css
+        self.id = id
+        self.media = media
+
+    def render(self):
+        attrs = self._attrs(id=self.id, media=self.media)
+        return f"<style{attrs}>{self.css}</style>"
 
 
 class ThemeToggle(Widget):

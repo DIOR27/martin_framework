@@ -71,6 +71,15 @@ class Button(Widget):
         self.class_name = class_name
         self.on_click = on_click  # str JS | ApiCall
 
+    def _default_a11y_attrs(self):
+        attrs = {}
+        plain = self._to_plain_text(self.label)
+        if plain:
+            attrs["aria-label"] = plain
+        if self.disabled:
+            attrs["aria-disabled"] = "true"
+        return attrs
+
     def render(self):
         base = (
             self.VARIANTS.get(self.variant, self.VARIANTS["primary"])
@@ -417,6 +426,16 @@ class Select(Widget):
         Select._id_counter += 1
         self.uid = id or f"pw_select_{Select._id_counter}"
 
+    def _auto_label(self):
+        if self.name:
+            return str(self.name).replace("_", " ").strip() or "Selector"
+        if self.placeholder:
+            return str(self.placeholder).strip()
+        return "Selector"
+
+    def _default_a11y_attrs(self):
+        return {"aria-label": self._auto_label()}
+
     def _parse_options(self):
         result = []
         for opt in self.options:
@@ -452,6 +471,7 @@ class Select(Widget):
         # ── Custom select with search ─────────────────────────────────────
         uid = self.uid
         wrapper_style = f"position: relative; width: 100%; font-size: 14px; {extra}"
+        aria_label = self._get_universal_attrs().get("aria-label") or self._auto_label()
         hidden_input = (
             f'<input type="hidden" name="{self.name}" id="{uid}_val" value="{selected_val}">'
             if self.name
@@ -468,6 +488,7 @@ class Select(Widget):
                 f'<div class="pw-opt"'
                 f' data-val="{v}" data-label="{l}" data-sel="{sel}"'
                 f' onclick="{onclick}"'
+                f' role="option" aria-selected="{"true" if v == selected_val else "false"}"'
                 f' style="padding:10px 14px;cursor:pointer;font-size:14px;font-weight:{weight}">'
                 f"{l}</div>"
             )
@@ -483,6 +504,8 @@ class Select(Widget):
             f'<div id="{uid}_wrap" style="{wrapper_style}">'
             f"  {hidden_input}"
             f'  <div id="{uid}_btn" onclick="pwSelectToggle(\'{uid}\')"'
+            f'    role="combobox" aria-haspopup="listbox" aria-expanded="false"'
+            f'    aria-controls="{uid}_list" tabindex="0" aria-label="{aria_label}"'
             f'    style="display:flex;align-items:center;justify-content:space-between;'
             f"           padding:8px 14px;border:1px solid var(--border-input,var(--border));border-radius:6px;"
             f'           background:var(--input-bg);cursor:pointer;user-select:none;gap:8px;transition:border-color .2s">'
@@ -504,7 +527,9 @@ class Select(Widget):
             f'               background:var(--input-bg,var(--surface));color:var(--input-color,var(--text))">'
             f"    </div>"
             f'    <div id="{uid}_list" style="max-height:220px;overflow-y:auto;padding:6px">'
+            f'      <div role="listbox" aria-label="{aria_label} opciones">'
             f"      {opt_items}"
+            f"      </div>"
             f"    </div>"
             f"  </div>"
             f"</div>"
@@ -520,11 +545,12 @@ class Select(Widget):
             '      var x=document.getElementById(el.id.replace("_drop","_arrow"));'
             '      if(x)x.style.transform="";'
             '      var bx=document.getElementById(el.id.replace("_drop","_btn"));'
-            '      if(bx)bx.style.borderColor="";}'
+            '      if(bx){bx.style.borderColor="";bx.setAttribute("aria-expanded","false");}}'
             "  });"
-            '  if(o){d.style.display="none";a.style.transform="";b.style.borderColor="";}'
+            '  if(o){d.style.display="none";a.style.transform="";b.style.borderColor="";b.setAttribute("aria-expanded","false");}'
             '  else{d.style.display="block";a.style.transform="rotate(180deg)";'
             '    b.style.borderColor="var(--accent)";'
+            '    b.setAttribute("aria-expanded","true");'
             '    setTimeout(function(){var s=document.getElementById(uid+"_search");'
             '      if(s){s.value="";s.focus();pwSelectFilter(uid,"");}},30);}'
             "};"
@@ -539,12 +565,20 @@ class Select(Widget):
             '  document.getElementById(uid+"_drop").style.display="none";'
             '  document.getElementById(uid+"_arrow").style.transform="";'
             '  document.getElementById(uid+"_btn").style.borderColor="";'
+            '  document.getElementById(uid+"_btn").setAttribute("aria-expanded","false");'
             '  document.querySelectorAll("#"+uid+"_list .pw-opt").forEach(function(el){'
             '    var s=el.getAttribute("data-val")===val;'
             '    el.setAttribute("data-sel",s?"1":"0");'
+            '    el.setAttribute("aria-selected",s?"true":"false");'
             '    el.style.fontWeight=s?"600":"400";'
             "  });"
             "};"
+            'document.addEventListener("keydown",function(e){'
+            '  var b=document.getElementById(uid+"_btn"),d=document.getElementById(uid+"_drop");'
+            '  if(!b||document.activeElement!==b)return;'
+            '  if(e.key==="Enter"||e.key===" "||e.key==="ArrowDown"){e.preventDefault();pwSelectToggle(uid);}'
+            '  if(e.key==="Escape"&&d&&d.style.display!=="none"){d.style.display="none";b.setAttribute("aria-expanded","false");}'
+            '});'
             'document.addEventListener("click",function(e){'
             '  if(!e.target.closest("[id$=_wrap]")){'
             '    document.querySelectorAll("[id$=_drop]").forEach(function(el){'
@@ -552,7 +586,7 @@ class Select(Widget):
             '      var a=document.getElementById(el.id.replace("_drop","_arrow"));'
             '      if(a)a.style.transform="";'
             '      var b=document.getElementById(el.id.replace("_drop","_btn"));'
-            '      if(b)b.style.borderColor="";'
+            '      if(b){b.style.borderColor="";b.setAttribute("aria-expanded","false");}'
             "    });"
             "  }"
             "});"
@@ -598,6 +632,16 @@ class MultiSelect(Widget):
         MultiSelect._id_counter += 1
         self.uid = id or f"pw_multi_{MultiSelect._id_counter}"
 
+    def _auto_label(self):
+        if self.name:
+            return str(self.name).replace("_", " ").strip() or "Selector multiple"
+        if self.placeholder:
+            return str(self.placeholder).strip()
+        return "Selector multiple"
+
+    def _default_a11y_attrs(self):
+        return {"aria-label": self._auto_label()}
+
     def _parse_options(self):
         result = []
         for opt in self.options:
@@ -614,6 +658,7 @@ class MultiSelect(Widget):
         extra = self._resolve_props()
         opts = self._parse_options()
         selected_vals = [str(v) for v in self.values]
+        aria_label = self._get_universal_attrs().get("aria-label") or self._auto_label()
 
         opts_js = _json.dumps([{"v": v, "l": l} for v, l in opts])
         name_js = _json.dumps(self.name or "")
@@ -625,6 +670,7 @@ class MultiSelect(Widget):
 
         opt_rows = "".join(
             f'<div class="pw-mopt" data-val="{v}" data-label="{l}"'
+            f' role="option" aria-selected="{"true" if v in selected_vals else "false"}"'
             f' style="padding:10px 14px;cursor:pointer;font-size:14px;'
             f'display:{"none" if v in selected_vals else "block"}">{l}</div>'
             for v, l in opts
@@ -635,12 +681,14 @@ class MultiSelect(Widget):
         return (
             f'<div id="{uid}_wrap" style="{wrapper_style}">'
             f'  <div id="{uid}_box"'
+            f'    role="group" aria-label="{aria_label}"'
             f'    style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;'
             f"           min-height:42px;padding:6px 10px;"
             f"           border:1px solid var(--border-input,var(--border));border-radius:8px;"
             f'           background:var(--input-bg,var(--surface));cursor:text;transition:border-color .2s"'
             f"    onclick=\"document.getElementById('{uid}_input').focus()\">"
             f'    <input id="{uid}_input" type="text" placeholder="{self.placeholder}"'
+            f'      aria-label="{aria_label}"'
             f'      style="border:none;outline:none;background:transparent;'
             f'             color:var(--text);font-size:14px;flex:1;min-width:80px;">'
             f"  </div>"
@@ -650,12 +698,15 @@ class MultiSelect(Widget):
             f"           z-index:10020;border:1px solid var(--border-input,var(--border));border-radius:10px;"
             f'           box-shadow:0 12px 40px rgba(0,0,0,0.25);overflow:hidden;background:var(--dropdown-bg,var(--surface))">'
             f'    <div id="{uid}_list"'
+            f'      role="listbox" aria-multiselectable="true" aria-label="{aria_label} opciones"'
             f'      style="max-height:220px;overflow-y:auto;padding:6px">'
             f"      {opt_rows}"
             f"    </div>"
             f'    <div style="padding:6px 12px 8px;border-top:1px solid var(--border);'
             f'                display:flex;justify-content:flex-end">'
             f'      <span id="{uid}_clear"'
+            f'        role="button" tabindex="0" aria-label="Limpiar seleccion"'
+            f'        onkeydown="if(event.key===\'Enter\'||event.key===\' \'){{event.preventDefault();this.click();}}"'
             f'        style="font-size:12px;color:var(--text-muted);cursor:pointer;user-select:none">'
             f"        Limpiar todo"
             f"      </span>"
@@ -711,7 +762,7 @@ class MultiSelect(Widget):
             "}"
             "function showOpt(val){"
             "  var el=list.querySelector('[data-val=\"'+val+'\"]');"
-            "  if(el)el.style.display='block';"
+            "  if(el){el.style.display='block';el.setAttribute('aria-selected','false');}"
             "}"
             "function openDrop(){"
             "  drop.style.display='block';"
@@ -724,6 +775,7 @@ class MultiSelect(Widget):
             "  list.querySelectorAll('.pw-mopt').forEach(function(el){"
             "    var v=el.getAttribute('data-val');"
             "    el.style.display=sel.has(v)?'none':'block';"
+            "    el.setAttribute('aria-selected',sel.has(v)?'true':'false');"
             "  });"
             "}"
             "list.addEventListener('click',function(e){"
@@ -732,10 +784,12 @@ class MultiSelect(Widget):
             "  var val=el.getAttribute('data-val');"
             "  sel.add(val);"
             "  el.style.display='none';"
+            "  el.setAttribute('aria-selected','true');"
             "  input.value='';"
             "  list.querySelectorAll('.pw-mopt').forEach(function(e2){"
             "    var v=e2.getAttribute('data-val');"
             "    e2.style.display=sel.has(v)?'none':'block';"
+            "    e2.setAttribute('aria-selected',sel.has(v)?'true':'false');"
             "  });"
             "  render();"
             "  input.focus();"
@@ -747,11 +801,12 @@ class MultiSelect(Widget):
             "    var v=el.getAttribute('data-val');"
             "    var match=el.getAttribute('data-label').toLowerCase().includes(q);"
             "    el.style.display=(match&&!sel.has(v))?'block':'none';"
+            "    el.setAttribute('aria-selected',sel.has(v)?'true':'false');"
             "  });"
             "});"
             "clearBtn.addEventListener('click',function(){"
             "  sel.clear();"
-            "  list.querySelectorAll('.pw-mopt').forEach(function(el){el.style.display='block';});"
+            "  list.querySelectorAll('.pw-mopt').forEach(function(el){el.style.display='block';el.setAttribute('aria-selected','false');});"
             "  render();"
             "  closeDrop();"
             "});"
@@ -2147,12 +2202,23 @@ class ColorPicker(Widget):
         ColorPicker._id_counter += 1
         self.uid = id or f"cp_{ColorPicker._id_counter}"
 
+    def _auto_label(self):
+        if self.label:
+            return str(self.label).strip()
+        if self.name:
+            return str(self.name).replace("_", " ").strip() or "Selector de color"
+        return "Selector de color"
+
+    def _default_a11y_attrs(self):
+        return {"aria-label": self._auto_label()}
+
     def render(self):
         uid = self.uid
         val = self.value
         dis = " disabled" if self.disabled else ""
         extra = self._resolve_props()
         w_extra = f";{extra}" if extra else ""
+        aria_label = self._get_universal_attrs().get("aria-label") or self._auto_label()
 
         label_html = ""
         if self.label:
@@ -2166,6 +2232,7 @@ class ColorPicker(Widget):
             hex_input = (
                 f'<input type="text" id="{uid}_hex" value="{val}" maxlength="7"'
                 f' placeholder="#000000"{dis}'
+                f' aria-label="{aria_label} en formato hexadecimal"'
                 f' style="width:90px;padding:7px 10px;border:1px solid var(--border-input,var(--border));'
                 f'border-radius:6px;font-size:13px;font-family:monospace;outline:none;'
                 f'background:var(--input-bg,var(--surface));color:var(--text);transition:border-color .2s"'
@@ -2183,6 +2250,8 @@ class ColorPicker(Widget):
             dots = "".join(
                 f'<div onclick="{uid}_update(\'{c}\')" '
                 f'title="{c}" '
+                f' role="button" tabindex="0" aria-label="Preset {c}"'
+                f' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){{event.preventDefault();{uid}_update(\'{c}\');}}"'
                 f'style="width:26px;height:26px;border-radius:6px;background:{c};'
                 f'cursor:pointer;border:2px solid transparent;'
                 f'transition:transform .15s,border-color .15s;'
@@ -2228,6 +2297,7 @@ class ColorPicker(Widget):
             + f'background:{val};border:2px solid var(--border);'
             + f'box-shadow:0 2px 8px rgba(0,0,0,.15);flex-shrink:0;transition:background .1s"></div>'
             + f'<input type="color" id="{uid}_native" value="{val}"{dis} '
+            + f' aria-label="{aria_label}"'
             + f'style="position:absolute;opacity:0;width:38px;height:38px;cursor:pointer;border:none;padding:0"'
             + f' oninput="{uid}_update(this.value)">'
             + hex_input
@@ -2337,6 +2407,16 @@ class DatePicker(Widget):
         DatePicker._id_counter += 1
         self.uid = id or f"dp_{DatePicker._id_counter}"
 
+    def _auto_label(self):
+        if self.label:
+            return str(self.label).strip()
+        if self.name:
+            return str(self.name).replace("_", " ").strip() or "Selector de fecha"
+        return "Selector de fecha"
+
+    def _default_a11y_attrs(self):
+        return {"aria-label": self._auto_label()}
+
     def _display(self, iso):
         if not iso or len(iso) < 10:
             return ""
@@ -2347,6 +2427,9 @@ class DatePicker(Widget):
         uid = self.uid
         extra = self._resolve_props()
         w_extra = f";{extra}" if extra else ""
+        aria_label = self._get_universal_attrs().get("aria-label") or self._auto_label()
+        start_aria_label = self.label_start or "Inicio"
+        end_aria_label = self.label_end or "Fin"
 
         months_js = _json.dumps(self._MONTHS[self.locale])
         days_js = _json.dumps(self._DAYS[self.locale])
@@ -2410,6 +2493,8 @@ class DatePicker(Widget):
         if not self.is_range:
             trigger_html = (
                 f'<div id="{uid}_trigger" onclick="{uid}_open()"'
+                f' role="button" tabindex="0" aria-haspopup="dialog" aria-expanded="false"'
+                f' aria-controls="{uid}_cal" aria-label="{aria_label}"'
                 f' style="display:flex;align-items:center;gap:8px;padding:9px 12px;'
                 f'border:1px solid var(--border-input,var(--border));border-radius:8px;'
                 f'background:var(--input-bg,var(--surface));cursor:pointer;'
@@ -2427,6 +2512,8 @@ class DatePicker(Widget):
                 f'border:1px solid var(--border-input,var(--border));border-radius:10px;'
                 f'overflow:hidden;background:var(--input-bg,var(--surface))">'
                 f'<div id="{uid}_t1" onclick="{uid}_open(\'start\')"'
+                f' role="button" tabindex="0" aria-haspopup="dialog" aria-expanded="false"'
+                f' aria-controls="{uid}_cal" aria-label="{start_aria_label}"'
                 f' style="display:flex;align-items:center;gap:8px;padding:10px 14px;'
                 f'flex:1;cursor:pointer;transition:background .15s">'
                 f'<div style="display:flex;flex-direction:column;gap:2px">'
@@ -2439,6 +2526,8 @@ class DatePicker(Widget):
                 f'<div style="display:flex;align-items:center;padding:0 4px;color:var(--text-muted)">'
                 f'{arrow_icon}</div>'
                 f'<div id="{uid}_t2" onclick="{uid}_open(\'end\')"'
+                f' role="button" tabindex="0" aria-haspopup="dialog" aria-expanded="false"'
+                f' aria-controls="{uid}_cal" aria-label="{end_aria_label}"'
                 f' style="display:flex;align-items:center;gap:8px;padding:10px 14px;'
                 f'flex:1;cursor:pointer;border-left:1px solid var(--border);transition:background .15s">'
                 f'<div style="display:flex;flex-direction:column;gap:2px">'
@@ -2456,7 +2545,7 @@ class DatePicker(Widget):
             )
 
         calendar_html = (
-            f'<div id="{uid}_cal" role="dialog">'
+            f'<div id="{uid}_cal" role="dialog" aria-modal="true" aria-hidden="true" aria-label="{aria_label} calendario">'
             f'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
             f'<button type="button" onclick="{uid}_prev()" style="background:none;border:none;'
             f'cursor:pointer;padding:4px 8px;border-radius:6px;color:var(--text);font-size:18px">&lsaquo;</button>'
@@ -2545,10 +2634,20 @@ window[U+'_open']=function(field){{
   }}
   var ref=isR&&af==='end'&&s2?s2:s1;
   if(ref){{var p=ref.split('-');cy=+p[0];cm=+p[1]-1;}}
-  render();cal.style.display='block';
+  render();cal.style.display='block';cal.setAttribute('aria-hidden','false');
+  if(trig)trig.setAttribute('aria-expanded','true');
 }};
 
-window[U+'_close']=function(){{var c=document.getElementById(U+'_cal');if(c)c.style.display='none';}};
+window[U+'_close']=function(){{
+  var c=document.getElementById(U+'_cal');
+  if(c){{c.style.display='none';c.setAttribute('aria-hidden','true');}}
+  var t=document.getElementById(U+'_trigger');
+  if(t)t.setAttribute('aria-expanded','false');
+  var t1=document.getElementById(U+'_t1');
+  if(t1)t1.setAttribute('aria-expanded','false');
+  var t2=document.getElementById(U+'_t2');
+  if(t2)t2.setAttribute('aria-expanded','false');
+}};
 window[U+'_clear']=function(){{s1='';s2='';updDisp();render();}};
 
 window[U+'_pick']=function(iso){{
@@ -2563,8 +2662,30 @@ window[U+'_next']=function(){{cm++;if(cm>11){{cm=0;cy++;}}render();}};
 
 document.addEventListener('click',function(e){{
   var cal=document.getElementById(U+'_cal'),wrap=document.getElementById(U+'_wrap');
-  if(cal&&wrap&&!wrap.contains(e.target))cal.style.display='none';
+  if(cal&&wrap&&!wrap.contains(e.target))window[U+'_close']();
 }});
+
+var tr=document.getElementById(U+'_trigger');
+if(tr){{
+  tr.addEventListener('keydown',function(e){{
+    if(e.key==='Enter'||e.key===' '){{e.preventDefault();window[U+'_open']();}}
+    if(e.key==='Escape'){{window[U+'_close']();}}
+  }});
+}}
+var tr1=document.getElementById(U+'_t1');
+if(tr1){{
+  tr1.addEventListener('keydown',function(e){{
+    if(e.key==='Enter'||e.key===' '){{e.preventDefault();window[U+'_open']('start');}}
+    if(e.key==='Escape'){{window[U+'_close']();}}
+  }});
+}}
+var tr2=document.getElementById(U+'_t2');
+if(tr2){{
+  tr2.addEventListener('keydown',function(e){{
+    if(e.key==='Enter'||e.key===' '){{e.preventDefault();window[U+'_open']('end');}}
+    if(e.key==='Escape'){{window[U+'_close']();}}
+  }});
+}}
 
 updDisp();
 }})();</script>""".replace("{uid}", uid)

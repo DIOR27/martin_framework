@@ -159,15 +159,22 @@ NAV_JS = """\
     burger.addEventListener('click', function (e) {
       e.stopPropagation();
       nav.classList.toggle('mn-open');
+      burger.setAttribute('aria-expanded', nav.classList.contains('mn-open') ? 'true' : 'false');
     });
     var drawer = nav.querySelector('.mn-drawer');
     if (drawer) {
       drawer.querySelectorAll('a').forEach(function (a) {
-        a.addEventListener('click', function () { nav.classList.remove('mn-open'); });
+        a.addEventListener('click', function () {
+          nav.classList.remove('mn-open');
+          burger.setAttribute('aria-expanded', 'false');
+        });
       });
     }
     document.addEventListener('click', function (e) {
-      if (!nav.contains(e.target)) nav.classList.remove('mn-open');
+      if (!nav.contains(e.target)) {
+        nav.classList.remove('mn-open');
+        burger.setAttribute('aria-expanded', 'false');
+      }
     });
   }
 })();
@@ -377,8 +384,12 @@ def _build_nav(app, current_route, route_map):
         act = ' class="active"' if path == current_route else ""
         links_html += f'<a href="{href}"{act}>{label}</a>'
 
-    burger = '<button class="mn-burger" aria-label="Menú"><span></span><span></span><span></span></button>'
-    drawer = f'<div class="mn-drawer">{links_html}</div>'
+    drawer_id = "_martin_nav_drawer"
+    burger = (
+        f'<button class="mn-burger" aria-label="Menú" aria-controls="{drawer_id}" '
+        f'aria-expanded="false"><span></span><span></span><span></span></button>'
+    )
+    drawer = f'<div id="{drawer_id}" class="mn-drawer">{links_html}</div>'
 
     return (
         f'<nav class="martin-nav">'

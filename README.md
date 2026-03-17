@@ -46,6 +46,12 @@ For development with enhanced hot-reload support:
 pip install martin[dev]
 ```
 
+Run test suite:
+
+``` bash
+python -m unittest discover -s tests
+```
+
 ------------------------------------------------------------------------
 
 ## Quick Start
@@ -139,6 +145,7 @@ MARTIN ships with a growing set of UI primitives:
 -   Forms: `TextField`, `Checkbox`, `Select`, `MultiSelect`
 -   UI Elements: `Button`, `Badge`, `Avatar`, `Divider`
 -   Data Visuals: `WordCloud`, `Map`, `Timeline`
+-   Utility: `Raw`, `Script`, `Stylesheet`, `StyleTag`, `ThemeToggle`
 
 ------------------------------------------------------------------------
 
@@ -164,6 +171,22 @@ And a built-in color palette via:
 Colors.indigo
 Colors.gray_500
 ```
+
+All widgets also support universal HTML attributes from Python:
+
+``` python
+Row(
+    children=[...],
+    role="group",
+    tabindex=0,
+    aria_label="Barra de acciones",
+    data_testid="actions-row",
+)
+```
+
+Several interactive widgets also generate sensible a11y defaults automatically
+(`aria-label`) when possible, while still allowing explicit overrides.
+This includes controls like `Select`, `MultiSelect`, `ColorPicker`, and `DatePicker`.
 
 ------------------------------------------------------------------------
 

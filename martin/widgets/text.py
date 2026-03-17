@@ -150,6 +150,12 @@ class Link(Widget):
             return False
         return paths_match(get_current_path(), self.href)
 
+    def _default_a11y_attrs(self):
+        plain = self._to_plain_text(self.content)
+        if plain:
+            return {"aria-label": plain}
+        return {}
+
     def render(self):
         is_active = self._is_active()
         inline = self._resolve_props("color:var(--accent); text-decoration:underline")

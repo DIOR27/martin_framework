@@ -55,6 +55,9 @@ class NavBar(Widget):
         self.sticky = sticky
         self.bordered = bordered
 
+    def _default_a11y_attrs(self):
+        return {"aria-label": "Barra de navegacion"}
+
     def render(self):
         sticky_css = "position:sticky; top:0; z-index:100; " if self.sticky else ""
         border_css = "border-bottom:1px solid var(--border); " if self.bordered else ""
@@ -73,7 +76,7 @@ class NavBar(Widget):
         if self.brand:
             b = self.brand.render() if isinstance(self.brand, Widget) else self.brand
             brand_html = (
-                '<a href="/" style="flex-shrink:0;text-decoration:none;color:inherit">'
+                '<a href="/" aria-label="Inicio" style="flex-shrink:0;text-decoration:none;color:inherit">'
                 + b
                 + "</a>"
             )
@@ -86,7 +89,7 @@ class NavBar(Widget):
                 for lk in self.links
             )
             links_html = (
-                f'<nav style="display:flex;align-items:center;gap:24px;'
+                f'<nav aria-label="Principal" style="display:flex;align-items:center;gap:24px;'
                 f'flex:1;justify-content:center">{items}</nav>'
             )
 
@@ -101,9 +104,7 @@ class NavBar(Widget):
                 f'gap:8px;flex-shrink:0">{items}</div>'
             )
 
-        return (
-            f'<header style="{inline}">{brand_html}{links_html}{actions_html}</header>'
-        )
+        return f'<header role="banner" style="{inline}">{brand_html}{links_html}{actions_html}</header>'
 
 
 # =============================================================================
@@ -256,6 +257,9 @@ class Tabs(Widget):
         Tabs._id_counter += 1
         self.uid = f"tabs_{Tabs._id_counter}"
 
+    def _default_a11y_attrs(self):
+        return {"aria-label": "Pestanas"}
+
     def render(self):
         uid = self.uid
         extra = self._resolve_props()
@@ -290,17 +294,21 @@ class Tabs(Widget):
 
             btns += (
                 f'<button id="{tid}" onclick="{uid}_go({i})" '
+                f'role="tab" aria-selected="{"true" if active else "false"}" '
+                f'aria-controls="{pid}" tabindex="{"0" if active else "-1"}" '
                 f'style="{btn_base};{active_style if active else inactive_style}">'
                 f"{lbl_html}</button>"
             )
             panels += (
-                f'<div id="{pid}" style="display:{display};padding-top:16px">'
+                f'<div id="{pid}" role="tabpanel" aria-labelledby="{tid}" '
+                f'aria-hidden="{"false" if active else "true"}" style="display:{display};padding-top:16px">'
                 f"{content_html}</div>"
             )
 
         wrapper_style = extra or "width:100%"
+        tablist_label = self._get_universal_attrs().get("aria-label") or "Pestanas"
         tabs_bar = (
-            f'<div style="display:flex;border-bottom:1px solid var(--border);gap:4px">'
+            f'<div id="{uid}_tablist" role="tablist" aria-label="{tablist_label}" style="display:flex;border-bottom:1px solid var(--border);gap:4px">'
             f"{btns}</div>"
         )
 
@@ -308,17 +316,31 @@ class Tabs(Widget):
             f"<script>(function(){{"
             f"window.{uid}_go=function(i){{"
             f"  for(var j=0;j<{n};j++){{"
-            f'    var b=document.getElementById("{uid}_t"+j);'
-            f'    var p=document.getElementById("{uid}_p"+j);'
-            f"    var active=j===i;"
-            f"    if(b){{"
-            f'      b.style.color=active?"var(--text)":"var(--text-muted)";'
-            f'      b.style.background=active?"var(--surface)":"transparent";'
-            f'      b.style.borderBottom=active?"2px solid var(--accent)":"2px solid transparent";'
-            f"    }}"
-            f'    if(p)p.style.display=active?"block":"none";'
-            f"  }}"
+                f'    var b=document.getElementById("{uid}_t"+j);'
+                f'    var p=document.getElementById("{uid}_p"+j);'
+                f"    var active=j===i;"
+                f"    if(b){{"
+                f'      b.style.color=active?"var(--text)":"var(--text-muted)";'
+                f'      b.style.background=active?"var(--surface)":"transparent";'
+                f'      b.style.borderBottom=active?"2px solid var(--accent)":"2px solid transparent";'
+                f'      b.setAttribute("aria-selected",active?"true":"false");'
+                f'      b.tabIndex=active?0:-1;'
+                f"    }}"
+                f'    if(p){{p.style.display=active?"block":"none";p.setAttribute("aria-hidden",active?"false":"true");}}'
+                f"  }}"
+                f'  var ab=document.getElementById("{uid}_t"+i);if(ab)ab.focus();'
             f"}};"
+            f'var list=document.getElementById("{uid}_tablist");'
+            f'if(list&&!list.dataset.martinTabsBound){{'
+            f'  list.dataset.martinTabsBound="1";'
+            f'  list.addEventListener("keydown",function(e){{'
+            f'    if(e.key!=="ArrowRight"&&e.key!=="ArrowLeft")return;'
+            f'    var i=0;for(var j=0;j<{n};j++){{var b=document.getElementById("{uid}_t"+j);if(b&&b.getAttribute("aria-selected")==="true"){{i=j;break;}}}}'
+            f'    var next=e.key==="ArrowRight"?(i+1)%{n}:(i-1+{n})%{n};'
+            f'    window.{uid}_go(next);'
+            f'    e.preventDefault();'
+            f'  }});'
+            f'}}'
             f"}})();</script>"
         )
 

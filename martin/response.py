@@ -88,20 +88,35 @@ class Request:
         import urllib.parse
 
         self.query = dict(urllib.parse.parse_qsl(query_string or ""))
+        self.query_multi = urllib.parse.parse_qs(query_string or "")
 
     @property
     def body(self):
         return self._body
 
-    def json(self):
+    def json(self, default=None, silent=False):
         import json
 
-        return json.loads(self._body.decode("utf-8"))
+        if not self._body:
+            return default
+        try:
+            return json.loads(self._body.decode("utf-8"))
+        except Exception:
+            if silent:
+                return default
+            raise
 
-    def form(self):
+    def form(self, default=None, silent=False):
         import urllib.parse
 
-        return dict(urllib.parse.parse_qsl(self._body.decode("utf-8")))
+        if not self._body:
+            return default if default is not None else {}
+        try:
+            return dict(urllib.parse.parse_qsl(self._body.decode("utf-8")))
+        except Exception:
+            if silent:
+                return default if default is not None else {}
+            raise
 
     def __repr__(self):
         return f"<Request {self.method} {self.path}>"

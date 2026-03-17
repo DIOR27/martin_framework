@@ -2,7 +2,7 @@
 Martin — App, Router & Dev Server
 """
 
-import os, sys, time, threading, importlib.util
+import os, sys, time, threading, importlib.util, mimetypes, html as _html
 import http.server, webbrowser
 from pathlib import Path
 from .theme import THEME_CSS, THEME_TOGGLE_JS
@@ -333,6 +333,7 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
         if not self._router or len(self._router.paths()) <= 1:
             return ""
 
+        esc = lambda v: _html.escape(str(v), quote=True)
         icon_html = ""
         if self.logo:
             # Logo explícito vía App(logo=...)
@@ -343,7 +344,7 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
             )
             if self._export_mode:
                 _src = _src.lstrip("/")
-            icon_html = f'<img src="{_src}" alt="{self.title}" style="height:32px;width:auto;object-fit:contain;border-radius:6px">'
+            icon_html = f'<img src="{esc(_src)}" alt="{esc(self.title)}" style="height:32px;width:auto;object-fit:contain;border-radius:6px">'
         else:
             for name_ext in (
                 "icon.png",
@@ -356,11 +357,11 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
             ):
                 if os.path.exists(os.path.join(self.assets_dir, name_ext)):
                     _pfx = "assets/" if self._export_mode else "/assets/"
-                    icon_html = f'<img src="{_pfx}{name_ext}" alt="">'
+                    icon_html = f'<img src="{esc(_pfx + name_ext)}" alt="">'
                     break
 
         _home_href = "index.html" if self._export_mode else "/"
-        logo_html = f'<a href="{_home_href}" class="mn-logo">{icon_html}<span>{self.title}</span></a>'
+        logo_html = f'<a href="{esc(_home_href)}" class="mn-logo">{icon_html}<span>{esc(self.title)}</span></a>'
 
         links_html = ""
         for path in self._router.paths():
@@ -372,10 +373,14 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
                 href = "index.html" if path == "/" else (path.lstrip("/") + ".html")
             else:
                 href = path
-            links_html += f'<a href="{href}"{act_cls}>{label}</a>'
+            links_html += f'<a href="{esc(href)}"{act_cls}>{esc(label)}</a>'
 
-        burger = '<button class="mn-burger" aria-label="Menú"><span></span><span></span><span></span></button>'
-        drawer = f'<div class="mn-drawer">{links_html}</div>'
+        drawer_id = "_martin_nav_drawer"
+        burger = (
+            f'<button class="mn-burger" aria-label="Menú" aria-controls="{drawer_id}" '
+            f'aria-expanded="false"><span></span><span></span><span></span></button>'
+        )
+        drawer = f'<div id="{drawer_id}" class="mn-drawer">{links_html}</div>'
 
         _nav_js = (
             "<script>(function(){"
@@ -383,10 +388,10 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
             'if(!n||!n.classList.contains("martin-nav")){n=document.querySelector("nav.martin-nav");}'
             "if(!n)return;"
             'var b=n.querySelector(".mn-burger");if(!b)return;'
-            'b.addEventListener("click",function(e){e.stopPropagation();n.classList.toggle("mn-open");});'
+            'b.addEventListener("click",function(e){e.stopPropagation();n.classList.toggle("mn-open");b.setAttribute("aria-expanded",n.classList.contains("mn-open")?"true":"false");});'
             'var d=n.querySelector(".mn-drawer");'
-            'if(d)d.querySelectorAll("a").forEach(function(a){a.addEventListener("click",function(){n.classList.remove("mn-open");});});'
-            'document.addEventListener("click",function(e){if(!n.contains(e.target))n.classList.remove("mn-open");});'
+            'if(d)d.querySelectorAll("a").forEach(function(a){a.addEventListener("click",function(){n.classList.remove("mn-open");b.setAttribute("aria-expanded","false");});});'
+            'document.addEventListener("click",function(e){if(!n.contains(e.target)){n.classList.remove("mn-open");b.setAttribute("aria-expanded","false");}});'
             "})();</script>"
         )
         return (
@@ -440,6 +445,7 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
         script = LIVE_RELOAD_SCRIPT if (reload and self.hot_reload) else ""
         title = page_title or self.title
         theme = page_theme or self.theme
+        esc = lambda v: _html.escape(str(v), quote=True)
         if self.theme_toggle:
             toggle = (
                 '<button id="_martin_theme_btn"'
@@ -456,7 +462,8 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
             toggle = ""
 
         # Inyectar theme en el JS
-        toggle_js = THEME_TOGGLE_JS.replace("'INITIAL_THEME'", f"'{theme}'")
+        theme_js = str(theme).replace("\\", "\\\\").replace("'", "\\'")
+        toggle_js = THEME_TOGGLE_JS.replace("'INITIAL_THEME'", f"'{theme_js}'")
 
         # ── SEO meta tags ─────────────────────────────────────────────
         import json as _json
@@ -487,40 +494,40 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
 
         # Basic
         if desc:
-            seo_tags.append(f'  <meta name="description" content="{desc}">')
+            seo_tags.append(f'  <meta name="description" content="{esc(desc)}">')
         if kw:
-            seo_tags.append(f'  <meta name="keywords" content="{kw}">')
-        seo_tags.append(f'  <meta name="robots" content="{robots_content}">')
+            seo_tags.append(f'  <meta name="keywords" content="{esc(kw)}">')
+        seo_tags.append(f'  <meta name="robots" content="{esc(robots_content)}">')
 
         # Canonical
         if canonical:
-            seo_tags.append(f'  <link rel="canonical" href="{canonical}">')
+            seo_tags.append(f'  <link rel="canonical" href="{esc(canonical)}">')
 
         # Open Graph
-        seo_tags.append(f'  <meta property="og:type" content="{og_type}">')
-        seo_tags.append(f'  <meta property="og:title" content="{title}">')
+        seo_tags.append(f'  <meta property="og:type" content="{esc(og_type)}">')
+        seo_tags.append(f'  <meta property="og:title" content="{esc(title)}">')
         if desc:
-            seo_tags.append(f'  <meta property="og:description" content="{desc}">')
+            seo_tags.append(f'  <meta property="og:description" content="{esc(desc)}">')
         if canonical:
-            seo_tags.append(f'  <meta property="og:url" content="{canonical}">')
+            seo_tags.append(f'  <meta property="og:url" content="{esc(canonical)}">')
         if og_img:
-            seo_tags.append(f'  <meta property="og:image" content="{og_img}">')
+            seo_tags.append(f'  <meta property="og:image" content="{esc(og_img)}">')
             seo_tags.append(f'  <meta property="og:image:width" content="1200">')
             seo_tags.append(f'  <meta property="og:image:height" content="630">')
-        seo_tags.append(f'  <meta property="og:site_name" content="{self.title}">')
-        seo_tags.append(f'  <meta property="og:locale" content="{self.lang}">')
+        seo_tags.append(f'  <meta property="og:site_name" content="{esc(self.title)}">')
+        seo_tags.append(f'  <meta property="og:locale" content="{esc(self.lang)}">')
 
         # Twitter Card
         tw_card = "summary_large_image" if og_img else "summary"
-        seo_tags.append(f'  <meta name="twitter:card" content="{tw_card}">')
-        seo_tags.append(f'  <meta name="twitter:title" content="{title}">')
+        seo_tags.append(f'  <meta name="twitter:card" content="{esc(tw_card)}">')
+        seo_tags.append(f'  <meta name="twitter:title" content="{esc(title)}">')
         if desc:
-            seo_tags.append(f'  <meta name="twitter:description" content="{desc}">')
+            seo_tags.append(f'  <meta name="twitter:description" content="{esc(desc)}">')
         if og_img:
-            seo_tags.append(f'  <meta name="twitter:image" content="{og_img}">')
+            seo_tags.append(f'  <meta name="twitter:image" content="{esc(og_img)}">')
         if tw:
             handle = tw if tw.startswith("@") else f"@{tw}"
-            seo_tags.append(f'  <meta name="twitter:site" content="{handle}">')
+            seo_tags.append(f'  <meta name="twitter:site" content="{esc(handle)}">')
 
         # Favicon
         # Auto-detect favicon: explicit > assets/icon.* > assets/favicon.* > assets/logo.*
@@ -547,7 +554,9 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
                 "ico": "image/x-icon",
                 "webp": "image/webp",
             }.get(ext, "image/x-icon")
-            seo_tags.append(f'  <link rel="icon" type="{mime}" href="{favicon}">')
+            seo_tags.append(
+                f'  <link rel="icon" type="{esc(mime)}" href="{esc(favicon)}">'
+            )
         else:
             seo_tags.append(
                 "  <link rel=\"icon\" href=\"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='28'>🅜</text></svg>\">"
@@ -557,7 +566,7 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
         seo_tags.append('  <meta http-equiv="X-UA-Compatible" content="IE=edge">')
         seo_tags.append('  <meta name="theme-color" content="#6366f1">')
         if self.site_url:
-            seo_tags.append(f'  <link rel="preconnect" href="{self.site_url}">')
+            seo_tags.append(f'  <link rel="preconnect" href="{esc(self.site_url)}">')
 
         # JSON-LD structured data
         schema_tag = ""
@@ -570,11 +579,11 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
             seo_html += "\n" + schema_tag
 
         return f"""<!DOCTYPE html>
-<html lang="{self.lang}" data-theme="{theme}">
+<html lang="{esc(self.lang)}" data-theme="{esc(theme)}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>{title}</title>
+  <title>{esc(title)}</title>
 {seo_html}
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -860,6 +869,19 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
                 qs = parts[1] if len(parts) > 1 else ""
                 self._api("DELETE", path, qs, b"")
 
+            def do_OPTIONS(self):
+                self.send_response(204)
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header(
+                    "Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS"
+                )
+                self.send_header(
+                    "Access-Control-Allow-Headers",
+                    self.headers.get("Access-Control-Request-Headers", "Content-Type"),
+                )
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+
             def _api(self, method, path, qs, body):
                 resp = app._handle_api(method, path, qs, body, dict(self.headers))
                 data, ct = resp.to_bytes()
@@ -867,6 +889,10 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
                 self.send_header("Content-Type", ct)
                 self.send_header("Content-Length", str(len(data)))
                 self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header(
+                    "Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS"
+                )
+                self.send_header("Access-Control-Allow-Headers", "Content-Type")
                 for k, v in resp.headers.items():
                     self.send_header(k, v)
                 self.end_headers()
@@ -891,15 +917,35 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
                 self.wfile.write(data)
 
             def _static(self, path):
-                if os.path.exists(path):
-                    with open(path, "rb") as f:
-                        data = f.read()
-                    self.send_response(200)
-                    self.end_headers()
-                    self.wfile.write(data)
-                else:
+                from urllib.parse import unquote
+
+                rel = (path or "").replace("\\", "/")
+                if rel.startswith("assets/"):
+                    rel = rel[len("assets/") :]
+                rel = unquote(rel)
+
+                base_dir = Path(app.assets_dir).resolve()
+                file_path = (base_dir / rel).resolve()
+
+                if (
+                    not str(file_path).startswith(str(base_dir))
+                    or not file_path.exists()
+                    or not file_path.is_file()
+                ):
                     self.send_response(404)
                     self.end_headers()
+                    return
+
+                with open(file_path, "rb") as f:
+                    data = f.read()
+
+                ctype, _ = mimetypes.guess_type(str(file_path))
+                self.send_response(200)
+                self.send_header("Content-Type", ctype or "application/octet-stream")
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "public, max-age=3600")
+                self.end_headers()
+                self.wfile.write(data)
 
             def log_message(self, *a):
                 pass

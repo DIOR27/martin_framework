@@ -294,7 +294,7 @@ class Calendar(Widget):
   /* ── accent resolver ──────────────────────────────── */
   function A(){{
     if(!ACCENT||ACCENT.indexOf("var(")<0)return ACCENT||"#6366f1";
-    var p=ACCENT.replace(/^var\(/,"").replace(/\)$/,"").split(",")[0].trim();
+    var p=ACCENT.replace(/^var\\(/,"").replace(/\\)$/,"").split(",")[0].trim();
     return(getComputedStyle(document.documentElement).getPropertyValue(p)||"").trim()||"#6366f1";
   }}
 

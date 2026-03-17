@@ -29,7 +29,16 @@ from .feedback import Badge, Alert
 from .navigation import NavBar, SideMenu, Footer, Breadcrumb, Tabs
 from .data import Table
 from .overlay import Modal
-from .special import Raw, ThemeToggle, CookieCategory, CookieBanner, SafeArea
+from .special import (
+    Raw,
+    Script,
+    Stylesheet,
+    StyleTag,
+    ThemeToggle,
+    CookieCategory,
+    CookieBanner,
+    SafeArea,
+)
 from .api import Ref, ApiCall, ResultBox
 from .dataviz import WordCloud, Map, Timeline, TimelineItem, Chart, ChartDataset
 from .marketing import (
@@ -105,6 +114,9 @@ __all__ = [
     "Modal",
     # Utility / special
     "Raw",
+    "Script",
+    "Stylesheet",
+    "StyleTag",
     "ThemeToggle",
     "CookieBanner",
     "CookieCategory",

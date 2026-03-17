@@ -77,6 +77,9 @@ from .widgets import (
     Modal,
     # Utility
     Raw,
+    Script,
+    Stylesheet,
+    StyleTag,
     ThemeToggle,
     SafeArea,
     # API
@@ -177,6 +180,9 @@ __all__ = [
     "Table",
     "Modal",
     "Raw",
+    "Script",
+    "Stylesheet",
+    "StyleTag",
     "ThemeToggle",
     "SafeArea",
     "ApiCall",
