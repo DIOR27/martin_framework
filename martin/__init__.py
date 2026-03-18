@@ -5,6 +5,17 @@ __version__ = "0.5.0"
 from .app import App, Router, PageConfig
 from . import backend
 from . import fx
+from .state import Signal, Computed, Store
+from .i18n import I18n, L10n
+from .plugins import (
+    register_plugin,
+    unregister_plugin,
+    get_plugin,
+    list_plugins,
+    apply_plugin,
+    PluginRegistry,
+)
+from .studio import get_widget_catalog, describe_widget, export_widget_catalog_json
 from .styles import (
     CSS,
     StyleBase,
@@ -75,8 +86,18 @@ from .widgets import (
     Tabs,
     # Data
     Table,
+    DataGridColumn,
+    DataGrid,
     # Overlay
     Modal,
+    CommandPalette,
+    Drawer,
+    SplitPane,
+    Skeleton,
+    EmptyState,
+    ErrorState,
+    Form,
+    JSWidgetAdapter,
     # Utility
     Raw,
     Script,
@@ -116,6 +137,20 @@ __all__ = [
     "__version__",
     "fx",
     "backend",
+    "Signal",
+    "Computed",
+    "Store",
+    "I18n",
+    "L10n",
+    "register_plugin",
+    "unregister_plugin",
+    "get_plugin",
+    "list_plugins",
+    "apply_plugin",
+    "PluginRegistry",
+    "get_widget_catalog",
+    "describe_widget",
+    "export_widget_catalog_json",
     "App",
     "Router",
     "PageConfig",
@@ -179,7 +214,17 @@ __all__ = [
     "Breadcrumb",
     "Tabs",
     "Table",
+    "DataGridColumn",
+    "DataGrid",
     "Modal",
+    "CommandPalette",
+    "Drawer",
+    "SplitPane",
+    "Skeleton",
+    "EmptyState",
+    "ErrorState",
+    "Form",
+    "JSWidgetAdapter",
     "Raw",
     "Script",
     "Stylesheet",

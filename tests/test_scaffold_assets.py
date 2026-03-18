@@ -41,6 +41,13 @@ class ScaffoldAssetsTests(unittest.TestCase):
         self.assertIn("/assets/logo_martin_stack.svg", components_page)
         self.assertIn('CarouselItem(image="/assets/icon.webp", title="Martin icon")', components_page)
         self.assertIn("masonry=True", components_page)
+        self.assertIn('"Advanced Pack"', components_page)
+        self.assertIn("DataGrid(", components_page)
+        self.assertIn("CommandPalette(", components_page)
+        self.assertIn("JSWidgetAdapter(", components_page)
+        self.assertIn("widget-advanced-pack", components_page)
+        self.assertIn('/demo/validate/email', components_page)
+        self.assertIn("Signal, Computed, Store, I18n, L10n, PluginRegistry", components_page)
 
 
 if __name__ == "__main__":

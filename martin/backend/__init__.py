@@ -1,8 +1,8 @@
 """Backend helpers for martin-framework."""
 
 from .http import Request, Response
-from .backend import Backend, SimpleBackend
-from .widgets import Ref, ApiCall, ResultBox
+from .backend import Backend, SimpleBackend, BackendContext
+from .widgets import Ref, ApiCall, MethodCall, ResultBox
 from .mail import SMTPConfig, MailMessage, Mailer
 
 __all__ = [
@@ -10,8 +10,10 @@ __all__ = [
     "Response",
     "Backend",
     "SimpleBackend",
+    "BackendContext",
     "Ref",
     "ApiCall",
+    "MethodCall",
     "ResultBox",
     "SMTPConfig",
     "MailMessage",

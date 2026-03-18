@@ -458,11 +458,12 @@ class Select(Widget):
             base = (
                 "padding: 8px 12px; border: 1px solid var(--border-input,var(--border)); border-radius: 6px; "
                 "font-size: 14px; background: var(--input-bg,var(--surface)); color: var(--input-color,var(--text)); "
-                "cursor: pointer; width: 100%"
+                "cursor: pointer; width: 100%; color-scheme: light dark"
             )
             inline = f"{base}; {extra}" if extra else base
+            opt_style = "background:var(--dropdown-bg,var(--surface));color:var(--input-color,var(--text));"
             opt_tags = "".join(
-                f'<option value="{v}"{"selected" if v == selected_val else ""}>{l}</option>'
+                f'<option style="{opt_style}" value="{v}"{"selected" if v == selected_val else ""}>{l}</option>'
                 for v, l in opts
             )
             name_attr = f' name="{self.name}"' if self.name else ""

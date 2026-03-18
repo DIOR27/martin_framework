@@ -88,6 +88,15 @@ input:focus:not([type="checkbox"]), select:focus, textarea:focus {
 }
 .pw-opt, .pw-mopt { color: var(--text) !important; }
 .pw-opt:hover, .pw-mopt:hover { background: var(--surface-2) !important; }
+select { color-scheme: light dark; }
+select option, select optgroup {
+  background: var(--dropdown-bg, var(--surface)) !important;
+  color: var(--input-color, var(--text)) !important;
+}
+[data-theme="dark"] select, .theme-dark select { color-scheme: dark; }
+[data-theme="light"] select, .theme-light select { color-scheme: light; }
+@media (prefers-color-scheme: dark) { [data-theme="auto"] select { color-scheme: dark; } }
+@media (prefers-color-scheme: light) { [data-theme="auto"] select { color-scheme: light; } }
 """
 
 NAV_CSS = """\

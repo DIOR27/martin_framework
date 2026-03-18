@@ -2,7 +2,7 @@
 
 from martin.widget import Widget
 
-__all__ = ["Ref", "ApiCall", "ResultBox"]
+__all__ = ["Ref", "ApiCall", "MethodCall", "ResultBox"]
 
 
 class Ref:
@@ -60,6 +60,20 @@ class ApiCall:
         self.on_success = on_success
         self.on_error = on_error
 
+    def _encode_value_js(self, value):
+        import json as _json
+
+        if isinstance(value, Ref):
+            return value.to_js()
+        if isinstance(value, dict):
+            parts = []
+            for key, val in value.items():
+                parts.append(_json.dumps(str(key)) + ":" + self._encode_value_js(val))
+            return "{" + ",".join(parts) + "}"
+        if isinstance(value, (list, tuple)):
+            return "[" + ",".join(self._encode_value_js(v) for v in value) + "]"
+        return _json.dumps(value)
+
     def _body_js(self, btn_id):
         if self.body is None:
             return (
@@ -92,17 +106,7 @@ class ApiCall:
                 "return data;"
                 "})()"
             )
-
-        import json as _json
-
-        parts = []
-        for key, val in self.body.items():
-            key_js = _json.dumps(key)
-            if isinstance(val, Ref):
-                parts.append(key_js + ":" + val.to_js())
-            else:
-                parts.append(key_js + ":" + _json.dumps(val))
-        return "{" + ",".join(parts) + "}"
+        return self._encode_value_js(self.body)
 
     def to_js(self, btn_id):
         import json as _json
@@ -223,4 +227,50 @@ class ResultBox(Widget):
             '    +\'</div>\'+content;'
             '});'
             '})()</script>'
+        )
+
+
+class MethodCall(ApiCall):
+    """
+    Llamada RPC por nombre de método backend.
+
+    Ejemplo:
+        Button(
+            "Guardar",
+            on_click=MethodCall(
+                "contact.create",
+                params={"name": Ref("name_input")},
+                endpoint="/api/_method",
+                target="result_box",
+            ),
+        )
+    """
+
+    def __init__(
+        self,
+        method,
+        params=None,
+        args=None,
+        kwargs=None,
+        endpoint="/api/_method",
+        target=None,
+        loading="Procesando...",
+        on_success=None,
+        on_error=None,
+    ):
+        payload = {"method": method}
+        if params is not None:
+            payload["params"] = params
+        if args is not None:
+            payload["args"] = args
+        if kwargs is not None:
+            payload["kwargs"] = kwargs
+        super().__init__(
+            url=endpoint,
+            method="POST",
+            body=payload,
+            target=target,
+            loading=loading,
+            on_success=on_success,
+            on_error=on_error,
         )

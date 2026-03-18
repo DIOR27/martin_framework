@@ -25,12 +25,17 @@ class ScaffoldBackendTests(unittest.TestCase):
         )
         components_page = files["pages/components.py"]
 
-        self.assertIn("from martin.backend import ApiCall, Backend, Ref, Response, ResultBox", components_page)
+        self.assertIn("from martin.backend import ApiCall, Backend, MethodCall, Ref, Response, ResultBox", components_page)
         self.assertIn("def register_components_backend(backend: Backend):", components_page)
         self.assertIn('@backend.post("/demo/contact")', components_page)
+        self.assertIn('@backend.post("/demo/validate/email")', components_page)
+        self.assertIn('@backend.method("demo.lead.create")', components_page)
         self.assertIn('widget-backend', components_page)
         self.assertIn('ApiCall(', components_page)
+        self.assertIn('MethodCall(', components_page)
+        self.assertIn('"/api/_method"', components_page)
         self.assertIn('ResultBox(id="backend_result", format="message")', components_page)
+        self.assertIn('ResultBox(id="backend_method_result", format="json")', components_page)
         self.assertIn("backend.configure_smtp(", components_page)
 
 

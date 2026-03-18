@@ -139,6 +139,25 @@ textarea:focus {
 select {
   background: var(--input-bg) !important;
   color: var(--input-color) !important;
+  color-scheme: light dark;
+}
+select option, select optgroup {
+  background: var(--dropdown-bg, var(--surface)) !important;
+  color: var(--input-color, var(--text)) !important;
+}
+[data-theme="dark"] select,
+.theme-dark select {
+  color-scheme: dark;
+}
+[data-theme="light"] select,
+.theme-light select {
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  [data-theme="auto"] select { color-scheme: dark; }
+}
+@media (prefers-color-scheme: light) {
+  [data-theme="auto"] select { color-scheme: light; }
 }
 
 /* Select custom dropdown */

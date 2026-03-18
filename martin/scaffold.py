@@ -299,13 +299,16 @@ COMPONENTS_TEMPLATE = (
         Image, Avatar, IconPack, NavBar, Footer, Tabs, Breadcrumb,
         Table, Modal, TextField, TextArea, Select, MultiSelect, Checkbox,
         Slider, ColorPicker, DatePicker,
+        DataGrid, DataGridColumn, CommandPalette, Drawer, SplitPane,
+        Skeleton, EmptyState, ErrorState, Form, JSWidgetAdapter,
+        Signal, Computed, Store, I18n, L10n, PluginRegistry,
         WordCloud, Map, Timeline, TimelineItem, Hero,
         Gallery, GalleryItem, Carousel, CarouselItem,
         Border, Shadow, TextStyle, Glass, GradientText, MeshBackground, Colors,
         SideMenu, Raw,
         PageConfig,
     )
-    from martin.backend import ApiCall, Backend, Ref, Response, ResultBox
+    from martin.backend import ApiCall, Backend, MethodCall, Ref, Response, ResultBox
     from martin.fx import (
         FadeIn, SlideIn, ScaleIn, Pulse, Spin, Transition,
         Hover, HoverLift, HoverGlow, Stagger, ReducedMotion, RevealOnScroll,
@@ -375,6 +378,44 @@ COMPONENTS_TEMPLATE = (
                 ),
                 "nombre": nombre,
                 "email": email,
+            }
+
+        @backend.post("/demo/validate/email")
+        def demo_validate_email(req):
+            data = req.json(default={}, silent=True) or {}
+            raw = str(data.get("value", "")).strip().lower()
+            taken = {"admin@martin.dev", "soporte@martin.dev", "ventas@martin.dev"}
+            if not raw:
+                return {"valid": False, "message": "El email es obligatorio."}
+            if "@" not in raw or "." not in raw.split("@")[-1]:
+                return {"valid": False, "message": "Formato de email no valido."}
+            if raw in taken:
+                return {"valid": False, "message": "Este email ya esta en uso en la demo."}
+            return {"valid": True}
+
+        @backend.method("demo.lead.create")
+        def demo_lead_create(ctx, nombre="", email="", plan="", mensaje=""):
+            nombre = str(nombre or "").strip()
+            email = str(email or "").strip()
+            if isinstance(plan, dict):
+                plan = plan.get("valor") or plan.get("etiqueta") or ""
+            plan = str(plan or "").strip() or "starter"
+            mensaje = str(mensaje or "").strip()
+            if not nombre or not email:
+                return Response({"message": "Nombre y email son obligatorios."}, status=400)
+            if "@" not in email:
+                return Response({"message": "Email invalido."}, status=400)
+            return {
+                "message": (
+                    f"Lead creado: {nombre} ({email}) en plan {plan}. "
+                    f"Metodo backend: {ctx.method_name}"
+                ),
+                "lead": {
+                    "nombre": nombre,
+                    "email": email,
+                    "plan": plan,
+                    "mensaje": mensaje,
+                },
             }
 
 
@@ -714,8 +755,176 @@ COMPONENTS_TEMPLATE = (
                 ),
             ], widget_name="Table"))
 
+        # ── Advanced Pack ────────────────────────────────────────────────
+        if "DataGrid" in all_w:
+            secs.append(_sec("Advanced Pack", "DataGrid Pro + Forms avanzados + Command Palette + compatibilidad JS.", [
+                CommandPalette(
+                    title="Martin Command Palette",
+                    trigger_label="Abrir Command Palette (Ctrl/Cmd+K)",
+                    placeholder="Busca un comando o atajo...",
+                    items=[
+                        {"label": "Ir a Hero", "href": "#widget-hero", "keywords": "navegacion docs", "shortcut": "G H"},
+                        {"label": "Abrir Drawer demo", "action": "openDrawer('demo_sheet')", "keywords": "drawer sheet ui", "shortcut": "D O"},
+                        {"label": "Focus DataGrid", "action": "document.getElementById('advanced_grid_host').scrollIntoView({behavior:'smooth',block:'center'})", "keywords": "grid tabla", "shortcut": "G D"},
+                    ],
+                ),
+                Drawer(
+                    id="demo_sheet",
+                    title="Sheet de productividad",
+                    side="right",
+                    mobile_sheet=True,
+                    children=[
+                        Paragraph(
+                            "Este Drawer funciona como panel lateral en desktop y bottom-sheet en movil.",
+                            style=TextStyle(size=13, color="var(--text-muted)", line_height=1.6),
+                        ),
+                        Row(gap=8, wrap=True, children=[
+                            Badge("Ctrl/Cmd+K", background=Colors.indigo),
+                            Badge("Global", background="var(--surface-2,var(--surface))", color="var(--text-muted)"),
+                        ]),
+                        Divider(),
+                        Text("Puedes abrirlo desde CommandPalette o con este boton:"),
+                        Button("Cerrar", variant="secondary", on_click="closeDrawer('demo_sheet')"),
+                    ],
+                ),
+                Row(gap=10, wrap=True, children=[
+                    Button("Abrir Drawer / Sheet", on_click="openDrawer('demo_sheet')"),
+                    Button("Scroll a DataGrid", variant="ghost", on_click="document.getElementById('advanced_grid_host').scrollIntoView({behavior:'smooth'})"),
+                ]),
+                Card(
+                    id="advanced_grid_host",
+                    padding=16,
+                    radius=14,
+                    children=[
+                        DataGrid(
+                            rows=[
+                                {"equipo": "Alpha", "miembro": "Ana Garcia", "rol": "Lead", "tickets": 18, "estado": "Activo"},
+                                {"equipo": "Alpha", "miembro": "Pedro Lopez", "rol": "QA", "tickets": 6, "estado": "Activo"},
+                                {"equipo": "Beta", "miembro": "Maria Silva", "rol": "Backend", "tickets": 11, "estado": "Pendiente"},
+                                {"equipo": "Beta", "miembro": "Juan Ramirez", "rol": "Frontend", "tickets": 14, "estado": "Activo"},
+                                {"equipo": "Gamma", "miembro": "Laura Torres", "rol": "Design", "tickets": 9, "estado": "Bloqueado"},
+                                {"equipo": "Gamma", "miembro": "Nicolas Vega", "rol": "PM", "tickets": 7, "estado": "Activo"},
+                            ],
+                            columns=[
+                                DataGridColumn("miembro", "Miembro", width=220, frozen=True),
+                                DataGridColumn("equipo", "Equipo", width=130),
+                                DataGridColumn("rol", "Rol", width=150),
+                                DataGridColumn("tickets", "Tickets", width=110, align="right"),
+                                DataGridColumn("estado", "Estado", width=150),
+                            ],
+                            searchable=True,
+                            sortable=True,
+                            resizable=True,
+                            reorderable=True,
+                            freeze_columns=["miembro"],
+                            group_by="equipo",
+                            virtual_scroll=True,
+                            height=320,
+                            row_height=42,
+                        ),
+                    ],
+                ),
+                SplitPane(
+                    ratio=0.42,
+                    left=Card(
+                        padding=14,
+                        children=[
+                            Text("Panel A", style=TextStyle(size=14, weight="700")),
+                            Paragraph("SplitPane redimensionable para layouts tipo IDE.", style=TextStyle(size=13, color="var(--text-muted)")),
+                        ],
+                    ),
+                    right=Card(
+                        padding=14,
+                        children=[
+                            Text("Panel B", style=TextStyle(size=14, weight="700")),
+                            Paragraph("En movil colapsa en columnas para mantener el responsive.", style=TextStyle(size=13, color="var(--text-muted)")),
+                        ],
+                    ),
+                ),
+                Form(
+                    id="advanced_form",
+                    schema={
+                        "nombre": {"required": True, "min_length": 3, "mask": "AAAAAAAAAAAAAAAAAAAA"},
+                        "email": {
+                            "required": True,
+                            "email": True,
+                            "async_url": "/api/demo/validate/email",
+                        },
+                        "telefono": {"mask": "(999) 999-9999", "min_length": 14},
+                        "plan": {"required": True},
+                        "mensaje": {"required": True, "min_length": 10},
+                    },
+                    on_submit=(
+                        "var out=document.getElementById('advanced_form_state');"
+                        "if(out){out.textContent=JSON.stringify(state,null,2);}"
+                    ),
+                    children=[
+                        Grid(columns=2, gap=12, children=[
+                            TextField(name="nombre", placeholder="Nombre completo"),
+                            TextField(name="email", placeholder="Email de trabajo", type="email"),
+                        ]),
+                        Grid(columns=2, gap=12, children=[
+                            TextField(name="telefono", placeholder="Telefono"),
+                            Select(
+                                name="plan",
+                                options=[("starter", "Starter"), ("pro", "Pro"), ("enterprise", "Enterprise")],
+                                placeholder="Plan",
+                                search=True,
+                            ),
+                        ]),
+                        TextArea(name="mensaje", placeholder="Cuentanos el objetivo del proyecto...", rows=3),
+                        Row(gap=10, wrap=True, children=[
+                            Button("Enviar formulario"),
+                            Badge("Validacion sync + async", background="var(--surface-2,var(--surface))", color="var(--text-muted)"),
+                        ]),
+                        Raw('<pre id="advanced_form_state" style="margin:0;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2,var(--surface));font-size:12px;overflow:auto;color:var(--text-muted)">State del submit aparecera aqui.</pre>'),
+                    ],
+                ),
+                Grid(columns=3, gap=12, children=[
+                    Skeleton(lines=4, avatar=True),
+                    EmptyState(
+                        title="Sin registros",
+                        description="Este estado sirve para vistas vacias despues de filtros o primeras cargas.",
+                        action=Button("Crear item", variant="secondary"),
+                    ),
+                    ErrorState(
+                        title="Error de sincronizacion",
+                        description="Reintenta o revisa tu conectividad para continuar.",
+                        action=Button("Reintentar", variant="danger"),
+                    ),
+                ]),
+                JSWidgetAdapter(
+                    height=160,
+                    data={"items": [3, 8, 5, 11, 7]},
+                    init_js=(
+                        "var bars=(data.items||[]).map(function(v){"
+                        "return '<div style=\\\"flex:1;min-width:14px;background:linear-gradient(180deg,#6366f1,#22d3ee);height:'+Math.max(14,v*9)+'px;border-radius:8px 8px 2px 2px\\\"></div>';"
+                        "}).join('');"
+                        "el.innerHTML='<div style=\\\"height:100%;display:flex;align-items:flex-end;gap:8px;padding:14px\\\">'+bars+'</div>';"
+                    ),
+                ),
+                Code(
+                    "from martin import Signal, Computed, Store, I18n, L10n, PluginRegistry\\n\\n"
+                    "counter = Signal(0)\\n"
+                    "double = Computed(lambda: counter.get() * 2, counter)\\n"
+                    "store = Store({'theme': 'auto'})\\n\\n"
+                    "i18n = I18n(\\n"
+                    "    messages={'es': {'home': {'title': 'Inicio'}}, 'en': {'home': {'title': 'Home'}}},\\n"
+                    "    default_locale='es',\\n"
+                    ")\\n"
+                    "l10n = L10n(locale='es-EC', timezone='America/Guayaquil', currency='USD')\\n\\n"
+                    "plugins = PluginRegistry()\\n"
+                    "plugins.register('hello', lambda name: f'Hola {name}')\\n"
+                    "print(double.get(), i18n.t('home.title'), l10n.format_currency(25.5), plugins.apply('hello', 'Martin'))",
+                    block=True,
+                    language="python",
+                    filename="advanced_pack.py",
+                    copy=True,
+                ),
+            ], widget_name="advanced-pack"))
+
         # ── Backend ───────────────────────────────────────────────────────
-        secs.append(_sec("Backend", "Form actions desde Python con martin.backend y soporte SMTP opcional.", [
+        secs.append(_sec("Backend", "REST + metodos backend desde widgets (`ApiCall` y `MethodCall`) con SMTP opcional.", [
             Alert(
                 "Este demo funciona con `from martin.backend import ...`. "
                 "Si configuras SMTP, el mismo endpoint puede enviar correo real.",
@@ -737,6 +946,13 @@ COMPONENTS_TEMPLATE = (
                             rows=4,
                             value="Quiero usar martin.backend para formularios y correos.",
                         ),
+                        Select(
+                            id="backend_plan",
+                            options=[("starter", "Starter"), ("pro", "Pro"), ("enterprise", "Enterprise")],
+                            value="starter",
+                            search=True,
+                            placeholder="Plan",
+                        ),
                         Row(gap=10, wrap=True, children=[
                             Button(
                                 "Enviar demo",
@@ -752,15 +968,37 @@ COMPONENTS_TEMPLATE = (
                                     loading="Enviando demo...",
                                 ),
                             ),
+                            Button(
+                                "Crear lead (metodo)",
+                                id="backend_method_btn",
+                                variant="secondary",
+                                on_click=MethodCall(
+                                    "demo.lead.create",
+                                    params={
+                                        "nombre": Ref("backend_nombre"),
+                                        "email": Ref("backend_email"),
+                                        "plan": Ref("backend_plan"),
+                                        "mensaje": Ref("backend_mensaje"),
+                                    },
+                                    endpoint="/api/_method",
+                                    target="backend_method_result",
+                                    loading="Ejecutando metodo...",
+                                ),
+                            ),
                             Badge("POST /api/demo/contact", background="var(--surface-2,var(--surface))", color="var(--text-muted)"),
+                            Badge("POST /api/_method", background="var(--surface-2,var(--surface))", color="var(--text-muted)"),
                         ]),
                         ResultBox(id="backend_result", format="message"),
+                        ResultBox(id="backend_method_result", format="json"),
                     ]),
                 ],
             ),
             Code(
                 "from martin.backend import Backend\\n\\n"
                 "backend = Backend(prefix='/api')\\n"
+                "@backend.method('demo.lead.create')\\n"
+                "def create_lead(ctx, nombre='', email='', plan='starter', mensaje=''):\\n"
+                "    return {'message': f'Lead creado: {nombre} ({email})', 'plan': plan}\\n\\n"
                 "backend.configure_smtp(\\n"
                 "    host='smtp.example.com',\\n"
                 "    port=587,\\n"
@@ -1302,6 +1540,7 @@ COMPONENTS_TEMPLATE = (
         ("Backend",      "widget-backend"),
         ("Tabs",         "widget-tabs"),
         ("Table",        "widget-table"),
+        ("Advanced Pack","widget-advanced-pack"),
         ("Modal",        "widget-modal"),
         ("Breadcrumb",   "widget-breadcrumb"),
         ("GradientText", "widget-gradienttext"),

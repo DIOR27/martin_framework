@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch
 
 from martin import App, Button, Text
-from martin.backend import ApiCall, Backend, Mailer, Response, SMTPConfig
+from martin.backend import ApiCall, Backend, Mailer, MethodCall, Response, SMTPConfig
 
 
 class BackendExtensionTests(unittest.TestCase):
@@ -48,6 +48,50 @@ class BackendExtensionTests(unittest.TestCase):
         body, ct = resp.to_bytes()
         self.assertEqual(body, b"ok")
         self.assertIn("text/plain", ct)
+
+    def test_backend_method_rpc_dispatch(self):
+        backend = Backend(prefix="/api")
+
+        @backend.method("math.add")
+        def add(ctx, a=0, b=0):
+            return {"total": int(a) + int(b), "method": ctx.method_name}
+
+        resp = backend.handle_request(
+            "POST",
+            "/api/_method",
+            "",
+            b'{"method":"math.add","params":{"a":4,"b":7}}',
+            {"Content-Type": "application/json"},
+        )
+        self.assertEqual(resp.status, 200)
+        body, _ = resp.to_bytes()
+        self.assertIn(b'"total": 11', body)
+        self.assertIn(b'"method": "math.add"', body)
+
+    def test_method_call_widget_helper_renders_rpc_call(self):
+        html = Button(
+            "Crear",
+            id="create_btn",
+            on_click=MethodCall(
+                "lead.create",
+                params={"name": "Martin"},
+                endpoint="/api/_method",
+            ),
+        ).render()
+        self.assertIn("/api/_method", html)
+        self.assertIn("lead.create", html)
+        self.assertIn("create_btn", html)
+
+    def test_backend_call_helper_builds_action_for_button(self):
+        backend = Backend(prefix="/api")
+        html = Button(
+            "Guardar",
+            id="save_btn",
+            on_click=backend.call("lead.create", params={"name": "Diego"}),
+        ).render()
+        self.assertIn("/api/_method", html)
+        self.assertIn("lead.create", html)
+        self.assertIn("save_btn", html)
 
     @patch("martin.backend.mail.smtplib.SMTP")
     def test_mailer_sends_via_configured_smtp(self, smtp_cls):
