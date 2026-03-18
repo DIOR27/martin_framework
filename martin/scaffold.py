@@ -64,8 +64,9 @@ MAIN_TEMPLATE = (
         Heading, Text, Link, Row, Button,
         TextStyle,
     )
+    from martin.backend import Backend
     from pages.home import home
-    from pages.components import components
+    from pages.components import components, register_components_backend
 
     router = Router()
     router.add("/",           home,       title="Inicio")
@@ -110,6 +111,10 @@ MAIN_TEMPLATE = (
         description="PROJECT_DESC",
         lang="es",
     )
+
+    backend = Backend(prefix="/api")
+    register_components_backend(backend)
+    backend.mount(app)
 
     if __name__ == "__main__":
         app.run()
@@ -277,9 +282,10 @@ COMPONENTS_TEMPLATE = (
         SideMenu, Raw,
         PageConfig,
     )
+    from martin.backend import ApiCall, Backend, Ref, Response, ResultBox
     from martin.fx import (
         FadeIn, SlideIn, ScaleIn, Pulse, Spin, Transition,
-        HoverLift, HoverGlow, Stagger, ReducedMotion, RevealOnScroll,
+        Hover, HoverLift, HoverGlow, Stagger, ReducedMotion, RevealOnScroll,
     )
     from martin.widgets import __all__ as MARTIN_WIDGETS
 
@@ -303,7 +309,50 @@ COMPONENTS_TEMPLATE = (
                 ]),
                 Column(gap=12, children=children),
             ],
-        )
+            )
+
+
+    def register_components_backend(backend: Backend):
+        @backend.post("/demo/contact")
+        def demo_contact(req):
+            data = req.json(default={}, silent=True) or {}
+            nombre = str(data.get("nombre", "")).strip()
+            email = str(data.get("email", "")).strip()
+            mensaje = str(data.get("mensaje", "")).strip()
+
+            if not nombre or not email or not mensaje:
+                return Response({"message": "Completa nombre, email y mensaje."}, status=400)
+
+            if "@" not in email or "." not in email.split("@")[-1]:
+                return Response({"message": "Ingresa un email valido."}, status=400)
+
+            if backend.mailer:
+                backend.send_mail(
+                    subject=f"Nuevo mensaje desde PROJECT_NAME",
+                    to=getattr(backend.mailer.config, "sender", "") or email,
+                    text=(
+                        f"Nombre: {nombre}\\n"
+                        f"Email: {email}\\n\\n"
+                        f"Mensaje:\\n{mensaje}"
+                    ),
+                    html=(
+                        "<h2>Nuevo mensaje desde PROJECT_NAME</h2>"
+                        f"<p><strong>Nombre:</strong> {nombre}</p>"
+                        f"<p><strong>Email:</strong> {email}</p>"
+                        f"<p><strong>Mensaje:</strong><br>{mensaje}</p>"
+                    ),
+                    reply_to=email,
+                )
+                return {"message": "Mensaje enviado por SMTP correctamente."}
+
+            return {
+                "message": (
+                    "Demo recibida. Configura SMTP con "
+                    "backend.configure_smtp(...) para envio real."
+                ),
+                "nombre": nombre,
+                "email": email,
+            }
 
 
     def _sections():
@@ -642,6 +691,69 @@ COMPONENTS_TEMPLATE = (
                 ),
             ], widget_name="Table"))
 
+        # ── Backend ───────────────────────────────────────────────────────
+        secs.append(_sec("Backend", "Form actions desde Python con martin.backend y soporte SMTP opcional.", [
+            Alert(
+                "Este demo funciona con `from martin.backend import ...`. "
+                "Si configuras SMTP, el mismo endpoint puede enviar correo real.",
+                variant="info",
+                title="Backend simple",
+            ),
+            Card(
+                padding=20,
+                radius=16,
+                children=[
+                    Column(gap=14, children=[
+                        Grid(columns=2, gap=12, children=[
+                            TextField(id="backend_nombre", placeholder="Nombre", value="Diego"),
+                            TextField(id="backend_email", placeholder="Email", type="email", value="diego@example.com"),
+                        ]),
+                        TextArea(
+                            id="backend_mensaje",
+                            placeholder="Cuéntanos qué quieres construir...",
+                            rows=4,
+                            value="Quiero usar martin.backend para formularios y correos.",
+                        ),
+                        Row(gap=10, wrap=True, children=[
+                            Button(
+                                "Enviar demo",
+                                id="backend_demo_btn",
+                                on_click=ApiCall(
+                                    "/api/demo/contact",
+                                    body={
+                                        "nombre": Ref("backend_nombre"),
+                                        "email": Ref("backend_email"),
+                                        "mensaje": Ref("backend_mensaje"),
+                                    },
+                                    target="backend_result",
+                                    loading="Enviando demo...",
+                                ),
+                            ),
+                            Badge("POST /api/demo/contact", background="var(--surface-2,var(--surface))", color="var(--text-muted)"),
+                        ]),
+                        ResultBox(id="backend_result", format="message"),
+                    ]),
+                ],
+            ),
+            Code(
+                "from martin.backend import Backend\\n\\n"
+                "backend = Backend(prefix='/api')\\n"
+                "backend.configure_smtp(\\n"
+                "    host='smtp.example.com',\\n"
+                "    port=587,\\n"
+                "    username='usuario',\\n"
+                "    password='app-password',\\n"
+                "    sender='no-reply@example.com',\\n"
+                "    sender_name='PROJECT_NAME',\\n"
+                ")\\n"
+                "backend.mount(app)",
+                block=True,
+                language="python",
+                filename="backend_demo.py",
+                copy=True,
+            ),
+        ], widget_name="Backend"))
+
         # ── Modal ─────────────────────────────────────────────────────────
         if "Modal" in all_w:
             secs.append(_sec("Modal", "Ventana modal. Usa openModal(id) para abrirla.", [
@@ -713,7 +825,7 @@ COMPONENTS_TEMPLATE = (
             Paragraph(
                 "Usa `from martin.fx import ...` como namespace oficial. "
                 "Tambien puedes importar desde `martin_fx` si prefieres un alias directo. "
-                "Los efectos funcionan como estilos nativos dentro de `style=[...]`.",
+                "Los efectos funcionan como estilos nativos dentro de `style=[...]`, incluyendo hover y focus-visible.",
                 style=TextStyle(size=14, color="var(--text-muted)", line_height=1.6),
             ),
             Row(gap=16, wrap=True, children=[
@@ -774,6 +886,176 @@ COMPONENTS_TEMPLATE = (
                     ],
                 ),
             ]),
+            Divider(),
+            Text("Hover presets", style=TextStyle(size=13, weight="700", color="var(--text-muted)", letter_spacing=0.5)),
+            Grid(columns=2, gap=14, children=[
+                Card(
+                    padding=18,
+                    radius=14,
+                    style=[
+                        Transition("all", duration=0.22, timing="ease-out"),
+                        HoverLift(distance=10, scale=1.01),
+                    ],
+                    children=[
+                        Text("HoverLift", style=TextStyle(size=14, weight="700")),
+                        Paragraph(
+                            "Eleva la tarjeta y añade sombra con una sola utilidad.",
+                            style=TextStyle(size=13, color="var(--text-muted)", line_height=1.55),
+                        ),
+                    ],
+                ),
+                Card(
+                    padding=18,
+                    radius=14,
+                    style=[
+                        Transition("all", duration=0.24, timing="ease-out"),
+                        HoverGlow(Colors.indigo),
+                    ],
+                    children=[
+                        Text("HoverGlow", style=TextStyle(size=14, weight="700")),
+                        Paragraph(
+                            "Perfecto para CTA, tarjetas destacadas o paneles con acento visual.",
+                            style=TextStyle(size=13, color="var(--text-muted)", line_height=1.55),
+                        ),
+                    ],
+                ),
+                Card(
+                    padding=18,
+                    radius=14,
+                    style=[
+                        Transition("all", duration=0.22, timing="ease-out").hover(
+                            "translateY(-4px) rotate(-1deg)",
+                            scale=1.015,
+                            shadow="0 18px 40px rgba(15,23,42,0.18)",
+                        ),
+                    ],
+                    children=[
+                        Text("Transform + Scale", style=TextStyle(size=14, weight="700")),
+                        Paragraph(
+                            "Combina movimiento, escala y sombra desde Python sin CSS manual.",
+                            style=TextStyle(size=13, color="var(--text-muted)", line_height=1.55),
+                        ),
+                    ],
+                ),
+                Card(
+                    padding=18,
+                    radius=14,
+                    style=[
+                        Border(radius=14, color="var(--border)"),
+                        Hover(
+                            background="color-mix(in srgb, var(--accent) 14%, var(--surface))",
+                            border_color="color-mix(in srgb, var(--accent) 48%, var(--border))",
+                            color="var(--text)",
+                            duration=0.2,
+                        ),
+                    ],
+                    children=[
+                        Text("Color + Border", style=TextStyle(size=14, weight="700")),
+                        Paragraph(
+                            "Ideal para listas, menús o items seleccionables con feedback sutil.",
+                            style=TextStyle(size=13, color="var(--text-muted)", line_height=1.55),
+                        ),
+                    ],
+                ),
+            ]),
+            Row(gap=12, wrap=True, children=[
+                Button(
+                    "Boton con hover glow",
+                    variant="secondary",
+                    style=[Transition("all", duration=0.2), HoverGlow("#22c55e", strength=0.26)],
+                ),
+                Button(
+                    "Boton con scale",
+                    variant="ghost",
+                    style=[Transition("transform", duration=0.18).hover(scale=1.05)],
+                ),
+                Badge(
+                    "Hover badge",
+                    background="var(--surface-2,var(--surface))",
+                    color="var(--text)",
+                    style=[
+                        Border(radius=999, color="var(--border)"),
+                        Hover(background="var(--accent)", color="#fff", border_color="var(--accent)", duration=0.18),
+                    ],
+                ),
+            ]),
+            Divider(),
+            Text("FX Hover Gallery", style=TextStyle(size=13, weight="700", color="var(--text-muted)", letter_spacing=0.5)),
+            Grid(columns=3, gap=16, children=[
+                Card(
+                    padding=22,
+                    radius=18,
+                    style=[
+                        Border(radius=18, color="color-mix(in srgb, var(--accent) 22%, var(--border))"),
+                        Transition("all", duration=0.24, timing="ease-out").hover(
+                            "translateY(-6px)",
+                            scale=1.015,
+                            shadow="0 22px 50px rgba(79,70,229,0.18)",
+                            background="linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, var(--surface)), var(--surface))",
+                        ),
+                    ],
+                    children=[
+                        Badge("Starter", background="color-mix(in srgb, var(--accent) 14%, transparent)", color="var(--accent)"),
+                        Heading("$19", level=3, style=TextStyle(size=28, weight="800")),
+                        Paragraph(
+                            "Un ejemplo tipo pricing card con elevacion y cambio sutil de fondo al hacer hover.",
+                            style=TextStyle(size=13, color="var(--text-muted)", line_height=1.6),
+                        ),
+                        Column(gap=8, children=[
+                            Text("Incluye 3 proyectos"),
+                            Text("Export estatico"),
+                            Text("Soporte de componentes"),
+                        ]),
+                        Button("Elegir plan", style=[Transition("all", duration=0.18).hover(scale=1.03)]),
+                    ],
+                ),
+                Card(
+                    padding=22,
+                    radius=18,
+                    style=[
+                        Glass.dark(blur=18, opacity=0.08),
+                        Transition("all", duration=0.24, timing="ease-out"),
+                        HoverGlow("#38bdf8", strength=0.22),
+                    ],
+                    children=[
+                        Text("CTA Card", style=TextStyle(size=13, weight="700", color="#38bdf8")),
+                        Heading("Lanza tu app", level=3, style=TextStyle(size=22, weight="800")),
+                        Paragraph(
+                            "Combina glass, glow y transicion para bloques promocionales o llamados a la accion.",
+                            style=TextStyle(size=13, color="var(--text-muted)", line_height=1.6),
+                        ),
+                        Row(gap=10, wrap=True, children=[
+                            Button("Probar demo"),
+                            Button("Ver docs", variant="ghost", style=[Transition("all", duration=0.18).hover(scale=1.04)]),
+                        ]),
+                    ],
+                ),
+                Card(
+                    padding=22,
+                    radius=18,
+                    style=[
+                        Border(radius=18, color="var(--border)"),
+                        Hover(
+                            transform="translateY(-4px)",
+                            shadow="0 16px 36px rgba(15,23,42,0.16)",
+                            border_color="#22c55e",
+                            background="color-mix(in srgb, #22c55e 10%, var(--surface))",
+                            duration=0.22,
+                        ),
+                    ],
+                    children=[
+                        Row(gap=10, align="center", children=[
+                            Icon("✓", color="#22c55e", size=20),
+                            Text("Feature Item", style=TextStyle(size=14, weight="700")),
+                        ]),
+                        Paragraph(
+                            "Este patron funciona muy bien para listas premium, checklists o comparativas.",
+                            style=TextStyle(size=13, color="var(--text-muted)", line_height=1.6),
+                        ),
+                        Badge("Hover state", background="var(--surface-2,var(--surface))", color="var(--text)"),
+                    ],
+                ),
+            ]),
             Grid(columns=3, gap=14, children=[
                 Card(
                     padding=18,
@@ -809,6 +1091,46 @@ COMPONENTS_TEMPLATE = (
                 block=True,
                 language="python",
                 filename="fx_demo.py",
+                copy=True,
+            ),
+            Code(
+                "from martin import Card, Border\\n"
+                "from martin.fx import Hover, HoverGlow, Transition\\n\\n"
+                "Card(\\n"
+                "    padding=18,\\n"
+                "    radius=14,\\n"
+                "    style=[\\n"
+                "        Border(radius=14, color='var(--border)'),\\n"
+                "        Transition('all', duration=0.22).hover(\\n"
+                "            'translateY(-4px)', scale=1.02, shadow='0 18px 40px rgba(15,23,42,0.18)'\\n"
+                "        ),\\n"
+                "        HoverGlow('#6366f1'),\\n"
+                "    ],\\n"
+                ")",
+                block=True,
+                language="python",
+                filename="fx_hover.py",
+                copy=True,
+            ),
+            Code(
+                "from martin import Card, Badge, Button, Glass\\n"
+                "from martin.fx import HoverGlow, Transition\\n\\n"
+                "Card(\\n"
+                "    padding=22,\\n"
+                "    radius=18,\\n"
+                "    style=[\\n"
+                "        Glass.dark(blur=18, opacity=0.08),\\n"
+                "        Transition('all', duration=0.24, timing='ease-out'),\\n"
+                "        HoverGlow('#38bdf8', strength=0.22),\\n"
+                "    ],\\n"
+                "    children=[\\n"
+                "        Badge('CTA Card'),\\n"
+                "        Button('Probar demo'),\\n"
+                "    ],\\n"
+                ")",
+                block=True,
+                language="python",
+                filename="fx_hover_gallery.py",
                 copy=True,
             ),
             Code(
@@ -943,7 +1265,7 @@ COMPONENTS_TEMPLATE = (
         ("DatePicker",   "widget-datepicker"),
         ("Avatar",       "widget-avatar"),
         ("Icons",        "widget-icons"),
-        ("NavBar",       "widget-navbar"),
+        ("Backend",      "widget-backend"),
         ("Tabs",         "widget-tabs"),
         ("Table",        "widget-table"),
         ("Modal",        "widget-modal"),
