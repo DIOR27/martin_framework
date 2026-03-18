@@ -24,6 +24,8 @@ SCAFFOLD_ASSETS = [
     ("assets/art_dog_field_twilight.svg", "art_dog_field_twilight.svg"),
     ("assets/art_dog_hill_breeze.svg", "art_dog_hill_breeze.svg"),
     ("assets/art_dog_meadow_neon.svg", "art_dog_meadow_neon.svg"),
+    ("assets/art_dog_day_blossom.svg", "art_dog_day_blossom.svg"),
+    ("assets/art_dog_day_garden.svg", "art_dog_day_garden.svg"),
     ("default_icon.webp", "icon.webp"),
     ("logo_martin_glow.svg", "logo_martin_glow.svg"),
     ("logo_martin_frame.svg", "logo_martin_frame.svg"),
@@ -32,6 +34,8 @@ SCAFFOLD_ASSETS = [
     ("art_dog_field_twilight.svg", "art_dog_field_twilight.svg"),
     ("art_dog_hill_breeze.svg", "art_dog_hill_breeze.svg"),
     ("art_dog_meadow_neon.svg", "art_dog_meadow_neon.svg"),
+    ("art_dog_day_blossom.svg", "art_dog_day_blossom.svg"),
+    ("art_dog_day_garden.svg", "art_dog_day_garden.svg"),
 ]
 
 
@@ -1213,14 +1217,14 @@ COMPONENTS_TEMPLATE = (
             secs.append(_sec("Gallery", "Galer\\u00eda de im\\u00e1genes con lightbox.", [
                 Gallery(
                     items=[
-                        GalleryItem("/assets/icon.webp", title="Imagen 1", description="Descripci\\u00f3n 1"),
-                        GalleryItem("/assets/icon.webp", title="Imagen 2"),
-                        GalleryItem("/assets/icon.webp", title="Imagen 3", span_cols=2),
-                        GalleryItem("/assets/icon.webp", title="Imagen 4"),
-                        GalleryItem("/assets/icon.webp", title="Imagen 5", url="https://example.com"),
-                        GalleryItem("/assets/icon.webp", title="Imagen 6"),
+                        GalleryItem("/assets/art_dog_field_sunrise.svg", title="Morning Field", description="Perro sentado al amanecer entre colinas."),
+                        GalleryItem("/assets/art_dog_hill_breeze.svg", title="Hill Breeze"),
+                        GalleryItem("/assets/art_dog_day_blossom.svg", title="Day Blossom"),
+                        GalleryItem("/assets/art_dog_field_twilight.svg", title="Twilight Walk"),
+                        GalleryItem("/assets/art_dog_meadow_neon.svg", title="Neon Meadow", url="https://example.com"),
+                        GalleryItem("/assets/art_dog_day_garden.svg", title="Day Garden"),
                     ],
-                    columns=3, gap=8, img_height=180, radius=8, lightbox=True,
+                    columns=3, gap=10, masonry=True, radius=8, lightbox=True,
                 ),
             ], widget_name="Gallery"))
 

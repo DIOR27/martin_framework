@@ -19,6 +19,8 @@ class ScaffoldAssetsTests(unittest.TestCase):
             self.assertTrue((assets_dir / "art_dog_field_twilight.svg").exists())
             self.assertTrue((assets_dir / "art_dog_hill_breeze.svg").exists())
             self.assertTrue((assets_dir / "art_dog_meadow_neon.svg").exists())
+            self.assertTrue((assets_dir / "art_dog_day_blossom.svg").exists())
+            self.assertTrue((assets_dir / "art_dog_day_garden.svg").exists())
 
     def test_components_template_uses_new_carousel_art_and_brand_logos(self):
         files = render_new_project_files(
@@ -32,10 +34,13 @@ class ScaffoldAssetsTests(unittest.TestCase):
         self.assertIn("/assets/art_dog_field_twilight.svg", components_page)
         self.assertIn("/assets/art_dog_hill_breeze.svg", components_page)
         self.assertIn("/assets/art_dog_meadow_neon.svg", components_page)
+        self.assertIn("/assets/art_dog_day_blossom.svg", components_page)
+        self.assertIn("/assets/art_dog_day_garden.svg", components_page)
         self.assertIn("/assets/logo_martin_glow.svg", components_page)
         self.assertIn("/assets/logo_martin_frame.svg", components_page)
         self.assertIn("/assets/logo_martin_stack.svg", components_page)
         self.assertIn('CarouselItem(image="/assets/icon.webp", title="Martin icon")', components_page)
+        self.assertIn("masonry=True", components_page)
 
 
 if __name__ == "__main__":

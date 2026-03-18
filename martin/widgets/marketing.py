@@ -461,18 +461,32 @@ class Gallery(Widget):
         radius_css = f"border-radius:{radius_val}px;" if radius_val else ""
 
         # Resolver columnas
-        if self.columns == "auto":
+        columns_is_auto = self.columns == "auto"
+        fixed_cols = None
+        if columns_is_auto:
             cols_css = "repeat(auto-fill, minmax(200px, 1fr))"
         else:
-            cols_css = f"repeat({self.columns}, 1fr)"
+            try:
+                fixed_cols = max(1, int(self.columns))
+            except Exception:
+                fixed_cols = 3
+            cols_css = f"repeat({fixed_cols}, 1fr)"
 
         # ── Estilos del wrapper ──────────────────────────────────────────
         if masonry:
             # CSS columns (multi-column layout) para efecto masonry real
-            grid_style = (
-                f"column-count:{self.columns};"
-                f"column-gap:{gap}px;"
-            )
+            if columns_is_auto:
+                grid_style = (
+                    f"column-width:240px;"
+                    f"column-gap:{gap}px;"
+                    f"column-fill:balance;"
+                )
+            else:
+                grid_style = (
+                    f"column-count:{fixed_cols};"
+                    f"column-gap:{gap}px;"
+                    f"column-fill:balance;"
+                )
             extra = self._resolve_props()
             wrapper_style = f"{grid_style}{extra}"
         else:
@@ -520,13 +534,17 @@ class Gallery(Widget):
 
             # item wrapper
             if masonry:
-                wrapper_item_style = f"break-inside:avoid;margin-bottom:{gap}px;{item_radius}overflow:hidden;cursor:{cursor};"
+                wrapper_item_style = (
+                    f"display:inline-block;width:100%;vertical-align:top;"
+                    f"break-inside:avoid;margin-bottom:{gap}px;"
+                    f"{item_radius}overflow:hidden;cursor:{cursor};"
+                )
             else:
                 wrapper_item_style = f"{span_style}{item_radius}overflow:hidden;cursor:{cursor};"
 
             # acción al hacer clic
             if lightbox:
-                onclick = f"_galOpen('{uid}',{idx})"
+                onclick = f"_galOpenFn('{uid}',{idx})"
             elif item.url:
                 target = item.url_target or "_blank"
                 onclick = f"window.open('{item.url}','{target}')"
@@ -574,20 +592,20 @@ class Gallery(Widget):
                 f'align-items:center;justify-content:center;flex-direction:column;">'
 
                 # Botón cerrar
-                f'<button onclick="_galClose(\'{uid}\')" style="'
+                f'<button onclick="_galCloseFn(\'{uid}\')" style="'
                 f'position:absolute;top:20px;right:24px;'
                 f'background:none;border:none;color:#fff;font-size:28px;'
                 f'cursor:pointer;line-height:1;z-index:1;">✕</button>'
 
                 # Botón prev
-                f'<button onclick="_galPrev(\'{uid}\')" style="'
+                f'<button onclick="_galPrevFn(\'{uid}\')" style="'
                 f'position:absolute;left:16px;top:50%;transform:translateY(-50%);'
                 f'background:rgba(255,255,255,0.1);border:none;color:#fff;'
                 f'font-size:28px;width:48px;height:48px;border-radius:50%;'
                 f'cursor:pointer;backdrop-filter:blur(8px);">‹</button>'
 
                 # Botón next
-                f'<button onclick="_galNext(\'{uid}\')" style="'
+                f'<button onclick="_galNextFn(\'{uid}\')" style="'
                 f'position:absolute;right:16px;top:50%;transform:translateY(-50%);'
                 f'background:rgba(255,255,255,0.1);border:none;color:#fff;'
                 f'font-size:28px;width:48px;height:48px;border-radius:50%;'
@@ -634,6 +652,10 @@ class Gallery(Widget):
                 f'window._galClose=window._galClose||{{}};'
                 f'window._galPrev=window._galPrev||{{}};'
                 f'window._galNext=window._galNext||{{}};'
+                f'window._galOpenFn=window._galOpenFn||function(id,idx){{if(window._galOpen&&window._galOpen[id])window._galOpen[id](idx);}};'
+                f'window._galCloseFn=window._galCloseFn||function(id){{if(window._galClose&&window._galClose[id])window._galClose[id]();}};'
+                f'window._galPrevFn=window._galPrevFn||function(id){{if(window._galPrev&&window._galPrev[id])window._galPrev[id]();}};'
+                f'window._galNextFn=window._galNextFn||function(id){{if(window._galNext&&window._galNext[id])window._galNext[id]();}};'
                 f'window._galOpen["{uid}"]=function(idx){{'
                 f'  _show(idx);'
                 f'  var lb=document.getElementById("{uid}_lb");'
@@ -646,24 +668,6 @@ class Gallery(Widget):
                 f'}};'
                 f'window._galPrev["{uid}"]=function(){{_show(_i-1);}};'
                 f'window._galNext["{uid}"]=function(){{_show(_i+1);}};'
-                # Fix onclick attrs to use the registry
-                f'document.addEventListener("DOMContentLoaded",function(){{'
-                f'  document.querySelectorAll("[onclick]").forEach(function(el){{'
-                f'    var oc=el.getAttribute("onclick");'
-                f'    if(oc&&oc.includes("_galOpen(\'{uid}\'")){{'
-                f'      var m=oc.match(/[0-9]+/);'
-                f'      if(m)el.addEventListener("click",function(){{window._galOpen["{uid}"](+m[0]);}});'
-                f'    }}'
-                f'    if(oc&&oc.includes("_galClose(\'{uid}\'")){{'
-                f'      el.addEventListener("click",function(){{window._galClose["{uid}"]();}});'
-                f'    }}'
-                f'    if(oc&&oc.includes("_galPrev(\'{uid}\'")){{'
-                f'      el.addEventListener("click",function(){{window._galPrev["{uid}"]();}});'
-                f'    }}'
-                f'    if(oc&&oc.includes("_galNext(\'{uid}\'")){{'
-                f'      el.addEventListener("click",function(){{window._galNext["{uid}"]();}});'
-                f'    }}'
-                f'  }});'
                 # keyboard nav
                 f'  document.addEventListener("keydown",function(e){{'
                 f'    var lb=document.getElementById("{uid}_lb");'
@@ -676,13 +680,33 @@ class Gallery(Widget):
                 f'  document.getElementById("{uid}_lb").addEventListener("click",function(e){{'
                 f'    if(e.target===this)window._galClose["{uid}"]();'
                 f'  }});'
-                f'}});'
                 f'}})();'
             )
 
         # ── Responsive CSS ───────────────────────────────────────────────
         responsive_css = ""
-        if not masonry and isinstance(self.columns, int) and self.columns > 2:
+        if masonry:
+            if columns_is_auto:
+                responsive_css = (
+                    f'<style>'
+                    f'@media(max-width:640px){{'
+                    f'#{uid}{{column-width:100%!important;column-count:1!important;}}'
+                    f'}}'
+                    f'</style>'
+                )
+            else:
+                tablet_cols = 2 if fixed_cols > 2 else fixed_cols
+                responsive_css = (
+                    f'<style>'
+                    f'@media(max-width:960px){{'
+                    f'#{uid}{{column-count:{tablet_cols}!important;}}'
+                    f'}}'
+                    f'@media(max-width:640px){{'
+                    f'#{uid}{{column-count:1!important;}}'
+                    f'}}'
+                    f'</style>'
+                )
+        elif isinstance(fixed_cols, int) and fixed_cols > 2:
             responsive_css = (
                 f'<style>'
                 f'@media(max-width:640px){{'
