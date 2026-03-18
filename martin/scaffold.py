@@ -750,7 +750,7 @@ COMPONENTS_TEMPLATE = (
                         for i in range(4)
                     ],
                     mode="slides", visible=3, gap=12, loop=True, autoplay=2500,
-                    arrows=False, dots=True, img_height=320,
+                    arrows=False, dots=True, img_height=320, mobile_visible=1,
                 ),
                 Spacer(16),
                 Text("Modo brands:", style=TextStyle(size=12, weight="600", color="var(--text-muted)")),

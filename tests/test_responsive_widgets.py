@@ -15,6 +15,10 @@ class ResponsiveWidgetsTests(unittest.TestCase):
         self.assertIn("dvis=3", html)
         self.assertIn("mvis=1", html)
         self.assertIn("window.matchMedia", html)
+        self.assertIn("_hostW()", html)
+        self.assertIn("_singleThreshold()", html)
+        self.assertIn("mobileByWidth", html)
+        self.assertIn("ResizeObserver", html)
         self.assertIn("n-curVis", html)
         self.assertIn("_syncMode()", html)
 
