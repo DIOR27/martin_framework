@@ -37,13 +37,13 @@ MARTIN is designed to make web development:
 ## Installation
 
 ``` bash
-pip install martin
+pip install martin-framework
 ```
 
 For development with enhanced hot-reload support:
 
 ``` bash
-pip install martin[dev]
+pip install martin-framework[dev]
 ```
 
 Run test suite:
@@ -187,6 +187,39 @@ Row(
 Several interactive widgets also generate sensible a11y defaults automatically
 (`aria-label`) when possible, while still allowing explicit overrides.
 This includes controls like `Select`, `MultiSelect`, `ColorPicker`, and `DatePicker`.
+
+MARTIN also ships with a built-in motion library under `martin.fx`:
+
+``` python
+from martin import App, Card, Text
+from martin.fx import FadeIn, SlideIn, Transition, Float
+
+def build():
+    return Card(
+        padding=24,
+        radius=18,
+        style=[
+            SlideIn(direction="up", distance=32, delay=0.1),
+            Transition("transform", duration=0.25, timing="ease-out"),
+        ],
+        children=[
+            Text("Motion comes bundled with martin-framework"),
+            Text("You can also import from martin_fx if you prefer."),
+        ],
+    )
+```
+
+Included presets:
+
+- `FadeIn`
+- `SlideIn`
+- `ScaleIn`
+- `BlurIn`
+- `RotateIn`
+- `Float`
+- `Pulse`
+- `Spin`
+- `Transition`
 
 `Table` also supports built-in client-side export utilities from Python:
 

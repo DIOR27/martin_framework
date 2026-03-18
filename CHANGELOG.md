@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog and follows Semantic Versioning.
 
+## [0.5.0] - 2026-03-18
+
+### Added
+- New built-in motion library under `martin.fx` with animation and transition helpers such as `FadeIn`, `SlideIn`, `ScaleIn`, `BlurIn`, `RotateIn`, `Float`, `Pulse`, `Spin`, and `Transition`.
+- Compatibility alias package `martin_fx` so motion helpers can also be imported outside the main namespace if desired.
+- Automatic injection of MARTIN FX keyframes into `App`, so effects work out of the box after `pip install martin-framework`.
+
+### Changed
+- Documentation now shows the packaged install name `martin-framework`.
+
 ## [0.4.0] - 2026-03-17
 
 ### Added

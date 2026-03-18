@@ -1,8 +1,9 @@
 """Martin — Build webs with Python, Flutter-style."""
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 from .app import App, Router, PageConfig
+from . import fx
 from .response import Response, Request
 from .styles import (
     CSS,
@@ -117,6 +118,7 @@ from .widgets import (
 
 __all__ = [
     "__version__",
+    "fx",
     "App",
     "Router",
     "PageConfig",

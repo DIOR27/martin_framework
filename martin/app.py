@@ -5,6 +5,7 @@ Martin — App, Router & Dev Server
 import os, sys, time, threading, importlib.util, mimetypes, html as _html
 import http.server, webbrowser
 from pathlib import Path
+from .fx import FX_CSS
 from .theme import THEME_CSS, THEME_TOGGLE_JS
 from .response import Response, Request
 from ._context import set_current_path, reset_current_path
@@ -598,6 +599,7 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
       --sa-right:  env(safe-area-inset-right,  0px);
     }}
     {THEME_CSS}
+    {FX_CSS}
     {self.global_styles}
   </style>
   {toggle_js}
