@@ -15,6 +15,25 @@ ICON_CANDIDATES = [
     ("default_icon.png", "icon.png"),
 ]
 
+SCAFFOLD_ASSETS = [
+    ("assets/default_icon.webp", "icon.webp"),
+    ("assets/logo_martin_glow.svg", "logo_martin_glow.svg"),
+    ("assets/logo_martin_frame.svg", "logo_martin_frame.svg"),
+    ("assets/logo_martin_stack.svg", "logo_martin_stack.svg"),
+    ("assets/art_dog_field_sunrise.svg", "art_dog_field_sunrise.svg"),
+    ("assets/art_dog_field_twilight.svg", "art_dog_field_twilight.svg"),
+    ("assets/art_dog_hill_breeze.svg", "art_dog_hill_breeze.svg"),
+    ("assets/art_dog_meadow_neon.svg", "art_dog_meadow_neon.svg"),
+    ("default_icon.webp", "icon.webp"),
+    ("logo_martin_glow.svg", "logo_martin_glow.svg"),
+    ("logo_martin_frame.svg", "logo_martin_frame.svg"),
+    ("logo_martin_stack.svg", "logo_martin_stack.svg"),
+    ("art_dog_field_sunrise.svg", "art_dog_field_sunrise.svg"),
+    ("art_dog_field_twilight.svg", "art_dog_field_twilight.svg"),
+    ("art_dog_hill_breeze.svg", "art_dog_hill_breeze.svg"),
+    ("art_dog_meadow_neon.svg", "art_dog_meadow_neon.svg"),
+]
+
 
 GITIGNORE = (
     textwrap.dedent(
@@ -1210,8 +1229,13 @@ COMPONENTS_TEMPLATE = (
             secs.append(_sec("Carousel", "Carrusel de tarjetas y cinta de logos.", [
                 Carousel(
                     items=[
-                        CarouselItem(image="/assets/icon.webp")
-                        for i in range(4)
+                        CarouselItem(image=img, title=title, subtitle=subtitle)
+                        for img, title, subtitle in [
+                            ("/assets/art_dog_field_sunrise.svg", "Morning Field", "Silueta de perro al amanecer."),
+                            ("/assets/art_dog_hill_breeze.svg", "Hill Breeze", "Composicion minimal con capas y viento."),
+                            ("/assets/art_dog_meadow_neon.svg", "Neon Meadow", "Paleta editorial inspirada en splash screens."),
+                            ("/assets/art_dog_field_twilight.svg", "Twilight Walk", "Escena tranquila de prado al atardecer."),
+                        ]
                     ],
                     mode="slides", visible=3, gap=12, loop=True, autoplay=2500,
                     arrows=False, dots=True, img_height=320, mobile_visible=1,
@@ -1219,7 +1243,13 @@ COMPONENTS_TEMPLATE = (
                 Spacer(16),
                 Text("Modo brands:", style=TextStyle(size=12, weight="600", color="var(--text-muted)")),
                 Carousel(
-                    items=[CarouselItem(image="/assets/icon.webp", title=f"Marca {c}") for c in "ABCDE"],
+                    items=[
+                        CarouselItem(image="/assets/icon.webp", title="Martin icon"),
+                        CarouselItem(image="/assets/logo_martin_glow.svg", title="Martin glow"),
+                        CarouselItem(image="/assets/logo_martin_frame.svg", title="Martin classic"),
+                        CarouselItem(image="/assets/logo_martin_stack.svg", title="Martin stack"),
+                        CarouselItem(image="/assets/logo_martin_glow.svg", title="Martin wordmark"),
+                    ],
                     mode="brands", brand_height=48, brand_gap=64, speed=25,
                     brand_filter="grayscale(100%) opacity(0.5)",
                 ),
@@ -1335,13 +1365,24 @@ COMPONENTS_TEMPLATE = (
 
 
 def copy_default_icon(assets_dir: Path):
-    """Copia un icono base al nuevo proyecto si existe en el paquete."""
+    """Copia el icono base y assets visuales del scaffold al nuevo proyecto."""
     pkg_dir = Path(__file__).parent
-    for icon_name, dest_name in ICON_CANDIDATES:
-        src = pkg_dir / icon_name
+    copied = set()
+
+    for asset_name, dest_name in SCAFFOLD_ASSETS:
+        if dest_name in copied:
+            continue
+        src = pkg_dir / asset_name
         if src.exists():
             shutil.copy(src, assets_dir / dest_name)
-            return
+            copied.add(dest_name)
+
+    if not any((assets_dir / name).exists() for name in ("icon.webp", "icon.png")):
+        for icon_name, dest_name in ICON_CANDIDATES:
+            src = pkg_dir / icon_name
+            if src.exists():
+                shutil.copy(src, assets_dir / dest_name)
+                break
 
 
 def render_new_project_files(name: str, title: str, desc: str):
