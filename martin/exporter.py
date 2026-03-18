@@ -5,7 +5,8 @@ Genera archivos estáticos (HTML + CSS + JS separados) que funcionan:
   - Abiertos directamente desde el sistema de archivos (file://)
 """
 
-import re, os, shutil
+import json
+import re, os, shutil, textwrap
 from pathlib import Path
 
 
@@ -242,6 +243,322 @@ def _slugify(path: str) -> str:
 
 def _route_to_file(route: str) -> str:
     return "index.html" if route == "/" else f"{_slugify(route)}.html"
+
+
+_BACKEND_IGNORE_DIRS = {
+    ".git",
+    ".hg",
+    ".svn",
+    ".idea",
+    ".vscode",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".tox",
+    "__pycache__",
+    "node_modules",
+    "venv",
+    ".venv",
+    "env",
+    ".envrc",
+    "tests",
+    "build",
+    "dist",
+    "martin_framework.egg-info",
+}
+
+_BACKEND_IGNORE_SUFFIXES = {
+    ".pyc",
+    ".pyo",
+    ".pyd",
+}
+
+
+def _copy_backend_project(project_root: Path, out_dir: Path, backend_src_dir: Path):
+    if backend_src_dir.exists():
+        shutil.rmtree(backend_src_dir)
+    backend_src_dir.mkdir(parents=True, exist_ok=True)
+
+    project_root = project_root.resolve()
+    out_dir = out_dir.resolve()
+
+    for root, dirs, files in os.walk(project_root):
+        root_path = Path(root).resolve()
+        rel_root = root_path.relative_to(project_root)
+
+        filtered_dirs = []
+        for dirname in dirs:
+            src_dir = (root_path / dirname).resolve()
+            if dirname in _BACKEND_IGNORE_DIRS:
+                continue
+            if src_dir == out_dir or str(src_dir).startswith(str(out_dir) + os.sep):
+                continue
+            filtered_dirs.append(dirname)
+        dirs[:] = filtered_dirs
+
+        dest_root = backend_src_dir / rel_root
+        dest_root.mkdir(parents=True, exist_ok=True)
+
+        for filename in files:
+            src_file = root_path / filename
+            if src_file.suffix.lower() in _BACKEND_IGNORE_SUFFIXES:
+                continue
+            if filename.endswith("~"):
+                continue
+            dest_file = dest_root / filename
+            shutil.copy2(src_file, dest_file)
+
+
+def _write_backend_support_files(out_dir: Path, route_map: dict, source_file: str):
+    route_map_path = out_dir / "route-map.json"
+    route_map_path.write_text(
+        json.dumps(route_map, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    env_example = textwrap.dedent(
+        """\
+        MARTIN_SMTP_HOST=smtp.gmail.com
+        MARTIN_SMTP_PORT=587
+        MARTIN_SMTP_USERNAME=
+        MARTIN_SMTP_PASSWORD=
+        MARTIN_SMTP_SENDER=
+        MARTIN_SMTP_SENDER_NAME=
+        MARTIN_SMTP_USE_TLS=1
+        MARTIN_SMTP_USE_SSL=0
+        MARTIN_SMTP_TIMEOUT=10
+        """
+    ).strip() + "\n"
+    (out_dir / ".env.example").write_text(env_example, encoding="utf-8")
+
+    entry_rel = str(Path(source_file).as_posix())
+    server_py = textwrap.dedent(
+        f"""\
+        import argparse
+        import importlib.util
+        import json
+        import mimetypes
+        import os
+        import sys
+        import http.server
+        from pathlib import Path
+        from urllib.parse import unquote
+
+
+        ROOT = Path(__file__).resolve().parent
+        STATIC_ROOT = ROOT
+        SRC_ROOT = ROOT / "_backend_src"
+        ENTRY_FILE = SRC_ROOT / {entry_rel!r}
+        ROUTE_MAP = json.loads((ROOT / "route-map.json").read_text(encoding="utf-8"))
+
+
+        def _load_env_file(path: Path):
+            if not path.exists():
+                return
+            for raw in path.read_text(encoding="utf-8").splitlines():
+                line = raw.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                os.environ.setdefault(key.strip(), value.strip())
+
+
+        def _load_module(main_file: Path, module_name: str):
+            spec = importlib.util.spec_from_file_location(module_name, str(main_file))
+            if spec is None or spec.loader is None:
+                raise RuntimeError("No se pudo cargar el modulo: " + str(main_file))
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules[module_name] = mod
+            spec.loader.exec_module(mod)
+            return mod
+
+
+        def _load_app():
+            _load_env_file(ROOT / ".env")
+            sys.path.insert(0, str(SRC_ROOT))
+            mod = _load_module(ENTRY_FILE, "_martin_export_backend")
+
+            from martin import App
+
+            if hasattr(mod, "app") and isinstance(mod.app, App):
+                app = mod.app
+            elif hasattr(mod, "router"):
+                app = App(
+                    router=mod.router,
+                    title=getattr(mod, "TITLE", ROOT.name),
+                    hot_reload=False,
+                )
+            elif hasattr(mod, "build"):
+                app = App(
+                    build=mod.build,
+                    title=getattr(mod, "TITLE", ROOT.name),
+                    hot_reload=False,
+                )
+            else:
+                raise RuntimeError(
+                    "El entrypoint exportado debe definir 'app', 'router' o 'build'."
+                )
+
+            app.hot_reload = False
+            return app
+
+
+        APP = _load_app()
+
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                path, qs = self._split_path()
+                resp = APP._dispatch_request("GET", path, qs, b"", dict(self.headers))
+                if resp is not None:
+                    self._send_response(resp)
+                    return
+                self._serve_static(path)
+
+            def do_POST(self):
+                self._handle_backend_method("POST")
+
+            def do_PUT(self):
+                self._handle_backend_method("PUT")
+
+            def do_DELETE(self):
+                self._handle_backend_method("DELETE")
+
+            def do_OPTIONS(self):
+                self._handle_backend_method("OPTIONS")
+
+            def _handle_backend_method(self, method):
+                path, qs = self._split_path()
+                length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(length) if length else b""
+                resp = APP._dispatch_request(method, path, qs, body, dict(self.headers))
+                if resp is None:
+                    self.send_response(404)
+                    self.send_header("Content-Type", "text/plain; charset=utf-8")
+                    self.send_header("Content-Length", "9")
+                    self.end_headers()
+                    self.wfile.write(b"Not found")
+                    return
+                self._send_response(resp)
+
+            def _split_path(self):
+                parts = self.path.split("?", 1)
+                path = unquote(parts[0] or "/")
+                qs = parts[1] if len(parts) > 1 else ""
+                return path, qs
+
+            def _resolve_static(self, path):
+                if path in ROUTE_MAP:
+                    rel = ROUTE_MAP[path]
+                elif path == "/":
+                    rel = ROUTE_MAP.get("/", "index.html")
+                else:
+                    rel = path.lstrip("/")
+                    if not rel:
+                        rel = "index.html"
+                file_path = (STATIC_ROOT / rel).resolve()
+                if not str(file_path).startswith(str(STATIC_ROOT.resolve())):
+                    return None
+                if not file_path.exists() or not file_path.is_file():
+                    return None
+                return file_path
+
+            def _serve_static(self, path):
+                file_path = self._resolve_static(path)
+                if file_path is None:
+                    self.send_response(404)
+                    self.end_headers()
+                    return
+
+                data = file_path.read_bytes()
+                ctype, _ = mimetypes.guess_type(str(file_path))
+                self.send_response(200)
+                self.send_header("Content-Type", ctype or "application/octet-stream")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+            def _send_response(self, resp):
+                data, ct = resp.to_bytes()
+                self.send_response(resp.status)
+                self.send_header("Content-Type", ct)
+                self.send_header("Content-Length", str(len(data)))
+                for key, value in getattr(resp, "headers", {{}}).items():
+                    self.send_header(key, value)
+                self.end_headers()
+                self.wfile.write(data)
+
+            def log_message(self, *args):
+                pass
+
+
+        def main():
+            parser = argparse.ArgumentParser(description="Martin hybrid export server")
+            parser.add_argument("--port", type=int, default=3908, help="Puerto del servidor")
+            args = parser.parse_args()
+
+            url = f"http://localhost:{{args.port}}"
+            print("\\n  martin export backend -> " + url)
+            print("  static: " + str(STATIC_ROOT))
+            print("  backend: " + str(ENTRY_FILE))
+            print("  Ctrl+C para parar\\n")
+
+            server = http.server.ThreadingHTTPServer(("", args.port), Handler)
+            try:
+                server.serve_forever()
+            except KeyboardInterrupt:
+                print("\\nBye")
+                server.shutdown()
+
+
+        if __name__ == "__main__":
+            main()
+        """
+    )
+    (out_dir / "server.py").write_text(server_py, encoding="utf-8")
+
+    notes = textwrap.dedent(
+        """\
+        Martin Export With Backend
+        ==========================
+
+        Este directorio contiene:
+        - frontend exportado (HTML/CSS/JS/assets)
+        - backend source snapshot en `_backend_src/`
+        - `server.py` para servir frontend y backend juntos
+
+        Uso:
+            python server.py --port 3908
+
+        Si usas SMTP:
+        1. copia `.env.example` a `.env`
+        2. completa tus credenciales SMTP
+        3. ejecuta `python server.py`
+        """
+    ).strip() + "\n"
+    (out_dir / "BACKEND_README.txt").write_text(notes, encoding="utf-8")
+
+
+def _copy_assets_bundle(out_dir: Path, assets_src: str = "assets"):
+    dst = out_dir / "assets"
+    dst.mkdir(exist_ok=True)
+    pkg_assets = Path(__file__).parent / "assets"
+    if pkg_assets.exists():
+        for f in pkg_assets.iterdir():
+            if f.is_file() and not (dst / f.name).exists():
+                shutil.copy2(f, dst / f.name)
+    if os.path.exists(assets_src):
+        for item in Path(assets_src).iterdir():
+            if item.is_file():
+                shutil.copy2(item, dst / item.name)
+            elif item.is_dir():
+                sub = dst / item.name
+                if sub.exists():
+                    shutil.rmtree(sub)
+                shutil.copytree(item, sub)
+        print("  assets/ copied")
+    elif pkg_assets.exists():
+        print("  assets/ (package) copied")
 
 
 def _reset_widget_counters():
@@ -485,26 +802,7 @@ def export_split(app, out_dir: str = "dist", assets_src: str = "assets"):
     (js_dir / "nav.js").write_text(NAV_JS, encoding="utf-8")
     (js_dir / "select.js").write_text(SELECT_JS, encoding="utf-8")
 
-    # Assets: paquete primero, proyecto encima
-    dst = out / "assets"
-    dst.mkdir(exist_ok=True)
-    pkg_assets = Path(__file__).parent / "assets"
-    if pkg_assets.exists():
-        for f in pkg_assets.iterdir():
-            if f.is_file() and not (dst / f.name).exists():
-                shutil.copy2(f, dst / f.name)
-    if os.path.exists(assets_src):
-        for item in Path(assets_src).iterdir():
-            if item.is_file():
-                shutil.copy2(item, dst / item.name)
-            elif item.is_dir():
-                sub = dst / item.name
-                if sub.exists():
-                    shutil.rmtree(sub)
-                shutil.copytree(item, sub)
-        print(f"  📁  assets/ copiado")
-    elif pkg_assets.exists():
-        print(f"  📁  assets/ (paquete) copiado")
+    _copy_assets_bundle(out, assets_src=assets_src)
 
     routes = app._router.paths() if app._router else ["/"]
     route_map = {r: _route_to_file(r) for r in routes}
@@ -521,11 +819,11 @@ def export_split(app, out_dir: str = "dist", assets_src: str = "assets"):
         if page_js:
             (js_dir / f"{slug}.js").write_text(page_js, encoding="utf-8")
         note = f" + js/{slug}.js" if page_js else ""
-        print(f"  📄  {route_map[route]}  →  css/{slug}.css{note}")
+        print(f"  page {route_map[route]} -> css/{slug}.css{note}")
 
-    print(f"\n  ✅  Exportado en '{out_dir}/'")
+    print(f"\n  OK  Exported to '{out_dir}/'")
     print(
-        f"      {len(routes)} página(s)  ·  base.css  ·  nav.css  ·  select.js  ·  nav.js"
+        f"      {len(routes)} page(s)  ·  base.css  ·  nav.css  ·  select.js  ·  nav.js"
     )
 
 
@@ -555,7 +853,37 @@ def export_html(app, out_dir: str = "dist"):
         raw = _rewrite_paths(raw, route_map)
         fname = route_map[route]
         (out / fname).write_text(raw, encoding="utf-8")
-        print(f"  📄  {fname}")
+        print(f"  page {fname}")
 
-    print(f"\n  ✅  Exportado en '{out_dir}/'")
-    print(f"      {len(routes)} página(s)")
+    print(f"\n  OK  Exported to '{out_dir}/'")
+    print(f"      {len(routes)} page(s)")
+
+
+def export_with_backend(
+    app,
+    out_dir: str = "dist",
+    assets_src: str = "assets",
+    source_file: str = "main.py",
+    project_root: str = ".",
+    fmt: str = "split",
+):
+    """
+    Exporta frontend estatico y genera un runtime Python para backend.
+    """
+    out = Path(out_dir)
+    routes = app._router.paths() if app._router else ["/"]
+    route_map = {r: _route_to_file(r) for r in routes}
+
+    if fmt == "html":
+        export_html(app, out_dir=out_dir)
+        _copy_assets_bundle(out, assets_src=assets_src)
+    else:
+        export_split(app, out_dir=out_dir, assets_src=assets_src)
+
+    backend_src_dir = out / "_backend_src"
+    _copy_backend_project(Path(project_root), out, backend_src_dir)
+    _write_backend_support_files(out, route_map, source_file)
+
+    print("\n  backend exported")
+    print("      server.py  ·  route-map.json  ·  _backend_src/  ·  .env.example")
+    print(f"      Run: python {out / 'server.py'} --port 3908")

@@ -8,6 +8,7 @@ The format is inspired by Keep a Changelog and follows Semantic Versioning.
 
 ### Added
 - New `martin.backend` subpackage with `Backend`, `Request`, `Response`, `ApiCall`, `Ref`, `ResultBox`, `SMTPConfig`, and `Mailer` for lightweight backend flows outside the UI core.
+- New hybrid export flow via `martin export --with-backend`, generating static frontend files plus a Python runtime (`server.py`) and backend source snapshot.
 
 ### Changed
 - `martin` core now exposes a generic external request handler hook instead of built-in API routing helpers.

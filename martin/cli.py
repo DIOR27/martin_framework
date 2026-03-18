@@ -149,6 +149,7 @@ def cmd_export(args):
 
     fmt = getattr(args, "format", "html")
     out_dir = getattr(args, "out", "dist")
+    with_backend = bool(getattr(args, "with_backend", False))
 
     if hasattr(mod, "router"):
         app = App(
@@ -166,9 +167,21 @@ def cmd_export(args):
         print("ERROR: main.py debe tener 'build' o 'router'.")
         sys.exit(1)
 
-    print("\n  Exportando (" + fmt + ") -> " + out_dir + "/\n")
+    mode_label = fmt + (" + backend" if with_backend else "")
+    print("\n  Exportando (" + mode_label + ") -> " + out_dir + "/\n")
 
-    if fmt == "split":
+    if with_backend:
+        from martin.exporter import export_with_backend
+
+        export_with_backend(
+            app,
+            out_dir=out_dir,
+            assets_src="assets",
+            source_file=str(main_file),
+            project_root=str(Path.cwd()),
+            fmt=fmt,
+        )
+    elif fmt == "split":
         from martin.exporter import export_split
 
         export_split(app, out_dir=out_dir, assets_src="assets")
@@ -199,6 +212,7 @@ def _build_parser():
             martin export
             martin export --out build
             martin export --format html
+            martin export --with-backend
             martin version
         """
         ),
@@ -221,6 +235,11 @@ def _build_parser():
         default="split",
         choices=["html", "split"],
         help="html = un fichero por pagina | split = HTML + CSS + JS separados",
+    )
+    p_exp.add_argument(
+        "--with-backend",
+        action="store_true",
+        help="Genera export hibrido: frontend estatico + runtime Python para backend",
     )
 
     sub.add_parser("version", help="Muestra la version")

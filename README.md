@@ -111,6 +111,7 @@ App(
   `martin run --no-reload`               Disable hot reload
   `martin export`                        Export static site to `dist/index.html`
   `martin export --out web/index.html`   Export to custom path
+  `martin export --with-backend`         Export frontend + Python backend runtime
   `martin version`                       Show installed version
 
 ------------------------------------------------------------------------
@@ -334,6 +335,21 @@ backend.send_mail(
 
 Tambien puedes construir el mailer manualmente con `SMTPConfig` y `Mailer`
 si prefieres una configuracion mas explicita.
+
+Para exportarlo junto al frontend:
+
+``` bash
+martin export --with-backend
+cd dist
+python server.py --port 3908
+```
+
+Eso genera un export hibrido con:
+- frontend estatico
+- `server.py`
+- `_backend_src/` con snapshot del proyecto
+- `route-map.json`
+- `.env.example` para SMTP
 
 ------------------------------------------------------------------------
 

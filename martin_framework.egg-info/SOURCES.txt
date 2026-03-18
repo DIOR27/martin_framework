@@ -41,6 +41,7 @@ martin_fx/__init__.py
 tests/test_accessibility.py
 tests/test_backend_extension.py
 tests/test_datepicker_feedback.py
+tests/test_export_with_backend.py
 tests/test_fx.py
 tests/test_icon_support.py
 tests/test_map_layering.py
