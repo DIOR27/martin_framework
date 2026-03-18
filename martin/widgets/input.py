@@ -36,7 +36,7 @@ class Button(Widget):
         # Con acción JS directa:
         Button("Click", on_click="alert('hola')")
 
-        # Con llamada a API:
+        # Con accion externa basada en JS, por ejemplo martin.backend.ApiCall:
         Button("Enviar", on_click=ApiCall("/api/datos", body={"key": Ref("campo")}))
 
     Variantes: "primary" | "secondary" | "danger" | "ghost" | "link"
@@ -69,7 +69,7 @@ class Button(Widget):
         self.disabled = disabled
         self.id = id
         self.class_name = class_name
-        self.on_click = on_click  # str JS | ApiCall
+        self.on_click = on_click  # str JS | objeto con .to_js(btn_id)
 
     def _default_a11y_attrs(self):
         attrs = {}

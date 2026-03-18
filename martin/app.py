@@ -5,9 +5,8 @@ Martin — App, Router & Dev Server
 import os, sys, time, threading, importlib.util, mimetypes, html as _html
 import http.server, webbrowser
 from pathlib import Path
-from .fx import FX_CSS
+from .fx import FX_CSS, FX_JS
 from .theme import THEME_CSS, THEME_TOGGLE_JS
-from .response import Response, Request
 from ._context import set_current_path, reset_current_path
 from ._routing import paths_match
 
@@ -96,7 +95,6 @@ class Router:
     def __init__(self):
         self._routes = {}
         self._titles = {}
-        self._app = None  # set by App after creation
 
     def page(self, path, title=None):
         def decorator(fn):
@@ -111,16 +109,6 @@ class Router:
         self._routes[path] = fn
         if title:
             self._titles[path] = title
-        # Auto-registrar endpoints si la función tiene un módulo con register_routes
-        if self._app is not None:
-            mod = getattr(fn, "__module__", None)
-            if mod and mod in sys.modules:
-                m = sys.modules[mod]
-                if hasattr(m, "register_routes") and callable(m.register_routes):
-                    try:
-                        m.register_routes(self._app)
-                    except Exception as e:
-                        print(f"  ⚠️  register_routes en '{mod}': {e}")
 
     def resolve(self, path):
         if path in self._routes:
@@ -204,7 +192,7 @@ class App:
         self._export_mode = False  # set True by exporter
         self._ts = str(time.time())
         self._lock = threading.Lock()
-        self._api_routes = {}
+        self._request_handler = None
         # SEO
         self.site_url = (site_url or "").rstrip("/")
         self.description = description or ""
@@ -215,80 +203,27 @@ class App:
         self.favicon = favicon or ""
         self.logo = logo or ""  # URL o path relativo del logo custom
 
-        # Link router back to app so router.add() can auto-register routes
-        if self._router:
-            self._router._app = self
-            # Scan already-added pages for register_routes
-            self._scan_router_routes()
+    # ── HTTP extensions ──────────────────────────────────────────────────────
 
-    # ── API routes ───────────────────────────────────────────────────────────
-
-    def route(self, path, methods=None):
+    def set_request_handler(self, handler):
         """
-        Registra un endpoint de API.
+        Registra un manejador HTTP externo para extensiones como `martin.backend`.
 
-            @app.route("/api/datos")
-            def datos(req):
-                return {"clave": "valor"}          # dict -> JSON 200
+        El handler debe aceptar:
+            (method, path, query_string, body_bytes, headers_dict)
 
-            @app.route("/api/guardar", methods=["POST"])
-            def guardar(req):
-                body = req.json()
-                return Response({"ok": True, "data": body})
+        y devolver un objeto con:
+            .status, .headers y .to_bytes()
+        o `None` si no maneja la ruta.
         """
-        if methods is None:
-            methods = ["GET", "POST"]
+        self._request_handler = handler
+        return self
 
-        def decorator(fn):
-            for m in methods:
-                self._api_routes[(m.upper(), path)] = fn
-            return fn
-
-        return decorator
-
-    def _scan_router_routes(self):
-        """Llama register_routes(app) en todos los módulos de páginas ya registradas."""
-        if not self._router:
-            return
-        seen = set()
-        for fn in self._router._routes.values():
-            mod_name = getattr(fn, "__module__", None)
-            if not mod_name or mod_name in seen:
-                continue
-            seen.add(mod_name)
-            mod = sys.modules.get(mod_name)
-            if (
-                mod
-                and hasattr(mod, "register_routes")
-                and callable(mod.register_routes)
-            ):
-                try:
-                    mod.register_routes(self)
-                except Exception as e:
-                    print(f"  ⚠️  register_routes en '{mod_name}': {e}")
-
-    def _handle_api(self, method, path, qs, body, headers):
-        import json as _json, traceback
-
-        handler = self._api_routes.get((method, path))
-        if handler is None:
-            has_path = any(p == path for _, p in self._api_routes)
-            if has_path:
-                return Response({"error": f"Metodo {method} no permitido"}, status=405)
-            return Response({"error": f"Ruta '{path}' no encontrada"}, status=404)
-        req = Request(method, path, qs, body, headers)
-        try:
-            result = handler(req)
-            if isinstance(result, (dict, list)):
-                return Response(result)
-            elif isinstance(result, Response):
-                return result
-            else:
-                return Response(str(result), content_type="text/plain")
-        except Exception:
-            tb = traceback.format_exc()
-            print(f"  Error en {method} {path}:\n{tb}")
-            return Response({"error": "Error interno", "detail": tb}, status=500)
+    def _dispatch_request(self, method, path, qs, body, headers):
+        handler = self._request_handler
+        if not callable(handler):
+            return None
+        return handler(method, path, qs, body, headers)
 
     # ── Nav ───────────────────────────────────────────────────────────────────
 
@@ -603,6 +538,7 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
     {self.global_styles}
   </style>
   {toggle_js}
+  {FX_JS}
 </head>
 <body>
   {nav_html}
@@ -731,7 +667,6 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
                 # Router: reemplazar y re-vincular
                 if self._router and hasattr(fresh, "router"):
                     self._router = fresh.router
-                    self._router._app = self
                 elif self._build_fn and hasattr(fresh, self._build_fn.__name__):
                     self._build_fn = getattr(fresh, self._build_fn.__name__)
 
@@ -741,23 +676,13 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
                 if hasattr(fresh, "app") and isinstance(fresh.app, _App):
                     if fresh.app._router:
                         self._router = fresh.app._router
-                        self._router._app = self
-                    # Copiar rutas de API registradas en el app fresco
-                    self._api_routes = dict(fresh.app._api_routes)
+                    self._request_handler = getattr(fresh.app, "_request_handler", None)
 
                 # Header / footer
                 if hasattr(fresh, "header"):
                     self.header = fresh.header
                 if hasattr(fresh, "footer"):
                     self.footer = fresh.footer
-
-            # Re-escanear register_routes de todas las páginas
-            (
-                self._api_routes.clear()
-                if not (hasattr(fresh, "app") and hasattr(fresh.app, "_api_routes"))
-                else None
-            )
-            self._scan_router_routes()
 
             self._ts = str(time.time())
             print(f"  ↻  recargado")
@@ -844,57 +769,46 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
                     self._send_json({"ts": app._ts})
                 elif path.startswith("/assets/"):
                     self._static(path[1:])
-                elif ("GET", path) in app._api_routes:
-                    self._api("GET", path, qs, b"")
                 else:
-                    self._html(app._render(path))
+                    resp = app._dispatch_request("GET", path, qs, b"", dict(self.headers))
+                    if resp is not None:
+                        self._response(resp)
+                    else:
+                        self._html(app._render(path))
 
             def do_POST(self):
-                parts = self.path.split("?", 1)
-                path = parts[0]
-                qs = parts[1] if len(parts) > 1 else ""
-                length = int(self.headers.get("Content-Length", 0))
-                body = self.rfile.read(length) if length else b""
-                self._api("POST", path, qs, body)
+                self._handle_method("POST")
 
             def do_PUT(self):
+                self._handle_method("PUT")
+
+            def do_DELETE(self):
+                self._handle_method("DELETE")
+
+            def do_OPTIONS(self):
+                self._handle_method("OPTIONS")
+
+            def _handle_method(self, method):
                 parts = self.path.split("?", 1)
                 path = parts[0]
                 qs = parts[1] if len(parts) > 1 else ""
                 length = int(self.headers.get("Content-Length", 0))
                 body = self.rfile.read(length) if length else b""
-                self._api("PUT", path, qs, body)
+                resp = app._dispatch_request(method, path, qs, body, dict(self.headers))
+                if resp is None:
+                    self.send_response(404)
+                    self.send_header("Content-Type", "text/plain; charset=utf-8")
+                    self.send_header("Content-Length", "9")
+                    self.end_headers()
+                    self.wfile.write(b"Not found")
+                    return
+                self._response(resp)
 
-            def do_DELETE(self):
-                parts = self.path.split("?", 1)
-                path = parts[0]
-                qs = parts[1] if len(parts) > 1 else ""
-                self._api("DELETE", path, qs, b"")
-
-            def do_OPTIONS(self):
-                self.send_response(204)
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.send_header(
-                    "Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS"
-                )
-                self.send_header(
-                    "Access-Control-Allow-Headers",
-                    self.headers.get("Access-Control-Request-Headers", "Content-Type"),
-                )
-                self.send_header("Content-Length", "0")
-                self.end_headers()
-
-            def _api(self, method, path, qs, body):
-                resp = app._handle_api(method, path, qs, body, dict(self.headers))
+            def _response(self, resp):
                 data, ct = resp.to_bytes()
                 self.send_response(resp.status)
                 self.send_header("Content-Type", ct)
                 self.send_header("Content-Length", str(len(data)))
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.send_header(
-                    "Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS"
-                )
-                self.send_header("Access-Control-Allow-Headers", "Content-Type")
                 for k, v in resp.headers.items():
                     self.send_header(k, v)
                 self.end_headers()

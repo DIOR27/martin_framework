@@ -277,7 +277,10 @@ COMPONENTS_TEMPLATE = (
         SideMenu, Raw,
         PageConfig,
     )
-    from martin.fx import FadeIn, SlideIn, ScaleIn, Pulse, Spin, Transition
+    from martin.fx import (
+        FadeIn, SlideIn, ScaleIn, Pulse, Spin, Transition,
+        HoverLift, HoverGlow, Stagger, ReducedMotion, RevealOnScroll,
+    )
     from martin.widgets import __all__ as MARTIN_WIDGETS
 
 
@@ -706,10 +709,11 @@ COMPONENTS_TEMPLATE = (
         ], widget_name="GradientText"))
 
         # ── FX ────────────────────────────────────────────────────────────
-        secs.append(_sec("FX", "Animaciones y transiciones listas para usar desde martin.fx.", [
+        secs.append(_sec("FX", "Animaciones, hover, reveal on scroll y utilidades de timing desde martin.fx.", [
             Paragraph(
                 "Usa `from martin.fx import ...` como namespace oficial. "
-                "Tambien puedes importar desde `martin_fx` si prefieres un alias directo.",
+                "Tambien puedes importar desde `martin_fx` si prefieres un alias directo. "
+                "Los efectos funcionan como estilos nativos dentro de `style=[...]`.",
                 style=TextStyle(size=14, color="var(--text-muted)", line_height=1.6),
             ),
             Row(gap=16, wrap=True, children=[
@@ -717,7 +721,13 @@ COMPONENTS_TEMPLATE = (
                     padding=20,
                     radius=16,
                     shadow=Shadow.md(),
-                    style=[FadeIn(duration=0.45), Transition("transform", duration=0.25, timing="ease-out"), "width:220px"],
+                    style=[
+                        FadeIn(duration=0.45),
+                        RevealOnScroll(direction="up", distance=28),
+                        Transition("transform", duration=0.25, timing="ease-out"),
+                        HoverLift(distance=8),
+                        "width:220px",
+                    ],
                     children=[
                         Text("FadeIn", style=TextStyle(size=13, color="var(--accent)", weight="700")),
                         Heading("Entrada suave", level=3, style=TextStyle(size=18, weight="700")),
@@ -731,7 +741,11 @@ COMPONENTS_TEMPLATE = (
                     padding=20,
                     radius=16,
                     shadow=Shadow.md(),
-                    style=[SlideIn(direction="up", distance=28, delay=0.08), "width:220px"],
+                    style=[
+                        SlideIn(direction="up", distance=28, delay=0.08),
+                        HoverGlow(Colors.indigo),
+                        "width:220px",
+                    ],
                     children=[
                         Text("SlideIn", style=TextStyle(size=13, color="var(--accent)", weight="700")),
                         Heading("Movimiento con profundidad", level=3, style=TextStyle(size=18, weight="700")),
@@ -745,7 +759,7 @@ COMPONENTS_TEMPLATE = (
                     padding=20,
                     radius=16,
                     shadow=Shadow.md(),
-                    style=[ScaleIn(start=0.92, delay=0.16), "width:220px"],
+                    style=[ScaleIn(start=0.92, delay=0.16), ReducedMotion.all(), "width:220px"],
                     children=[
                         Row(gap=10, align="center", children=[
                             Icon("\\u2726", size=22, style=[Spin(duration=3.5)]),
@@ -760,21 +774,59 @@ COMPONENTS_TEMPLATE = (
                     ],
                 ),
             ]),
+            Grid(columns=3, gap=14, children=[
+                Card(
+                    padding=18,
+                    radius=14,
+                    style=[
+                        RevealOnScroll(direction="left", distance=24, delay=Stagger.delay(i, step=0.08)),
+                        Transition("transform", duration=0.22).hover("translateY(-4px)", shadow="0 14px 26px rgba(15,23,42,0.12)"),
+                    ],
+                    children=[
+                        Text(f"Item {i+1}", style=TextStyle(size=14, weight="700")),
+                        Paragraph(
+                            "Stagger organiza el delay de listas y grids sin calcular CSS manual.",
+                            style=TextStyle(size=13, color="var(--text-muted)", line_height=1.55),
+                        ),
+                    ],
+                )
+                for i in range(3)
+            ]),
             Code(
                 "from martin import Card, Text\\n"
-                "from martin.fx import FadeIn, SlideIn, Transition\\n\\n"
+                "from martin.fx import SlideIn, Transition, HoverLift, RevealOnScroll\\n\\n"
                 "Card(\\n"
                 "    padding=24,\\n"
                 "    radius=18,\\n"
                 "    style=[\\n"
+                "        RevealOnScroll(direction='up', distance=24),\\n"
                 "        SlideIn(direction='up', distance=32, delay=0.1),\\n"
                 "        Transition('transform', duration=0.25, timing='ease-out'),\\n"
+                "        HoverLift(distance=8),\\n"
                 "    ],\\n"
                 "    children=[Text('Motion bundled inside martin-framework')],\\n"
                 ")",
                 block=True,
                 language="python",
                 filename="fx_demo.py",
+                copy=True,
+            ),
+            Code(
+                "from martin import Card\\n"
+                "from martin.fx import RevealOnScroll, ReducedMotion, Stagger\\n\\n"
+                "cards = [\\n"
+                "    Card(\\n"
+                "        f'Feature {i+1}',\\n"
+                "        style=[\\n"
+                "            RevealOnScroll(delay=Stagger.delay(i, step=0.07)),\\n"
+                "            ReducedMotion.all(),\\n"
+                "        ],\\n"
+                "    )\\n"
+                "    for i in range(4)\\n"
+                "]",
+                block=True,
+                language="python",
+                filename="fx_stagger.py",
                 copy=True,
             ),
         ], widget_name="FX"))

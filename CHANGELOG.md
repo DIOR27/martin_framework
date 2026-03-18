@@ -4,12 +4,25 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog and follows Semantic Versioning.
 
+## [Unreleased]
+
+### Added
+- New `martin.backend` subpackage with `Backend`, `Request`, `Response`, `ApiCall`, `Ref`, `ResultBox`, `SMTPConfig`, and `Mailer` for lightweight backend flows outside the UI core.
+
+### Changed
+- `martin` core now exposes a generic external request handler hook instead of built-in API routing helpers.
+
+### Removed
+- API helpers and endpoint routing support from the main `martin` public namespace.
+
 ## [0.5.0] - 2026-03-18
 
 ### Added
 - New built-in motion library under `martin.fx` with animation and transition helpers such as `FadeIn`, `SlideIn`, `ScaleIn`, `BlurIn`, `RotateIn`, `Float`, `Pulse`, `Spin`, and `Transition`.
 - Compatibility alias package `martin_fx` so motion helpers can also be imported outside the main namespace if desired.
 - Automatic injection of MARTIN FX keyframes into `App`, so effects work out of the box after `pip install martin-framework`.
+- Interaction and utility helpers for motion composition: `HoverLift`, `HoverGlow`, `Stagger`, `RevealOnScroll`, `ReducedMotion`, and `Transition(...).hover(...)`.
+- Component page scaffold examples for bundled motion effects.
 
 ### Changed
 - Documentation now shows the packaged install name `martin-framework`.

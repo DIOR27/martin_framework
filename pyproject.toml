@@ -25,3 +25,4 @@ martin = "martin.cli:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["martin*"]
+exclude = ["martin_backend*"]

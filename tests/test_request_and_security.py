@@ -1,7 +1,8 @@
 import unittest
 
+import martin
 from martin import App, Text
-from martin.response import Request
+from martin.backend import Request
 from martin.widget import Widget
 
 
@@ -44,6 +45,10 @@ class RequestAndSecurityTests(unittest.TestCase):
         self.assertIn("&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;", html)
         self.assertNotIn('<meta name="description" content="desc "quoted"', html)
         self.assertIn("desc &quot;quoted&quot; &lt;b&gt;tag&lt;/b&gt;", html)
+
+    def test_core_no_longer_exports_api_helpers(self):
+        self.assertFalse(hasattr(martin, "ApiCall"))
+        self.assertFalse(hasattr(martin, "Response"))
 
 
 if __name__ == "__main__":

@@ -12,7 +12,11 @@ class ScaffoldFxTests(unittest.TestCase):
         )
         components_page = files["pages/components.py"]
 
-        self.assertIn("from martin.fx import FadeIn, SlideIn, ScaleIn, Pulse, Spin, Transition", components_page)
+        self.assertIn("HoverLift", components_page)
+        self.assertIn("HoverGlow", components_page)
+        self.assertIn("Stagger", components_page)
+        self.assertIn("ReducedMotion", components_page)
+        self.assertIn("RevealOnScroll", components_page)
         self.assertIn('"FX",           "widget-fx"', components_page)
         self.assertIn('widget_name="FX"', components_page)
         self.assertIn("Motion bundled inside martin-framework", components_page)

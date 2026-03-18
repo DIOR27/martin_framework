@@ -39,7 +39,6 @@ from .special import (
     CookieBanner,
     SafeArea,
 )
-from .api import Ref, ApiCall, ResultBox
 from .dataviz import WordCloud, Map, Timeline, TimelineItem, Chart, ChartDataset
 from .marketing import (
     Hero,
@@ -122,10 +121,6 @@ __all__ = [
     "CookieBanner",
     "CookieCategory",
     "SafeArea",
-    # API
-    "Ref",
-    "ApiCall",
-    "ResultBox",
     # Compound
     "WordCloud",
     "Map",

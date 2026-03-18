@@ -27,6 +27,30 @@ from .styles import resolve_styles, StyleBase
 
 
 class Widget:
+    @staticmethod
+    def _iter_style_items(value):
+        if value is None:
+            return
+        if isinstance(value, (list, tuple)):
+            for item in value:
+                yield from Widget._iter_style_items(item)
+            return
+        yield value
+
+    @staticmethod
+    def _merge_attr_value(current, value):
+        if current in (None, ""):
+            return value
+        if value in (None, ""):
+            return current
+        current_tokens = str(current).split()
+        value_tokens = str(value).split()
+        merged = list(current_tokens)
+        for token in value_tokens:
+            if token not in merged:
+                merged.append(token)
+        return " ".join(merged)
+
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         render = cls.__dict__.get("render")
@@ -87,6 +111,15 @@ class Widget:
         props = getattr(self, "_props", {}) or {}
         attrs = props.get("attrs")
         attrs = dict(attrs) if isinstance(attrs, dict) else {}
+        for item in self._iter_style_items(props.get("style")):
+            if hasattr(item, "fx_attrs") and callable(item.fx_attrs):
+                for key, value in (item.fx_attrs() or {}).items():
+                    if value is None:
+                        continue
+                    if key in attrs:
+                        attrs[key] = self._merge_attr_value(attrs[key], value)
+                    else:
+                        attrs[key] = value
         defaults = self._default_a11y_attrs()
         if isinstance(defaults, dict):
             for key, value in defaults.items():
@@ -119,12 +152,29 @@ class Widget:
             if tag in skip_tags:
                 continue
 
-            tag_src = html[m.start() : m.end()]
+            tag_start = m.start()
+            tag_end = m.end()
+            tag_src = html[tag_start:tag_end]
             parts = []
             for key, value in attrs.items():
                 if value is None:
                     continue
                 attr = str(key).replace("_", "-")
+                if attr.lower() == "class":
+                    class_match = _re.search(
+                        r"""\bclass\s*=\s*(['"])(.*?)\1""",
+                        tag_src,
+                        flags=_re.IGNORECASE | _re.DOTALL,
+                    )
+                    if class_match:
+                        existing = class_match.group(2)
+                        merged = Widget._merge_attr_value(existing, value)
+                        if merged != existing:
+                            replacement = f'class="{_html.escape(merged, quote=True)}"'
+                            start, end = class_match.span()
+                            tag_src = tag_src[:start] + replacement + tag_src[end:]
+                            tag_end = tag_start + len(tag_src)
+                        continue
                 if _re.search(
                     rf"""\b{_re.escape(attr)}(?:\s*=|\s|/?>)""",
                     tag_src,
@@ -139,12 +189,13 @@ class Widget:
                     parts.append(f'{attr}="{esc}"')
 
             if not parts:
-                return html
+                return html[:tag_start] + tag_src + html[m.end() :]
 
             insert_at = (
-                m.end() - 2 if html[m.end() - 2 : m.end()] == "/>" else m.end() - 1
+                len(tag_src) - 2 if tag_src.endswith("/>") else len(tag_src) - 1
             )
-            return html[:insert_at] + " " + " ".join(parts) + html[insert_at:]
+            updated = tag_src[:insert_at] + " " + " ".join(parts) + tag_src[insert_at:]
+            return html[:tag_start] + updated + html[m.end() :]
 
         return html
 

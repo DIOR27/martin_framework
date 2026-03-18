@@ -192,15 +192,21 @@ MARTIN also ships with a built-in motion library under `martin.fx`:
 
 ``` python
 from martin import App, Card, Text
-from martin.fx import FadeIn, SlideIn, Transition, Float
+from martin.fx import (
+    SlideIn, HoverLift, RevealOnScroll,
+    Transition, Stagger, ReducedMotion,
+)
 
 def build():
     return Card(
         padding=24,
         radius=18,
         style=[
+            RevealOnScroll(direction="up", distance=24),
             SlideIn(direction="up", distance=32, delay=0.1),
             Transition("transform", duration=0.25, timing="ease-out"),
+            HoverLift(distance=8),
+            ReducedMotion.all(),
         ],
         children=[
             Text("Motion comes bundled with martin-framework"),
@@ -220,6 +226,33 @@ Included presets:
 - `Pulse`
 - `Spin`
 - `Transition`
+- `HoverLift`
+- `HoverGlow`
+- `Stagger`
+- `RevealOnScroll`
+- `ReducedMotion`
+
+Composition example:
+
+``` python
+from martin import Card
+from martin.fx import RevealOnScroll, Stagger, HoverGlow, Transition
+
+cards = [
+    Card(
+        f"Feature {i+1}",
+        style=[
+            RevealOnScroll(delay=Stagger.delay(i, step=0.08)),
+            Transition("transform", duration=0.24).hover(
+                "translateY(-4px)",
+                shadow="0 14px 28px rgba(15,23,42,0.14)",
+            ),
+            HoverGlow("#22c55e"),
+        ],
+    )
+    for i in range(4)
+]
+```
 
 `Table` also supports built-in client-side export utilities from Python:
 
@@ -242,6 +275,65 @@ Table(
 ```
 
 For richer PDF exports you can optionally include `jsPDF` with `Script(...)`.
+
+------------------------------------------------------------------------
+
+## Simple Backend
+
+API helpers are now separated from the core UI package.
+If you want a small backend for forms, fetch actions, or JSON endpoints,
+use `martin.backend`.
+
+``` python
+from martin import App, Button, Column
+from martin.backend import Backend, ApiCall, ResultBox
+
+backend = Backend(prefix="/api")
+
+@backend.post("/hello")
+def hello(req):
+    data = req.json(default={}) or {}
+    return {"message": f"Hola {data.get('name', 'Martin')}"}
+
+app = App(
+    build=lambda: Column(children=[
+        Button("Enviar", on_click=ApiCall("/api/hello", body={"name": "Diego"}, target="result")),
+        ResultBox(id="result", format="message"),
+    ])
+)
+
+backend.mount(app)
+```
+
+This keeps `martin` focused on UI while `martin.backend` handles
+simple HTTP and request/response helpers.
+
+You can also send emails through SMTP:
+
+``` python
+from martin.backend import Backend
+
+backend = Backend(prefix="/api")
+backend.configure_smtp(
+    host="smtp.gmail.com",
+    port=587,
+    username="tu_usuario",
+    password="tu_password_o_app_password",
+    sender="tu_correo@gmail.com",
+    sender_name="Mi App",
+    use_tls=True,
+)
+
+backend.send_mail(
+    subject="Nuevo mensaje",
+    to="destino@correo.com",
+    text="Hola desde Martin",
+    html="<b>Hola</b> desde Martin",
+)
+```
+
+Tambien puedes construir el mailer manualmente con `SMTPConfig` y `Mailer`
+si prefieres una configuracion mas explicita.
 
 ------------------------------------------------------------------------
 
