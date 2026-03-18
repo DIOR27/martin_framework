@@ -277,6 +277,7 @@ COMPONENTS_TEMPLATE = (
         SideMenu, Raw,
         PageConfig,
     )
+    from martin.fx import FadeIn, SlideIn, ScaleIn, Pulse, Spin, Transition
     from martin.widgets import __all__ as MARTIN_WIDGETS
 
 
@@ -614,6 +615,80 @@ COMPONENTS_TEMPLATE = (
             ]),
         ], widget_name="GradientText"))
 
+        # ── FX ────────────────────────────────────────────────────────────
+        secs.append(_sec("FX", "Animaciones y transiciones listas para usar desde martin.fx.", [
+            Paragraph(
+                "Usa `from martin.fx import ...` como namespace oficial. "
+                "Tambien puedes importar desde `martin_fx` si prefieres un alias directo.",
+                style=TextStyle(size=14, color="var(--text-muted)", line_height=1.6),
+            ),
+            Row(gap=16, wrap=True, children=[
+                Card(
+                    padding=20,
+                    radius=16,
+                    shadow=Shadow.md(),
+                    style=[FadeIn(duration=0.45), Transition("transform", duration=0.25, timing="ease-out"), "width:220px"],
+                    children=[
+                        Text("FadeIn", style=TextStyle(size=13, color="var(--accent)", weight="700")),
+                        Heading("Entrada suave", level=3, style=TextStyle(size=18, weight="700")),
+                        Paragraph(
+                            "Ideal para tarjetas, avisos y bloques de contenido que aparecen al cargar.",
+                            style=TextStyle(size=13, color="var(--text-muted)", line_height=1.6),
+                        ),
+                    ],
+                ),
+                Card(
+                    padding=20,
+                    radius=16,
+                    shadow=Shadow.md(),
+                    style=[SlideIn(direction="up", distance=28, delay=0.08), "width:220px"],
+                    children=[
+                        Text("SlideIn", style=TextStyle(size=13, color="var(--accent)", weight="700")),
+                        Heading("Movimiento con profundidad", level=3, style=TextStyle(size=18, weight="700")),
+                        Paragraph(
+                            "Da contexto visual sin escribir CSS manual ni keyframes por separado.",
+                            style=TextStyle(size=13, color="var(--text-muted)", line_height=1.6),
+                        ),
+                    ],
+                ),
+                Card(
+                    padding=20,
+                    radius=16,
+                    shadow=Shadow.md(),
+                    style=[ScaleIn(start=0.92, delay=0.16), "width:220px"],
+                    children=[
+                        Row(gap=10, align="center", children=[
+                            Icon("\\u2726", size=22, style=[Spin(duration=3.5)]),
+                            Text("ScaleIn + Spin", style=TextStyle(size=13, color="var(--accent)", weight="700")),
+                        ]),
+                        Heading("Presets combinables", level=3, style=TextStyle(size=18, weight="700")),
+                        Paragraph(
+                            "Mezcla animaciones de entrada con loops sutiles para logos, iconos o CTA.",
+                            style=TextStyle(size=13, color="var(--text-muted)", line_height=1.6),
+                        ),
+                        Badge("Pulse activo", style=[Pulse(duration=1.8)], background=Colors.indigo, color="#fff"),
+                    ],
+                ),
+            ]),
+            Code(
+                "from martin import Card, Text\\n"
+                "from martin.fx import FadeIn, SlideIn, Transition\\n\\n"
+                "Card(\\n"
+                "    padding=24,\\n"
+                "    radius=18,\\n"
+                "    style=[\\n"
+                "        SlideIn(direction='up', distance=32, delay=0.1),\\n"
+                "        Transition('transform', duration=0.25, timing='ease-out'),\\n"
+                "    ],\\n"
+                "    children=[Text('Motion bundled inside martin-framework')],\\n"
+                ")",
+                block=True,
+                language="python",
+                filename="fx_demo.py",
+                copy=True,
+            ),
+        ], widget_name="FX"))
+
         # ── Timeline ──────────────────────────────────────────────────────
         if "Timeline" in all_w:
             secs.append(_sec("Timeline", "L\\u00ednea de tiempo vertical.", [
@@ -707,7 +782,7 @@ COMPONENTS_TEMPLATE = (
                 WordCloud(
                     words={"Python":10,"Martin":9,"Web":8,"Widget":7,"CSS":6,
                            "HTML":5,"JavaScript":5,"Framework":4,"API":4,"Router":3},
-                    width=600, height=280,
+                    width=560, height=360,
                 ),
             ], widget_name="WordCloud"))
 
@@ -731,6 +806,7 @@ COMPONENTS_TEMPLATE = (
         ("Modal",        "widget-modal"),
         ("Breadcrumb",   "widget-breadcrumb"),
         ("GradientText", "widget-gradienttext"),
+        ("FX",           "widget-fx"),
         ("Timeline",     "widget-timeline"),
         ("Hero",         "widget-hero"),
         ("Gallery",      "widget-gallery"),

@@ -24,6 +24,10 @@ class ResponsiveWidgetsTests(unittest.TestCase):
         self.assertIn("maxWordW", html)
         self.assertIn("word._drawSize=size", html)
         self.assertIn("drawSize=word._drawSize||word.size", html)
+        self.assertIn("window.innerWidth-48", html)
+        self.assertIn('canvas.style.width="100%"', html)
+        self.assertIn('canvas.style.aspectRatio=W+"/"+H', html)
+        self.assertIn("Segoe UI, Trebuchet MS, Helvetica Neue, Arial, sans-serif", html)
 
 
 if __name__ == "__main__":

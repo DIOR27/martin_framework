@@ -83,14 +83,18 @@ class WordCloud(Widget):
         font_js   = _json.dumps(self.font)
         on_click  = self.on_click or ""
 
-        wrapper_style = "display:inline-block;max-width:100%;position:relative"
+        wrapper_style = (
+            "display:block;position:relative;width:100%;"
+            f"max-width:{w}px"
+        )
         if extra:
             wrapper_style += ";" + extra
 
         return (
             '<div style="' + wrapper_style + '">'
             '<canvas id="' + uid + '" width="' + str(w) + '" height="' + str(h) + '"'
-            ' style="max-width:100%;border-radius:12px;cursor:default;display:block"></canvas>'
+            ' style="display:block;width:100%;height:auto;max-width:' + str(w) + 'px;'
+            'aspect-ratio:' + str(w) + '/' + str(h) + ';border-radius:12px;cursor:default"></canvas>'
             # Tooltip div — positioned absolute over canvas
             '<div id="' + uid + '_tip"'
             ' style="display:none;position:absolute;pointer-events:none;'
@@ -107,28 +111,35 @@ class WordCloud(Widget):
             'var baseW=' + str(w) + ',baseH=' + str(h) + ';'
             'var W=baseW,H=baseH;'
             'canvas.width=W*dpr;canvas.height=H*dpr;'
-            'canvas.style.width=W+"px";canvas.style.height=H+"px";'
+            'canvas.style.width=W+"px";canvas.style.height="auto";canvas.style.aspectRatio=W+"/"+H;'
             'ctx.scale(dpr,dpr);'
             'var rawWords=' + words_js + ';'
             'var colors=' + colors_js + ';'
             'var minS=' + str(min_s) + ',maxS=' + str(max_s) + ';'
             'var baseMinS=minS,baseMaxS=maxS;'
             'var font=' + font_js + ';'
-            'if(font==="inherit")font="system-ui,sans-serif";'
-            'var hostW=(canvas.parentElement?Math.floor(canvas.parentElement.clientWidth||baseW):baseW);'
+            'if(font==="inherit")font="Segoe UI, Trebuchet MS, Helvetica Neue, Arial, sans-serif";'
+            'var hostW=Math.floor((canvas.parentElement&&canvas.parentElement.clientWidth)||0);'
+            'if(!hostW&&canvas.getBoundingClientRect)hostW=Math.floor(canvas.getBoundingClientRect().width||0);'
+            'if(!hostW&&canvas.parentElement&&canvas.parentElement.getBoundingClientRect)hostW=Math.floor(canvas.parentElement.getBoundingClientRect().width||0);'
+            'if(!hostW&&window.innerWidth)hostW=Math.floor(Math.min(window.innerWidth-48,baseW));'
+            'if(!hostW)hostW=Math.floor(baseW*0.8);'
             'var isMobile=!!(window.matchMedia&&window.matchMedia("(max-width:640px)").matches);'
-            'if(hostW>0&&hostW<baseW){W=Math.max(260,hostW);}'
+            'W=Math.max(160,Math.min(baseW,hostW));'
+            'var widthRatio=W/baseW;'
+            'minS=Math.max(10,Math.round(minS*Math.max(widthRatio,0.9)));'
+            'maxS=Math.max(minS+8,Math.round(maxS*Math.max(widthRatio,0.82)));'
             'if(isMobile){'
-            '  H=Math.max(Math.round(baseH*1.2),Math.round(W*0.95));'
-            '  minS=Math.max(10,Math.round(baseMinS*0.82));'
-            '  maxS=Math.max(minS+8,Math.round(baseMaxS*0.60));'
+            '  H=Math.max(Math.round(baseH*1.5),Math.round(W*1.28),220);'
+            '  minS=Math.max(12,Math.round(baseMinS*0.98));'
+            '  maxS=Math.max(minS+12,Math.round(baseMaxS*0.78));'
             '}'
             'ctx.setTransform(1,0,0,1,0,0);'
             'canvas.width=W*dpr;canvas.height=H*dpr;'
-            'canvas.style.width=W+"px";canvas.style.height=H+"px";'
+            'canvas.style.width="100%";canvas.style.maxWidth=W+"px";canvas.style.height="auto";canvas.style.aspectRatio=W+"/"+H;'
             'ctx.scale(dpr,dpr);'
-            'var hitPad=isMobile?10:4;'
-            'var maxSteps=isMobile?560:420;'
+            'var hitPad=isMobile?8:4;'
+            'var maxSteps=isMobile?760:420;'
 
             # Logarithmic scale for more visible size contrast
             'var weights=rawWords.map(function(p){return p[1];});'
@@ -157,7 +168,7 @@ class WordCloud(Widget):
             '  var size=word.size;'
             '  ctx.font="bold "+size+"px "+font;'
             '  var tw=ctx.measureText(word.text).width;'
-            '  var maxWordW=W*(isMobile?0.46:0.62);'
+            '  var maxWordW=W*(isMobile?0.62:0.58);'
             '  if(tw>maxWordW){'
             '    size=Math.max(minS,Math.floor(size*(maxWordW/tw)));'
             '    ctx.font="bold "+size+"px "+font;'
@@ -167,7 +178,7 @@ class WordCloud(Widget):
             '  var cx=W/2,cy=H/2;'
             '  for(var step=0;step<maxSteps;step++){'
             '    var angle=step*0.5;'
-            '    var r=step*(isMobile?1.25:1.1);'
+            '    var r=step*(isMobile?1.05:1.1);'
             '    var x=cx+r*Math.cos(angle)-tw/2;'
             '    var y=cy+r*Math.sin(angle)*0.55+th/2;'
             '    if(x<hitPad||y-th<hitPad||x+tw>W-hitPad||y>H-hitPad)continue;'
