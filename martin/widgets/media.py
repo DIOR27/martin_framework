@@ -101,6 +101,7 @@ class Icon(Widget):
         Icon(name="house", provider="fa", variant="solid")     # Font Awesome
         Icon(name="alarm", provider="material-symbols")         # Google Symbols
         Icon(icon_class="bi bi-airplane")                       # clases directas
+        Icon(name="home-line", provider="ri")                   # genérico: ri ri-home-line
     """
 
     _PROVIDER_ALIASES = {
@@ -128,6 +129,9 @@ class Icon(Widget):
         variant=None,
         icon_class=None,
         class_name=None,
+        base_class=None,
+        name_prefix=None,
+        name_suffix=None,
         **kwargs,
     ):
         self._props = Widget._extract_props(kwargs)
@@ -140,6 +144,9 @@ class Icon(Widget):
         self.variant = variant
         self.icon_class = icon_class
         self.class_name = class_name
+        self.base_class = base_class
+        self.name_prefix = name_prefix
+        self.name_suffix = name_suffix
 
     @classmethod
     def _normalize_provider(cls, provider):
@@ -148,6 +155,26 @@ class Icon(Widget):
         key = str(provider).strip().lower()
         return cls._PROVIDER_ALIASES.get(key, key)
 
+    def _compose_generic_classes(self, base_class, name):
+        token = str(name).strip()
+        prefix = str(self.name_prefix or "").strip()
+        suffix = str(self.name_suffix or "").strip()
+        base = str(base_class or "").strip()
+        extra = f" {self.class_name.strip()}" if self.class_name else ""
+
+        if prefix:
+            token = prefix + token
+        elif base and " " not in token and not token.startswith(base + "-"):
+            token = f"{base}-{token}"
+
+        if suffix:
+            token = token + suffix
+
+        classes = " ".join(part for part in [base, token] if part).strip()
+        if extra:
+            classes = f"{classes}{extra}".strip()
+        return "i", classes, ""
+
     def _font_class_icon(self):
         if self.icon_class:
             base = str(self.icon_class).strip()
@@ -155,7 +182,7 @@ class Icon(Widget):
                 base = f"{base} {self.class_name}".strip()
             return "i", base, ""
 
-        if self.name and not self.provider:
+        if self.name and not self.provider and not (self.base_class or self.name_prefix or self.name_suffix):
             base = str(self.name).strip()
             if self.class_name:
                 base = f"{base} {self.class_name}".strip()
@@ -166,6 +193,9 @@ class Icon(Widget):
 
         name = str(self.name).strip()
         extra = f" {self.class_name.strip()}" if self.class_name else ""
+
+        if self.base_class or self.name_prefix or self.name_suffix:
+            return self._compose_generic_classes(self.base_class, name)
 
         if self.provider == "fontawesome":
             v = (self.variant or "solid").strip().lower()
@@ -200,8 +230,7 @@ class Icon(Widget):
             return "span", cls.strip(), name
 
         if self.provider:
-            cls = f"{self.provider} {name}{extra}".strip()
-            return "i", cls, ""
+            return self._compose_generic_classes(self.base_class or self.provider, name)
 
         return None
 
@@ -248,6 +277,8 @@ class IconPack(Widget):
         IconPack("fontawesome")
         IconPack(["fontawesome", "bootstrap-icons", "mdi"])
         IconPack(["material-symbols", "material-icons"])
+        IconPack("https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css")
+        IconPack([{"name": "boxicons", "href": "https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css"}])
     """
 
     _ALIASES = Icon._PROVIDER_ALIASES
@@ -255,7 +286,6 @@ class IconPack(Widget):
         "fontawesome": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/{version}/css/all.min.css",
         "bootstrap-icons": "https://cdn.jsdelivr.net/npm/bootstrap-icons@{version}/font/bootstrap-icons.min.css",
         "mdi": "https://cdn.jsdelivr.net/npm/@mdi/font@{version}/css/materialdesignicons.min.css",
-        "material-symbols": "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0",
         "material-icons": "https://fonts.googleapis.com/icon?family=Material+Icons",
     }
     _DEFAULT_VERSION = {
@@ -269,19 +299,44 @@ class IconPack(Widget):
         self.providers = providers
         self.versions = versions or {}
 
-    def _provider_list(self):
+    def _source_list(self):
         raw = self.providers
         if isinstance(raw, str):
             raw = [raw]
         out = []
+        seen = set()
         for item in raw or []:
-            key = str(item).strip().lower()
-            name = self._ALIASES.get(key, key)
-            if name in self._CDN_MAP and name not in out:
-                out.append(name)
+            href = None
+            if isinstance(item, dict):
+                href = item.get("href") or item.get("url")
+                if not href:
+                    key = str(item.get("name") or item.get("provider") or "").strip().lower()
+                    name = self._ALIASES.get(key, key)
+                    href = self._href_for(name)
+            else:
+                raw_item = str(item).strip()
+                if not raw_item:
+                    continue
+                lowered = raw_item.lower()
+                if "://" in lowered or lowered.endswith(".css") or raw_item.startswith("/"):
+                    href = raw_item
+                else:
+                    name = self._ALIASES.get(lowered, lowered)
+                    href = self._href_for(name)
+            hrefs = href if isinstance(href, (list, tuple)) else [href]
+            for resolved in hrefs:
+                if resolved and resolved not in seen:
+                    seen.add(resolved)
+                    out.append(resolved)
         return out
 
     def _href_for(self, provider):
+        if provider == "material-symbols":
+            return [
+                "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0",
+                "https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0",
+                "https://fonts.googleapis.com/css2?family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@24,400,0,0",
+            ]
         tpl = self._CDN_MAP.get(provider)
         if not tpl:
             return None
@@ -292,10 +347,7 @@ class IconPack(Widget):
 
     def render(self):
         links = []
-        for provider in self._provider_list():
-            href = self._href_for(provider)
-            if not href:
-                continue
+        for href in self._source_list():
             links.append(
                 f'<link rel="stylesheet" href="{_html.escape(str(href), quote=True)}" />'
             )

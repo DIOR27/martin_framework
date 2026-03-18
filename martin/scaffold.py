@@ -268,7 +268,7 @@ COMPONENTS_TEMPLATE = (
     from martin import (
         Container, Column, Row, Grid, Card, Section, Divider, Spacer,
         Heading, Text, Paragraph, Link, Code, Button, Icon, Badge, Alert,
-        Image, Avatar, NavBar, Footer, Tabs, Breadcrumb,
+        Image, Avatar, IconPack, NavBar, Footer, Tabs, Breadcrumb,
         Table, Modal, TextField, TextArea, Select, MultiSelect, Checkbox,
         Slider, ColorPicker, DatePicker,
         WordCloud, Map, Timeline, TimelineItem, Hero,
@@ -507,6 +507,96 @@ COMPONENTS_TEMPLATE = (
                     Image("/assets/icon.webp", radius=999, width=80, height=80, shadow=True),
                 ]),
             ], widget_name="Avatar"))
+
+        # ── Icons ─────────────────────────────────────────────────────────
+        if "Icon" in all_w and "IconPack" in all_w:
+            secs.append(_sec("Icons", "Soporte para Font Awesome y cualquier libreria de iconos basada en clases CSS.", [
+                IconPack([
+                    "fontawesome",
+                    "bootstrap-icons",
+                    "material-symbols",
+                    "https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css",
+                ]),
+                Row(gap=16, wrap=True, children=[
+                    Card(
+                        padding=18,
+                        radius=14,
+                        style="min-width:170px",
+                        children=[
+                            Row(gap=10, align="center", children=[
+                                Icon(name="house", provider="fa", variant="solid", size=22, color=Colors.indigo),
+                                Text("Font Awesome", style=TextStyle(size=14, weight="700")),
+                            ]),
+                            Paragraph(
+                                "Usa `provider='fa'` y variantes como `solid`, `regular` o `brands`.",
+                                style=TextStyle(size=13, color="var(--text-muted)", line_height=1.6),
+                            ),
+                        ],
+                    ),
+                    Card(
+                        padding=18,
+                        radius=14,
+                        style="min-width:170px",
+                        children=[
+                            Row(gap=10, align="center", children=[
+                                Icon(name="airplane", provider="bi", size=22, color="#38bdf8"),
+                                Text("Bootstrap Icons", style=TextStyle(size=14, weight="700")),
+                            ]),
+                            Paragraph(
+                                "Tambien funciona con `provider='bi'` para iconos ligeros basados en clases.",
+                                style=TextStyle(size=13, color="var(--text-muted)", line_height=1.6),
+                            ),
+                        ],
+                    ),
+                    Card(
+                        padding=18,
+                        radius=14,
+                        style="min-width:170px",
+                        children=[
+                            Row(gap=10, align="center", children=[
+                                Icon(name="flight_takeoff", provider="material-symbols", variant="rounded", size=24, color="#22c55e"),
+                                Text("Material Symbols", style=TextStyle(size=14, weight="700")),
+                            ]),
+                            Paragraph(
+                                "Para Google Symbols usa `provider='material-symbols'` y variantes como `rounded`.",
+                                style=TextStyle(size=13, color="var(--text-muted)", line_height=1.6),
+                            ),
+                        ],
+                    ),
+                    Card(
+                        padding=18,
+                        radius=14,
+                        style="min-width:170px",
+                        children=[
+                            Row(gap=10, align="center", children=[
+                                Icon(name="home-line", provider="ri", size=24, color="#f59e0b"),
+                                Text("Custom CSS Library", style=TextStyle(size=14, weight="700")),
+                            ]),
+                            Paragraph(
+                                "Tambien puedes cargar cualquier CSS externa y usar prefijos genericos o `icon_class`.",
+                                style=TextStyle(size=13, color="var(--text-muted)", line_height=1.6),
+                            ),
+                        ],
+                    ),
+                ]),
+                Code(
+                    "from martin import Row, IconPack, Icon\\n\\n"
+                    "Row(children=[\\n"
+                    "    IconPack([\\n"
+                    "        \\\"fontawesome\\\",\\n"
+                    "        \\\"https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css\\\",\\n"
+                    "    ]),\\n"
+                    "    Icon(name=\\\"house\\\", provider=\\\"fa\\\", variant=\\\"solid\\\"),\\n"
+                    "    Icon(name=\\\"airplane\\\", provider=\\\"bi\\\"),\\n"
+                    "    Icon(name=\\\"home-line\\\", provider=\\\"ri\\\"),\\n"
+                    "    Icon(icon_class=\\\"mdi mdi-calendar\\\"),\\n"
+                    "])",
+                    block=True,
+                    language="python",
+                    filename="icons_demo.py",
+                    copy=True,
+                ),
+            ], widget_name="Icons"))
 
         # ── Tabs ──────────────────────────────────────────────────────────
         if "Tabs" in all_w:
@@ -800,6 +890,7 @@ COMPONENTS_TEMPLATE = (
         ("ColorPicker",  "widget-colorpicker"),
         ("DatePicker",   "widget-datepicker"),
         ("Avatar",       "widget-avatar"),
+        ("Icons",        "widget-icons"),
         ("NavBar",       "widget-navbar"),
         ("Tabs",         "widget-tabs"),
         ("Table",        "widget-table"),

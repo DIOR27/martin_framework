@@ -248,6 +248,8 @@ For richer PDF exports you can optionally include `jsPDF` with `Script(...)`.
 ## Icon Libraries
 
 You can load popular icon libraries from Python and use them with `Icon`.
+This also works with arbitrary CSS icon libraries, as long as the library
+exposes class-based icons.
 
 ``` python
 from martin import Row, IconPack, Icon
@@ -270,7 +272,17 @@ Icon(name="fa-solid fa-user")
 Icon(icon_class="mdi mdi-calendar")
 ```
 
-Supported providers: `fa`/`fontawesome`, `bi`/`bootstrap-icons`,
+For custom class-based libraries, you can load the stylesheet URL directly:
+
+``` python
+from martin import IconPack, Icon
+
+IconPack("https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css")
+Icon(name="home-line", provider="ri")
+Icon(icon_class="ri ri-rocket-line")
+```
+
+Supported built-in providers: `fa`/`fontawesome`, `bi`/`bootstrap-icons`,
 `mdi`, `material-icons`, `material-symbols`.
 
 ------------------------------------------------------------------------
