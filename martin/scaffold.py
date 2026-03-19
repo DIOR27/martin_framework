@@ -474,7 +474,7 @@ COMPONENTS_TEMPLATE = (
         DataGrid, DataGridColumn, CommandPalette, Drawer, SplitPane,
         Skeleton, EmptyState, ErrorState, Form, JSWidgetAdapter,
         Signal, Computed, Store, I18n, L10n, PluginRegistry,
-        WordCloud, Map, Timeline, TimelineItem, Hero,
+        WordCloud, Map, Calendar, CalendarEvent, Timeline, TimelineItem, Hero,
         Gallery, GalleryItem, Carousel, CarouselItem,
         Border, Shadow, TextStyle, Glass, GradientText, MeshBackground, Colors,
         SideMenu, Raw,
@@ -1688,6 +1688,78 @@ COMPONENTS_TEMPLATE = (
                 ),
             ], widget_name="Map"))
 
+        # ── Calendar ──────────────────────────────────────────────────────
+        if "Calendar" in all_w:
+            secs.append(_sec("Calendar", "Calendario interactivo con vistas mes, semana y día.", [
+                Calendar(
+                    events=[
+                        CalendarEvent(
+                            title="Kickoff del sprint",
+                            date="2026-03-20",
+                            start_time="09:00",
+                            end_time="10:30",
+                            color=Colors.indigo,
+                            description="Planificación inicial con producto y diseño.",
+                        ),
+                        CalendarEvent(
+                            title="Review con cliente",
+                            date="2026-03-23",
+                            start_time="15:00",
+                            end_time="16:00",
+                            color="#10b981",
+                            description="Demo del avance y recopilación de feedback.",
+                        ),
+                        CalendarEvent(
+                            title="Día de enfoque",
+                            date="2026-03-25",
+                            all_day=True,
+                            color="#f59e0b",
+                            description="Bloque reservado para implementación sin reuniones.",
+                        ),
+                        CalendarEvent(
+                            title="QA y release",
+                            date="2026-03-27",
+                            start_time="11:00",
+                            end_time="13:00",
+                            color="#ef4444",
+                            description="Validación final y publicación de la versión.",
+                        ),
+                    ],
+                    initial_view="month",
+                    editable=True,
+                    locale="es",
+                    height=540,
+                ),
+                Code(
+                    "from martin import Calendar, CalendarEvent\\n\\n"
+                    "Calendar(\\n"
+                    "    events=[\\n"
+                    "        CalendarEvent(\\n"
+                    "            title='Kickoff del sprint',\\n"
+                    "            date='2026-03-20',\\n"
+                    "            start_time='09:00',\\n"
+                    "            end_time='10:30',\\n"
+                    "            color='#6366f1',\\n"
+                    "        ),\\n"
+                    "        CalendarEvent(\\n"
+                    "            title='Día de enfoque',\\n"
+                    "            date='2026-03-25',\\n"
+                    "            all_day=True,\\n"
+                    "            color='#f59e0b',\\n"
+                    "        ),\\n"
+                    "    ],\\n"
+                    "    initial_view='month',\\n"
+                    "    editable=True,\\n"
+                    "    locale='es',\\n"
+                    "    height=540,\\n"
+                    ")",
+                    block=True,
+                    language="python",
+                    filename="calendar_demo.py",
+                    copy=True,
+                ),
+            ], widget_name="Calendar"))
+
         # ── WordCloud ─────────────────────────────────────────────────────
         if "WordCloud" in all_w:
             secs.append(_sec("WordCloud", "Nube de palabras interactiva.", [
@@ -1748,6 +1820,7 @@ COMPONENTS_TEMPLATE = (
         ("Gallery",      "widget-gallery"),
         ("Carousel",     "widget-carousel"),
         ("Map",          "widget-map"),
+        ("Calendar",     "widget-calendar"),
         ("WordCloud",    "widget-wordcloud"),
         ("Language",     "widget-languageselector"),
     ]
