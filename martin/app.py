@@ -9,6 +9,7 @@ from .fx import FX_CSS, FX_JS
 from .theme import THEME_CSS, THEME_TOGGLE_JS
 from ._context import set_current_path, reset_current_path
 from ._routing import paths_match
+from .widgets.special import ThemeToggle
 
 
 LIVE_RELOAD_SCRIPT = """
@@ -383,17 +384,14 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
         theme = page_theme or self.theme
         esc = lambda v: _html.escape(str(v), quote=True)
         if self.theme_toggle:
-            toggle = (
-                '<button id="_martin_theme_btn"'
-                + ' onclick="window._martinCycleTheme()"'
-                + ' title="Cambiar tema"'
-                + ' style="position:fixed;bottom:20px;right:20px;z-index:9999;'
-                + "        width:40px;height:40px;border-radius:50%;font-size:18px;"
-                + "        border:1px solid var(--border);background:var(--surface);"
-                + '        cursor:pointer;box-shadow:var(--shadow);backdrop-filter:blur(12px);transition:all .2s"'
-                + " onmouseover=\"this.style.borderColor='var(--accent)'\""
-                + " onmouseout=\"this.style.borderColor=''\">&#127763;</button>"
-            )
+            toggle = ThemeToggle(
+                title="Cambiar tema",
+                floating=True,
+                float_position="bottom-right",
+                float_offset=20,
+                float_gap=12,
+                float_z_index=9999,
+            ).render()
         else:
             toggle = ""
 

@@ -32,6 +32,18 @@ class StudioMetadataTests(unittest.TestCase):
         self.assertTrue(column["accepts_children"])
         self.assertTrue(any(param["name"] == "padding" for param in column["params"]))
 
+    def test_universal_floating_props_are_exposed_in_catalog(self):
+        button = describe_widget("Button")
+        self.assertIsNotNone(button)
+        params = {param["name"]: param for param in button["params"]}
+        self.assertIn("floating", params)
+        self.assertEqual(params["floating"]["type"], "boolean")
+        self.assertIn("float_position", params)
+        self.assertEqual(params["float_position"]["type"], "enum")
+        self.assertIn("bottom-right", params["float_position"]["options"])
+        self.assertIn("float_gap", params)
+        self.assertEqual(params["float_gap"]["default"], 12)
+
     def test_complex_widget_params_expose_editor_metadata(self):
         calendar = describe_widget("Calendar")
         self.assertIsNotNone(calendar)

@@ -33,6 +33,17 @@ UNIVERSAL_PROPS = [
     {"name": "url_target", "type": "string", "default": None, "group": "link"},
     {"name": "role", "type": "string", "default": None, "group": "a11y"},
     {"name": "tabindex", "type": "integer", "default": None, "group": "a11y"},
+    {"name": "floating", "type": "boolean", "default": None, "group": "floating"},
+    {
+        "name": "float_position",
+        "type": "enum",
+        "default": "bottom-right",
+        "group": "floating",
+        "options": ["bottom-right", "bottom-left", "top-right", "top-left"],
+    },
+    {"name": "float_offset", "type": "integer", "default": 20, "group": "floating"},
+    {"name": "float_gap", "type": "integer", "default": 12, "group": "floating"},
+    {"name": "float_z_index", "type": "integer", "default": 999, "group": "floating"},
 ]
 
 
@@ -95,6 +106,8 @@ WIDGET_CATEGORIES = {
     "Stylesheet": "utility",
     "StyleTag": "utility",
     "ThemeToggle": "utility",
+    "ScrollToTop": "utility",
+    "WhatsAppButton": "utility",
     "SafeArea": "utility",
     "CookieBanner": "utility",
     "CookieCategory": "utility",
@@ -206,7 +219,9 @@ WIDGET_PRESETS = {
     "Script": {"code": "console.log('martin studio');"},
     "Stylesheet": {"href": "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"},
     "StyleTag": {"css": ".demo { color: var(--accent); }"},
-    "ThemeToggle": {},
+    "ThemeToggle": {"title": "Cambiar tema"},
+    "ScrollToTop": {"icon": "↑", "show_after": 240},
+    "WhatsAppButton": {"phone": "593999999999", "message": "Hola Martin"},
     "CookieBanner": {"title": "Cookies", "message": "We use cookies to improve the experience."},
     "CookieCategory": {"title": "Analytics", "description": "Anonymous usage metrics."},
     "SafeArea": {},

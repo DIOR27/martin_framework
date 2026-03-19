@@ -477,8 +477,7 @@ COMPONENTS_TEMPLATE = (
         WordCloud, Map, Calendar, CalendarEvent, Timeline, TimelineItem, Hero,
         Gallery, GalleryItem, Carousel, CarouselItem,
         Border, Shadow, TextStyle, Glass, GradientText, MeshBackground, Colors,
-        SideMenu, Raw,
-        PageConfig,
+        SideMenu, Raw, ScrollToTop, WhatsAppButton, PageConfig,
     )
     from martin.backend import ApiCall, Backend, MethodCall, Ref, Response, ResultBox
     from martin.fx import (
@@ -1792,6 +1791,54 @@ COMPONENTS_TEMPLATE = (
                 ),
             ], widget_name="LanguageSelector"))
 
+        if "ScrollToTop" in all_w:
+            secs.append(_sec("ScrollToTop", "Boton flotante para volver al inicio con icono y estilo personalizable.", [
+                Paragraph(
+                    "Desplázate por la página y el botón aparecerá automáticamente. El sistema de flotantes apila botones por esquina, así que puedes combinar ScrollToTop, ThemeToggle o Button(..., floating=True) sin que se superpongan.",
+                    style=TextStyle(size=13, color="var(--text-muted)", line_height=1.6),
+                ),
+                IconPack(["fontawesome"]),
+                ScrollToTop(
+                    icon=Icon(name="arrow-up", provider="fa", variant="solid"),
+                    title="Volver arriba",
+                    show_after=180,
+                    background=Colors.indigo,
+                    color="#fff",
+                    shadow="0 16px 30px rgba(99,102,241,0.35)",
+                ),
+                WhatsAppButton(
+                    phone="593999999999",
+                    message="Hola, quiero más información sobre Martin Framework",
+                    title="Escríbenos por WhatsApp",
+                    icon=Icon(name="whatsapp", provider="fa", variant="brands"),
+                    float_position="bottom-right",
+                ),
+                Code(
+                    "from martin import ScrollToTop, ThemeToggle, WhatsAppButton, Button, Icon\\n\\n"
+                    "ScrollToTop(\\n"
+                    "    icon=Icon(name='arrow-up', provider='fa', variant='solid'),\\n"
+                    "    title='Volver arriba',\\n"
+                    "    show_after=180,\\n"
+                    "    background='#6366f1',\\n"
+                    "    color='#fff',\\n"
+                    "    bottom=24,\\n"
+                    "    right=24,\\n"
+                    ")\\n\\n"
+                    "WhatsAppButton(\\n"
+                    "    phone='593999999999',\\n"
+                    "    message='Hola, quiero más información sobre Martin Framework',\\n"
+                    "    title='Escríbenos por WhatsApp',\\n"
+                    "    icon=Icon(name='whatsapp', provider='fa', variant='brands'),\\n"
+                    ")\\n\\n"
+                    "ThemeToggle(floating=True, float_position='bottom-right')\\n"
+                    "Button('WhatsApp', url='https://wa.me/593000000000', floating=True, float_position='bottom-left')",
+                    block=True,
+                    language="python",
+                    filename="scroll_to_top.py",
+                    copy=True,
+                ),
+            ], widget_name="ScrollToTop"))
+
         return secs
 
 
@@ -1823,6 +1870,7 @@ COMPONENTS_TEMPLATE = (
         ("Calendar",     "widget-calendar"),
         ("WordCloud",    "widget-wordcloud"),
         ("Language",     "widget-languageselector"),
+        ("ScrollTop",    "widget-scrolltotop"),
     ]
 
 

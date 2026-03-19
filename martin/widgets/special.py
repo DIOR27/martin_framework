@@ -8,6 +8,8 @@ Widgets especiales y utilitarios de alto nivel.
     Stylesheet     — carga CSS externo con <link rel="stylesheet">
     StyleTag       — inyecta CSS inline con <style>
     ThemeToggle    — alterna tema dark/light/auto
+    ScrollToTop    — botón flotante para volver al inicio
+    WhatsAppButton — botón flotante de WhatsApp configurable
     CookieCategory — configuración de categoría de cookies
     CookieBanner   — banner GDPR con persistencia
 """
@@ -163,27 +165,62 @@ class ThemeToggle(Widget):
         ThemeToggle(dark_icon="Oscuro", light_icon="Claro")
         ThemeToggle(include_auto=False)          # solo dark/light
         ThemeToggle(radius=8, padding=8)
+        ThemeToggle(floating=True, float_position="bottom-right")
+
+    Por defecto es inline, asi que puede colocarse en un NavBar o donde
+    necesites. Si activas ``floating=True``, usa el sistema flotante
+    universal de MARTIN y se apila automaticamente con otros botones
+    flotantes de la misma esquina sin superponerse.
     """
-    def __init__(self, dark_icon="🌙", light_icon="☀️", auto_icon="🌗",
-                 include_auto=True, title="Cambiar tema", **kwargs):
+    def __init__(
+        self,
+        dark_icon="🌙",
+        light_icon="☀️",
+        auto_icon="🌗",
+        include_auto=True,
+        title="Cambiar tema",
+        shape="circle",
+        size=48,
+        **kwargs,
+    ):
         self._props       = Widget._extract_props(kwargs)
         self.dark_icon    = dark_icon
         self.light_icon   = light_icon
         self.auto_icon    = auto_icon
         self.include_auto = include_auto
         self.title        = title
+        self.shape        = str(shape or "circle").lower()
+        self.size         = max(28, int(size))
 
     def render(self):
-        base = (
-            "background:var(--surface); border:1px solid var(--border); "
-            "color:var(--text); cursor:pointer; font-size:16px; "
-            "display:inline-flex; align-items:center; justify-content:center; "
-            "border-radius:8px; padding:6px 10px; transition:all 0.2s; "
-            "user-select:none"
-        )
+        if self.shape == "pill":
+            base = (
+                "background:var(--dropdown-bg,var(--bg-secondary,var(--surface))); border:1px solid var(--border); "
+                "color:var(--text); cursor:pointer; font-size:16px; "
+                "display:inline-flex; align-items:center; justify-content:center; "
+                "border-radius:999px; padding:6px 12px; min-height:40px; "
+                "transition:all 0.2s; user-select:none"
+            )
+        elif self.shape == "square":
+            base = (
+                "background:var(--dropdown-bg,var(--bg-secondary,var(--surface))); border:1px solid var(--border); "
+                "color:var(--text); cursor:pointer; font-size:16px; "
+                "display:inline-flex; align-items:center; justify-content:center; "
+                f"width:{self.size}px; height:{self.size}px; border-radius:12px; "
+                "padding:0; transition:all 0.2s; user-select:none"
+            )
+        else:
+            base = (
+                "background:var(--dropdown-bg,var(--bg-secondary,var(--surface))); border:1px solid var(--border); "
+                "color:var(--text); cursor:pointer; font-size:16px; "
+                "display:inline-flex; align-items:center; justify-content:center; "
+                f"width:{self.size}px; height:{self.size}px; border-radius:999px; "
+                "padding:0; transition:all 0.2s; user-select:none"
+            )
         inline  = self._resolve_props(base)
         initial = self.auto_icon if self.include_auto else self.dark_icon
         uid     = f"_mtt_{id(self) & 0xFFFF}"
+        next_light = "auto" if self.include_auto else "dark"
 
         return (
             f'<button id="{uid}" title="{self.title}" style="{inline}" '
@@ -195,7 +232,7 @@ class ThemeToggle(Widget):
             f'<script>'
             f'(function(){{'
             f'  var ICONS={{"dark":"{self.dark_icon}","light":"{self.light_icon}","auto":"{self.auto_icon}"}};'
-            f'  var NEXT={{"dark":"light","light":{"auto" if self.include_auto else "dark"},"auto":"dark"}};'
+            f'  var NEXT={{"dark":"light","light":"{next_light}","auto":"dark"}};'
             f'  function _mttSync(id){{var t=document.documentElement.getAttribute("data-theme")||"auto";'
             f'    var btn=document.getElementById(id);if(btn)btn.textContent=ICONS[t]||"{initial}";}} '
             f'  window._mttCycle=function(id){{'
@@ -211,6 +248,283 @@ class ThemeToggle(Widget):
             f'}})();'
             f'</script>'
         )
+
+
+class ScrollToTop(Widget):
+    """
+    Boton flotante para volver al inicio con scroll suave.
+
+        ScrollToTop()
+        ScrollToTop(icon="↑", show_after=320)
+        ScrollToTop(icon=Icon(name="arrow-up", provider="fa", variant="solid"), background="#6366f1", color="#fff")
+    """
+
+    _id_counter = 0
+
+    def __init__(
+        self,
+        icon="↑",
+        content=None,
+        title="Volver arriba",
+        show_after=240,
+        behavior="smooth",
+        size=48,
+        bottom=20,
+        right=20,
+        left=None,
+        top=None,
+        z_index=999,
+        target="window",
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        if self._props.get("floating") is None:
+            self._props["floating"] = True
+        if not self._props.get("float_position"):
+            if top is not None and left is not None:
+                self._props["float_position"] = "top-left"
+            elif top is not None:
+                self._props["float_position"] = "top-right"
+            elif left is not None:
+                self._props["float_position"] = "bottom-left"
+            else:
+                self._props["float_position"] = "bottom-right"
+        if self._props.get("float_offset") is None:
+            inferred_offset = top if top is not None else bottom
+            if left is not None and top is None:
+                inferred_offset = left
+            elif right is not None and top is None and left is None:
+                inferred_offset = right
+            self._props["float_offset"] = inferred_offset
+        if self._props.get("float_z_index") is None:
+            self._props["float_z_index"] = z_index
+        self.icon = icon
+        self.content = content
+        self.title = title
+        self.show_after = max(0, int(show_after))
+        self.behavior = str(behavior or "smooth")
+        self.size = max(40, int(size))
+        self.bottom = bottom
+        self.right = right
+        self.left = left
+        self.top = top
+        self.z_index = int(z_index)
+        self.target = str(target or "window")
+        ScrollToTop._id_counter += 1
+        self.uid = f"scroll_top_{ScrollToTop._id_counter}"
+
+    def _render_content(self):
+        content = self.content if self.content is not None else self.icon
+        if isinstance(content, Widget):
+            return content.render()
+        return str(content)
+
+    @staticmethod
+    def _css_size(value):
+        if value is None:
+            return None
+        if isinstance(value, (int, float)):
+            return f"{value}px"
+        return str(value)
+
+    def render(self):
+        uid = self.uid
+        content_html = self._render_content()
+        extra = self._resolve_props()
+
+        button_parts = [
+            "display:inline-flex",
+            "align-items:center",
+            "justify-content:center",
+            "gap:8px",
+            f"width:{self.size}px",
+            f"height:{self.size}px",
+            "padding:0",
+            "border-radius:999px",
+            "border:1px solid var(--border)",
+            "background:var(--surface)",
+            "color:var(--text)",
+            "box-shadow:var(--shadow)",
+            "cursor:pointer",
+            "user-select:none",
+            "line-height:1",
+            "opacity:0",
+            "visibility:hidden",
+            "transform:translateY(10px)",
+            "transition:opacity .2s ease, transform .2s ease, visibility .2s ease, border-color .2s ease",
+        ]
+        inline = ";".join(button_parts) + ";" + extra
+
+        return (
+            f'<button id="{uid}" type="button" title="{self.title}" aria-label="{self.title}" style="{inline}">'
+            f"{content_html}"
+            f"</button>"
+            f"<script>(function(){{"
+            f"var btn=document.getElementById('{uid}');"
+            f"if(!btn||btn.dataset.martinScrollTopBound)return;"
+            f"btn.dataset.martinScrollTopBound='1';"
+            f"var threshold={self.show_after};"
+            f"var behavior={self.behavior!r};"
+            f"var target={self.target!r};"
+            f"function getContainer(){{"
+            f"  if(!target||target==='window')return window;"
+            f"  return document.getElementById(target)||document.querySelector(target)||window;"
+            f"}}"
+            f"function scrollTopValue(node){{"
+            f"  if(node===window)return window.pageYOffset||document.documentElement.scrollTop||document.body.scrollTop||0;"
+            f"  return node&&typeof node.scrollTop==='number'?node.scrollTop:0;"
+            f"}}"
+            f"function setVisible(show){{"
+            f"  btn.style.opacity=show?'1':'0';"
+            f"  btn.style.visibility=show?'visible':'hidden';"
+            f"  btn.style.transform=show?'translateY(0)':'translateY(10px)';"
+            f"}}"
+            f"function update(){{"
+            f"  var container=getContainer();"
+            f"  setVisible(scrollTopValue(container)>threshold);"
+            f"}}"
+            f"function goTop(){{"
+            f"  var container=getContainer();"
+            f"  if(container===window)window.scrollTo({{top:0,behavior:behavior}});"
+            f"  else if(container&&typeof container.scrollTo==='function')container.scrollTo({{top:0,behavior:behavior}});"
+            f"  else if(container)container.scrollTop=0;"
+            f"}}"
+            f"btn.addEventListener('click',goTop);"
+            f"btn.addEventListener('mouseenter',function(){{btn.style.borderColor='var(--accent)';}});"
+            f"btn.addEventListener('mouseleave',function(){{btn.style.borderColor='';}});"
+            f"window.addEventListener('scroll',update,{{passive:true}});"
+            f"document.addEventListener('scroll',update,{{passive:true,capture:true}});"
+            f"update();"
+            f"}})();</script>"
+        )
+
+
+class WhatsAppButton(Widget):
+    """
+    Boton flotante reutilizable para abrir WhatsApp.
+
+        WhatsAppButton(phone="593999999999")
+        WhatsAppButton(phone="593999999999", message="Hola Martin")
+        WhatsAppButton(icon=Icon(name="whatsapp", provider="fa", variant="brands"), url="https://wa.me/593999999999")
+    """
+
+    _id_counter = 0
+
+    def __init__(
+        self,
+        phone=None,
+        message="",
+        icon="✆",
+        content=None,
+        label="WhatsApp",
+        title="Abrir WhatsApp",
+        url=None,
+        action=None,
+        target="_blank",
+        shape="circle",
+        size=48,
+        show_label=False,
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        if self._props.get("floating") is None:
+            self._props["floating"] = True
+        if not self._props.get("float_position"):
+            self._props["float_position"] = "bottom-right"
+        if self._props.get("float_offset") is None:
+            self._props["float_offset"] = 20
+        if self._props.get("float_gap") is None:
+            self._props["float_gap"] = 12
+        if self._props.get("float_z_index") is None:
+            self._props["float_z_index"] = 999
+        self.phone = "".join(ch for ch in str(phone or "") if ch.isdigit())
+        self.message = str(message or "")
+        self.icon = icon
+        self.content = content
+        self.label = label
+        self.title = title
+        self.url = url
+        self.action = action
+        self.target = target
+        self.shape = str(shape or "circle").lower()
+        self.size = max(40, int(size))
+        self.show_label = bool(show_label)
+        WhatsAppButton._id_counter += 1
+        self.uid = f"wa_btn_{WhatsAppButton._id_counter}"
+
+    def _render_content(self):
+        content = self.content if self.content is not None else self.icon
+        if isinstance(content, Widget):
+            return content.render()
+        return str(content)
+
+    def _resolved_url(self):
+        if self.url:
+            return str(self.url)
+        if not self.phone:
+            return ""
+        base = f"https://wa.me/{self.phone}"
+        if self.message:
+            from urllib.parse import quote
+
+            return f"{base}?text={quote(self.message)}"
+        return base
+
+    def render(self):
+        content_html = self._render_content()
+        extra = self._resolve_props()
+        if self.shape == "pill" or self.show_label:
+            base = (
+                "display:inline-flex;align-items:center;justify-content:center;gap:10px;"
+                f"min-height:{self.size}px;padding:0 16px;border-radius:999px;"
+                "background:#25D366;color:#fff;border:1px solid rgba(0,0,0,.06);"
+                "box-shadow:0 18px 32px rgba(37,211,102,.28);font-weight:700;"
+                "font-size:14px;cursor:pointer;text-decoration:none;user-select:none"
+            )
+        elif self.shape == "square":
+            base = (
+                f"display:inline-flex;align-items:center;justify-content:center;width:{self.size}px;height:{self.size}px;"
+                "border-radius:14px;background:#25D366;color:#fff;border:1px solid rgba(0,0,0,.06);"
+                "box-shadow:0 18px 32px rgba(37,211,102,.28);font-size:22px;cursor:pointer;text-decoration:none;user-select:none"
+            )
+        else:
+            base = (
+                f"display:inline-flex;align-items:center;justify-content:center;width:{self.size}px;height:{self.size}px;"
+                "border-radius:999px;background:#25D366;color:#fff;border:1px solid rgba(0,0,0,.06);"
+                "box-shadow:0 18px 32px rgba(37,211,102,.28);font-size:22px;cursor:pointer;text-decoration:none;user-select:none"
+            )
+        inline = base + ";" + extra
+        label_html = (
+            f'<span style="white-space:nowrap;font-size:14px;font-weight:700">{self.label}</span>'
+            if (self.show_label or self.shape == "pill")
+            else ""
+        )
+        attrs = [
+            f'id="{self.uid}"',
+            f'title="{self.title}"',
+            f'aria-label="{self.title}"',
+            f'style="{inline}"',
+        ]
+        href = self._resolved_url()
+        tag = "a" if href else "button"
+        if tag == "a":
+            attrs.append(f'href="{href}"')
+            attrs.append(f'target="{self.target}"')
+            if self.target == "_blank":
+                attrs.append('rel="noopener noreferrer"')
+        else:
+            attrs.append('type="button"')
+        action_js = self.action or ""
+        return (
+            f'<{tag} {" ".join(attrs)}'
+            + (f' onclick="{action_js}"' if action_js else "")
+            + ' onmouseover="this.style.transform=\'translateY(-2px)\';this.style.filter=\'brightness(1.03)\'"'
+            + ' onmouseout="this.style.transform=\'\';this.style.filter=\'\'">'
+            + f'<span aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;line-height:1">{content_html}</span>'
+            + label_html
+            + f"</{tag}>"
+        )
+
 
 # =============================================================================
 # Cookie Banner

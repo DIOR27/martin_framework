@@ -124,6 +124,8 @@ from .widgets import (
     Stylesheet,
     StyleTag,
     ThemeToggle,
+    ScrollToTop,
+    WhatsAppButton,
     SafeArea,
     # Compound
     WordCloud,
@@ -264,6 +266,8 @@ __all__ = [
     "Stylesheet",
     "StyleTag",
     "ThemeToggle",
+    "ScrollToTop",
+    "WhatsAppButton",
     "SafeArea",
     "WordCloud",
     "Map",

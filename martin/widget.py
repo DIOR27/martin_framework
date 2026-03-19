@@ -62,7 +62,9 @@ class Widget:
         @_wraps(render)
         def _wrapped_render(self, *args, **kwargs):
             html = render(self, *args, **kwargs)
-            return self._apply_universal_attrs(html)
+            html = self._apply_universal_attrs(html)
+            html = self._apply_floating_behavior(html)
+            return html
 
         _wrapped_render._martin_auto_attrs_wrapped = True
         cls.render = _wrapped_render
@@ -87,6 +89,11 @@ class Widget:
             "attrs",
             "role",
             "tabindex",
+            "floating",
+            "float_position",
+            "float_offset",
+            "float_gap",
+            "float_z_index",
         )
         props = {k: kwargs.pop(k, None) for k in keys}
 
@@ -106,6 +113,14 @@ class Widget:
 
         props["attrs"] = attrs or None
         return props
+
+    @staticmethod
+    def _floating_css_size(value, fallback):
+        if value is None:
+            return fallback
+        if isinstance(value, (int, float)):
+            return f"{int(value)}px"
+        return str(value)
 
     def _get_universal_attrs(self) -> dict:
         props = getattr(self, "_props", {}) or {}
@@ -202,6 +217,86 @@ class Widget:
     def _apply_universal_attrs(self, html: str) -> str:
         attrs = self._get_universal_attrs()
         return self._inject_attrs_into_first_tag(html, attrs)
+
+    def _apply_floating_behavior(self, html: str) -> str:
+        props = getattr(self, "_props", {}) or {}
+        if not props.get("floating"):
+            return html
+
+        position = str(props.get("float_position") or "bottom-right").strip().lower()
+        allowed = {"top-left", "top-right", "bottom-left", "bottom-right"}
+        if position not in allowed:
+            position = "bottom-right"
+
+        offset = self._floating_css_size(props.get("float_offset"), "20px")
+        gap = self._floating_css_size(props.get("float_gap"), "12px")
+        z_index = int(props.get("float_z_index") or 999)
+        uid = f"martin_float_{id(self) & 0xFFFFFF:x}"
+
+        vertical = "top" if position.startswith("top") else "bottom"
+        horizontal = "left" if position.endswith("left") else "right"
+        wrapper_style = (
+            "position:fixed;"
+            f"{vertical}:{offset};"
+            f"{horizontal}:{offset};"
+            f"z-index:{z_index};"
+        )
+        wrapper = (
+            f'<div id="{uid}" '
+            f'data-martin-float="1" '
+            f'data-martin-float-pos="{position}" '
+            f'data-martin-float-offset="{offset}" '
+            f'data-martin-float-gap="{gap}" '
+            f'data-martin-float-z="{z_index}" '
+            f'style="{wrapper_style}">{html}</div>'
+        )
+        script = (
+            "<script>(function(){"
+            "if(!window.__martinFloatLayout){"
+            "window.__martinFloatLayout={"
+            "schedule:function(){"
+            "if(window.__martinFloatLayout._raf)return;"
+            "window.__martinFloatLayout._raf=requestAnimationFrame(function(){"
+            "window.__martinFloatLayout._raf=0;"
+            "window.__martinFloatLayout.reflow();"
+            "});"
+            "},"
+            "reflow:function(){"
+            "var nodes=Array.prototype.slice.call(document.querySelectorAll('[data-martin-float=\"1\"]'));"
+            "var groups={};"
+            "nodes.forEach(function(node){"
+            "if(!node||!node.isConnected)return;"
+            "var styles=window.getComputedStyle?window.getComputedStyle(node):null;"
+            "if(styles&&styles.display==='none')return;"
+            "var key=node.getAttribute('data-martin-float-pos')||'bottom-right';"
+            "if(!groups[key])groups[key]=[];"
+            "groups[key].push(node);"
+            "});"
+            "Object.keys(groups).forEach(function(key){"
+            "var cursor=0;"
+            "groups[key].forEach(function(node){"
+            "var offset=node.getAttribute('data-martin-float-offset')||'20px';"
+            "var gap=node.getAttribute('data-martin-float-gap')||'12px';"
+            "var base=parseFloat(offset)||20;"
+            "var spacing=parseFloat(gap)||12;"
+            "cursor=Math.max(cursor, base);"
+            "if(key.indexOf('top')===0){node.style.top=cursor+'px';node.style.bottom='';}"
+            "else{node.style.bottom=cursor+'px';node.style.top='';}"
+            "if(key.indexOf('left')>-1){node.style.left=offset;node.style.right='';}"
+            "else{node.style.right=offset;node.style.left='';}"
+            "cursor+=node.offsetHeight+spacing;"
+            "});"
+            "});"
+            "}"
+            "};"
+            "window.addEventListener('resize',window.__martinFloatLayout.schedule,{passive:true});"
+            "window.addEventListener('load',window.__martinFloatLayout.schedule);"
+            "document.addEventListener('DOMContentLoaded',window.__martinFloatLayout.schedule);"
+            "}"
+            "window.__martinFloatLayout.schedule();"
+            "})();</script>"
+        )
+        return wrapper + script
 
     def _wrap_url(self, html: str) -> str:
         """If url prop is set, wraps rendered HTML in an <a> tag."""

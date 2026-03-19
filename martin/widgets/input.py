@@ -29,6 +29,7 @@ class Button(Widget):
         Button("Guardar")
         Button("Cancelar", variant="ghost")
         Button("Eliminar", variant="danger", radius=8)
+        Button("WhatsApp", href="https://wa.me/593000000000", floating=True)
 
         # Con enlace:
         Button("Ver docs", href="/docs")
@@ -40,6 +41,12 @@ class Button(Widget):
         Button("Enviar", on_click=ApiCall("/api/datos", body={"key": Ref("campo")}))
 
     Variantes: "primary" | "secondary" | "danger" | "ghost" | "link"
+
+    Tambien puede usarse como boton flotante con las props universales:
+        floating=True
+        float_position="bottom-right" | "bottom-left" | "top-right" | "top-left"
+        float_offset=20
+        float_gap=12
     """
 
     VARIANTS = {
