@@ -79,6 +79,7 @@ class AccessibilityTests(unittest.TestCase):
         self.assertIn("_menu", html)
         self.assertIn("flex-direction:column", html)
         self.assertIn("_links > *{display:block;width:100%}", html)
+        self.assertIn("left:50%;transform:translateX(-50%)", html)
 
     def test_explicit_aria_label_override_wins(self):
         html = Button("Guardar", aria_label="Accion primaria").render()

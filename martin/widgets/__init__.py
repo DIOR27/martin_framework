@@ -26,7 +26,7 @@ from .input import (
     FormGroup,
 )
 from .feedback import Badge, Alert
-from .navigation import NavBar, SideMenu, Footer, Breadcrumb, Tabs
+from .navigation import NavBar, SideMenu, Footer, LanguageSelector, Breadcrumb, Tabs
 from .data import Table
 from .overlay import Modal
 from .special import (
@@ -118,6 +118,7 @@ __all__ = [
     "NavBar",
     "SideMenu",
     "Footer",
+    "LanguageSelector",
     "Breadcrumb",
     "Tabs",
     # Data

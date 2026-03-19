@@ -750,7 +750,7 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
 
     # ── HTTP server ───────────────────────────────────────────────────────────
 
-    def run(self, open_browser=True, watch_dir=".", source_file=None):
+    def run(self, open_browser=False, watch_dir=".", source_file=None):
         if source_file is None:
             source_file = self._source_file
         if source_file is None:

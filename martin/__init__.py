@@ -7,6 +7,17 @@ from . import backend
 from . import fx
 from .state import Signal, Computed, Store
 from .i18n import I18n, L10n
+from .i18n import (
+    normalize_locale,
+    locale_language,
+    locale_country,
+    flag_emoji,
+    locale_label,
+    describe_locale,
+    discover_locale_codes,
+    load_po_catalog,
+    load_locale_catalogs,
+)
 from .plugins import (
     register_plugin,
     unregister_plugin,
@@ -15,7 +26,13 @@ from .plugins import (
     apply_plugin,
     PluginRegistry,
 )
-from .studio import get_widget_catalog, describe_widget, export_widget_catalog_json
+from .studio import (
+    get_widget_catalog,
+    describe_widget,
+    export_widget_catalog_json,
+    parse_source_file_to_design,
+    render_source_file_preview_html,
+)
 from .styles import (
     CSS,
     StyleBase,
@@ -82,6 +99,7 @@ from .widgets import (
     NavBar,
     SideMenu,
     Footer,
+    LanguageSelector,
     Breadcrumb,
     Tabs,
     # Data
@@ -142,6 +160,15 @@ __all__ = [
     "Store",
     "I18n",
     "L10n",
+    "normalize_locale",
+    "locale_language",
+    "locale_country",
+    "flag_emoji",
+    "locale_label",
+    "describe_locale",
+    "discover_locale_codes",
+    "load_po_catalog",
+    "load_locale_catalogs",
     "register_plugin",
     "unregister_plugin",
     "get_plugin",
@@ -151,6 +178,8 @@ __all__ = [
     "get_widget_catalog",
     "describe_widget",
     "export_widget_catalog_json",
+    "parse_source_file_to_design",
+    "render_source_file_preview_html",
     "App",
     "Router",
     "PageConfig",
@@ -211,6 +240,7 @@ __all__ = [
     "NavBar",
     "SideMenu",
     "Footer",
+    "LanguageSelector",
     "Breadcrumb",
     "Tabs",
     "Table",

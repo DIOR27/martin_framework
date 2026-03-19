@@ -7,6 +7,10 @@ from martin import (
     Store,
     I18n,
     L10n,
+    describe_locale,
+    discover_locale_codes,
+    load_po_catalog,
+    load_locale_catalogs,
     register_plugin,
     unregister_plugin,
     apply_plugin,
@@ -53,6 +57,32 @@ class StateI18nPluginsTests(unittest.TestCase):
         self.assertEqual(l10n.format_time(now), "15:30")
         self.assertEqual(l10n.text_direction("ar"), "rtl")
 
+    def test_locale_helpers_and_po_loading(self):
+        info = describe_locale("es_ES")
+        self.assertEqual(info["flag"], "🇪🇸")
+        self.assertEqual(info["label"], "Español (España)")
+
+        with self.subTest("discover locales from messages"):
+            locales = discover_locale_codes(messages={"es_ES": {}, "en_US": {}})
+            self.assertEqual(locales, ["es_ES", "en_US"])
+
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            (base / "es_ES.po").write_text(
+                'msgid ""\nmsgstr ""\n"Language: es_ES\\n"\n\nmsgid "home.title"\nmsgstr "Inicio"\n',
+                encoding="utf-8",
+            )
+            (base / "en_US.po").write_text(
+                'msgid ""\nmsgstr ""\n"Language: en_US\\n"\n\nmsgid "home.title"\nmsgstr "Home"\n',
+                encoding="utf-8",
+            )
+            self.assertEqual(load_po_catalog(base / "es_ES.po")["home"]["title"], "Inicio")
+            catalogs = load_locale_catalogs(base)
+            self.assertEqual(catalogs["en_US"]["home"]["title"], "Home")
+
     def test_plugin_registry_functions(self):
         name = "demo_plugin_state_i18n_test"
         register_plugin(name, lambda person: f"hola {person}")
@@ -63,4 +93,3 @@ class StateI18nPluginsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -133,7 +133,7 @@ def cmd_run(args):
         print("ERROR: main.py debe definir un objeto 'app', una funcion 'build()' o un 'router'.")
         sys.exit(1)
 
-    app.run(watch_dir=cwd, source_file=source_file)
+    app.run(open_browser=bool(getattr(args, "open", False)), watch_dir=cwd, source_file=source_file)
 
 
 def cmd_export(args):
@@ -207,6 +207,7 @@ def _build_parser():
           Ejemplos:
             martin new mi_proyecto
             martin run
+            martin run --open
             martin run --port 8080
             martin run --no-reload
             martin export
@@ -226,6 +227,7 @@ def _build_parser():
     p_run.add_argument("--port", type=int, default=3908, help="Puerto (default: 3908)")
     p_run.add_argument("--file", default="main.py", help="Fichero de entrada")
     p_run.add_argument("--no-reload", action="store_true", help="Desactiva hot reload")
+    p_run.add_argument("--open", action="store_true", help="Abre el navegador al iniciar")
 
     p_exp = sub.add_parser("export", help="Exporta el proyecto")
     p_exp.add_argument("--file", default="main.py", help="Fichero de entrada")

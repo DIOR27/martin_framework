@@ -78,14 +78,173 @@ README_TEMPLATE = (
 )
 
 
+LOCALE_ES_ES_TEMPLATE = (
+    textwrap.dedent(
+        """
+    msgid ""
+    msgstr ""
+    "Language: es_ES\\n"
+    "Content-Type: text/plain; charset=UTF-8\\n"
+
+    msgid "nav.home"
+    msgstr "Inicio"
+
+    msgid "nav.components"
+    msgstr "Componentes"
+
+    msgid "nav.start"
+    msgstr "Comenzar"
+
+    msgid "footer.rights"
+    msgstr "© YEAR PROJECT_NAME"
+
+    msgid "footer.components"
+    msgstr "Componentes"
+
+    msgid "home.badge"
+    msgstr "PROJECT_NAME"
+
+    msgid "home.hero.title"
+    msgstr "PROJECT_DESC"
+
+    msgid "home.hero.subtitle"
+    msgstr "Construido con Martin Framework - Python para la web, sin complicaciones."
+
+    msgid "home.hero.primary"
+    msgstr "Ver componentes"
+
+    msgid "home.features.heading"
+    msgstr "¿Por qué Martin?"
+
+    msgid "home.features.fast.title"
+    msgstr "Rápido"
+
+    msgid "home.features.fast.desc"
+    msgstr "Servidor de desarrollo con hot-reload. Exporta HTML estático listo para producción."
+
+    msgid "home.features.composable.title"
+    msgstr "Composable"
+
+    msgid "home.features.composable.desc"
+    msgstr "Construye interfaces complejas con widgets simples y reutilizables."
+
+    msgid "home.features.elegant.title"
+    msgstr "Elegante"
+
+    msgid "home.features.elegant.desc"
+    msgstr "Tema oscuro/claro automático. CSS moderno listo para usar desde el primer momento."
+
+    msgid "home.features.python.title"
+    msgstr "Solo Python"
+
+    msgid "home.features.python.desc"
+    msgstr "Sin HTML, sin CSS, sin JavaScript. Todo se expresa en Python puro."
+
+    msgid "home.quickstart.heading"
+    msgstr "Inicio rápido"
+
+    msgid "home.quickstart.caption"
+    msgstr "Tu aplicación estará disponible en http://localhost:3908"
+
+    msgid "components.title"
+    msgstr "Componentes"
+
+    msgid "components.subtitle"
+    msgstr "Widgets disponibles con demos en vivo. Haz clic en cualquier elemento para ver cómo funciona."
+    """
+    ).strip()
+    + "\n"
+)
+
+
+LOCALE_EN_US_TEMPLATE = (
+    textwrap.dedent(
+        """
+    msgid ""
+    msgstr ""
+    "Language: en_US\\n"
+    "Content-Type: text/plain; charset=UTF-8\\n"
+
+    msgid "nav.home"
+    msgstr "Home"
+
+    msgid "nav.components"
+    msgstr "Components"
+
+    msgid "nav.start"
+    msgstr "Get Started"
+
+    msgid "footer.rights"
+    msgstr "© YEAR PROJECT_NAME"
+
+    msgid "footer.components"
+    msgstr "Components"
+
+    msgid "home.badge"
+    msgstr "PROJECT_NAME"
+
+    msgid "home.hero.title"
+    msgstr "PROJECT_DESC"
+
+    msgid "home.hero.subtitle"
+    msgstr "Built with Martin Framework - Python for the web, without the usual complexity."
+
+    msgid "home.hero.primary"
+    msgstr "View components"
+
+    msgid "home.features.heading"
+    msgstr "Why Martin?"
+
+    msgid "home.features.fast.title"
+    msgstr "Fast"
+
+    msgid "home.features.fast.desc"
+    msgstr "Development server with hot reload. Export static HTML ready for production."
+
+    msgid "home.features.composable.title"
+    msgstr "Composable"
+
+    msgid "home.features.composable.desc"
+    msgstr "Build complex interfaces from simple, reusable widgets."
+
+    msgid "home.features.elegant.title"
+    msgstr "Elegant"
+
+    msgid "home.features.elegant.desc"
+    msgstr "Automatic dark and light themes. Modern CSS from day one."
+
+    msgid "home.features.python.title"
+    msgstr "Python Only"
+
+    msgid "home.features.python.desc"
+    msgstr "No HTML, no CSS, no JavaScript. Everything is expressed in plain Python."
+
+    msgid "home.quickstart.heading"
+    msgstr "Quick start"
+
+    msgid "home.quickstart.caption"
+    msgstr "Your application will be available at http://localhost:3908"
+
+    msgid "components.title"
+    msgstr "Components"
+
+    msgid "components.subtitle"
+    msgstr "Available widgets with live demos. Click any element to see how it behaves."
+    """
+    ).strip()
+    + "\n"
+)
+
+
 MAIN_TEMPLATE = (
     textwrap.dedent(
         """
     from martin import (
         App, Router,
-        NavBar, Footer,
-        Heading, Text, Link, Row, Button,
+        NavBar, Footer, LanguageSelector,
+        Heading, Text, Link, Row, Button, Raw,
         TextStyle,
+        load_locale_catalogs,
     )
     from martin.backend import Backend
     from pages.home import home
@@ -94,6 +253,14 @@ MAIN_TEMPLATE = (
     router = Router()
     router.add("/",           home,       title="Inicio")
     router.add("/components", components, title="Componentes")
+
+    _MESSAGES = load_locale_catalogs("locales")
+    _LANGUAGE_SWITCHER = LanguageSelector(
+        path="locales",
+        value="es_ES",
+        translations=_MESSAGES,
+        width=240,
+    )
 
     # ── Navbar global ──────────────────────────────────────────────────────
     # brand   → cualquier widget: Heading, Image, Row([Image, Heading]) etc.
@@ -108,18 +275,19 @@ MAIN_TEMPLATE = (
     _nav = NavBar(
         brand=Heading("PROJECT_NAME", level=3, color="var(--text)", style="letter-spacing:-0.5px"),
         links=[
-            Link("Inicio",       href="/",           style="color:var(--text);text-decoration:none;font-size:14px"),
-            Link("Componentes",  href="/components", style="color:var(--text-muted);text-decoration:none;font-size:14px"),
+            Link(Raw('<span data-i18n="nav.home">Inicio</span>'), href="/", style="color:var(--text);text-decoration:none;font-size:14px"),
+            Link(Raw('<span data-i18n="nav.components">Componentes</span>'), href="/components", style="color:var(--text-muted);text-decoration:none;font-size:14px"),
         ],
         actions=[
-            Button("Comenzar", href="/components", radius=8),
+            _LANGUAGE_SWITCHER,
+            Button(Raw('<span data-i18n="nav.start">Comenzar</span>'), href="/components", radius=8),
         ],
     )
 
     _footer = Footer(
-        left=Text("© YEAR PROJECT_NAME", style=TextStyle(size=13, color="var(--text-muted)")),
+        left=Raw('<span data-i18n="footer.rights" style="font-size:13px;color:var(--text-muted)">© YEAR PROJECT_NAME</span>'),
         right=Row([
-            Link("Componentes", href="/components",
+            Link(Raw('<span data-i18n="footer.components">Componentes</span>'), href="/components",
                  style="font-size:13px;text-decoration:none;color:var(--text-muted)"),
         ], gap=16),
     )
@@ -132,7 +300,7 @@ MAIN_TEMPLATE = (
         footer=_footer,
         # logo="logo.png",  # archivo en assets/ — reemplaza el auto-detectado
         description="PROJECT_DESC",
-        lang="es",
+        lang="es-ES",
     )
 
     backend = Backend(prefix="/api")
@@ -166,6 +334,10 @@ HOME_TEMPLATE = (
     )
 
 
+    def _t(key, fallback, tag="span"):
+        return Raw(f'<{tag} data-i18n="{key}">{fallback}</{tag}>')
+
+
     _HERO_CSS = Raw(\"\"\"<style>
     .hero-gradient {
         background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 60%, transparent) 100%);
@@ -182,10 +354,10 @@ HOME_TEMPLATE = (
 
 
     _FEATURES = [
-        ("\\u26a1", "R\\u00e1pido",     "Servidor de desarrollo con hot-reload. Exporta HTML est\\u00e1tico listo para producci\\u00f3n."),
-        ("\\U0001f9e9", "Composable",   "Construye interfaces complejas con widgets simples y reutilizables."),
-        ("\\U0001f3a8", "Elegante",     "Tema oscuro/claro autom\\u00e1tico. CSS moderno listo para usar desde el primer momento."),
-        ("\\U0001f40d", "Solo Python",  "Sin HTML, sin CSS, sin JavaScript. Todo se expresa en Python puro."),
+        ("\\u26a1", "home.features.fast.title", "R\\u00e1pido", "home.features.fast.desc", "Servidor de desarrollo con hot-reload. Exporta HTML est\\u00e1tico listo para producci\\u00f3n."),
+        ("\\U0001f9e9", "home.features.composable.title", "Composable", "home.features.composable.desc", "Construye interfaces complejas con widgets simples y reutilizables."),
+        ("\\U0001f3a8", "home.features.elegant.title", "Elegante", "home.features.elegant.desc", "Tema oscuro/claro autom\\u00e1tico. CSS moderno listo para usar desde el primer momento."),
+        ("\\U0001f40d", "home.features.python.title", "Solo Python", "home.features.python.desc", "Sin HTML, sin CSS, sin JavaScript. Todo se expresa en Python puro."),
     ]
 
 
@@ -198,12 +370,12 @@ HOME_TEMPLATE = (
                 children=[
                     Row([
                         Text(icon, style="font-size:26px"),
-                        Heading(title, level=3, style="font-size:16px;margin:0"),
+                        Heading(_t(title_key, title), level=3, style="font-size:16px;margin:0"),
                     ], gap=10, align="center"),
-                    Paragraph(desc, style="font-size:14px;color:var(--text-muted);margin-top:8px;line-height:1.6"),
+                    Paragraph(_t(desc_key, desc), style="font-size:14px;color:var(--text-muted);margin-top:8px;line-height:1.6"),
                 ],
             )
-            for icon, title, desc in _FEATURES
+            for icon, title_key, title, desc_key, desc in _FEATURES
         ]
 
         return Column(
@@ -219,7 +391,7 @@ HOME_TEMPLATE = (
                     children=[
                         Row([
                             Text(
-                                "PROJECT_NAME",
+                                _t("home.badge", "PROJECT_NAME"),
                                 style=(
                                     "font-size:13px;font-weight:600;letter-spacing:.08em;"
                                     "text-transform:uppercase;color:var(--accent);"
@@ -230,13 +402,13 @@ HOME_TEMPLATE = (
                             ),
                         ], justify="center"),
                         Heading(
-                            "PROJECT_DESC",
+                            _t("home.hero.title", "PROJECT_DESC"),
                             level=1,
                             class_name="hero-gradient",
                             style="font-size:clamp(36px,6vw,64px);font-weight:800;letter-spacing:-2px;line-height:1.1;margin:0",
                         ),
                         Paragraph(
-                            "Construido con Martin Framework \\u2014 Python para la web, sin complicaciones.",
+                            _t("home.hero.subtitle", "Construido con Martin Framework \\u2014 Python para la web, sin complicaciones."),
                             style="font-size:18px;color:var(--text-muted);max-width:560px;line-height:1.6;margin:0",
                         ),
                         Row(
@@ -244,7 +416,7 @@ HOME_TEMPLATE = (
                             justify="center",
                             style="margin-top:8px",
                             children=[
-                                Button("Ver componentes", href="/components", style="padding:11px 24px;font-size:15px"),
+                                Button(_t("home.hero.primary", "Ver componentes"), href="/components", style="padding:11px 24px;font-size:15px"),
                                 Button("GitHub", href="https://github.com", variant="ghost", style="padding:11px 24px;font-size:15px"),
                             ],
                         ),
@@ -258,7 +430,7 @@ HOME_TEMPLATE = (
                     style="max-width:1100px;margin:0 auto;padding-top:0",
                     children=[
                         Divider(),
-                        Heading("\\u00bfPor qu\\u00e9 Martin?", level=2, style="font-size:26px;font-weight:700;text-align:center"),
+                        Heading(_t("home.features.heading", "\\u00bfPor qu\\u00e9 Martin?"), level=2, style="font-size:26px;font-weight:700;text-align:center"),
                         Grid(columns=2, gap=16, children=features),
                     ],
                 ),
@@ -270,14 +442,14 @@ HOME_TEMPLATE = (
                     style="max-width:760px;margin:0 auto",
                     children=[
                         Divider(),
-                        Heading("Inicio r\\u00e1pido", level=2, style="font-size:26px;font-weight:700"),
+                        Heading(_t("home.quickstart.heading", "Inicio r\\u00e1pido"), level=2, style="font-size:26px;font-weight:700"),
                         Code(
                             "martin new mi_proyecto\\ncd mi_proyecto\\nmartin run",
                             language="bash",
                             block=True,
                         ),
                         Paragraph(
-                            "Tu aplicaci\\u00f3n estar\\u00e1 disponible en http://localhost:3908",
+                            _t("home.quickstart.caption", "Tu aplicaci\\u00f3n estar\\u00e1 disponible en http://localhost:3908"),
                             style="font-size:14px;color:var(--text-muted)",
                         ),
                     ],
@@ -296,7 +468,7 @@ COMPONENTS_TEMPLATE = (
     from martin import (
         Container, Column, Row, Grid, Card, Section, Divider, Spacer,
         Heading, Text, Paragraph, Link, Code, Button, Icon, Badge, Alert,
-        Image, Avatar, IconPack, NavBar, Footer, Tabs, Breadcrumb,
+        Image, Avatar, IconPack, NavBar, Footer, LanguageSelector, Tabs, Breadcrumb,
         Table, Modal, TextField, TextArea, Select, MultiSelect, Checkbox,
         Slider, ColorPicker, DatePicker,
         DataGrid, DataGridColumn, CommandPalette, Drawer, SplitPane,
@@ -318,6 +490,10 @@ COMPONENTS_TEMPLATE = (
 
     def _slug(name: str) -> str:
         return name.lower().replace("_", "-")
+
+
+    def _t(key, fallback, tag="span"):
+        return Raw(f'<{tag} data-i18n="{key}">{fallback}</{tag}>')
 
 
     def _sec(title, subtitle, children, widget_name=None):
@@ -1149,7 +1325,7 @@ COMPONENTS_TEMPLATE = (
             ]),
             Divider(),
             Text("Hover presets", style=TextStyle(size=13, weight="700", color="var(--text-muted)", letter_spacing=0.5)),
-            Grid(columns=2, gap=14, children=[
+            Grid(columns="repeat(auto-fit, minmax(220px, 1fr))", gap=14, children=[
                 Card(
                     padding=18,
                     radius=14,
@@ -1242,7 +1418,7 @@ COMPONENTS_TEMPLATE = (
             ]),
             Divider(),
             Text("FX Hover Gallery", style=TextStyle(size=13, weight="700", color="var(--text-muted)", letter_spacing=0.5)),
-            Grid(columns=3, gap=16, children=[
+            Grid(columns="repeat(auto-fit, minmax(220px, 1fr))", gap=16, children=[
                 Card(
                     padding=22,
                     radius=18,
@@ -1317,7 +1493,7 @@ COMPONENTS_TEMPLATE = (
                     ],
                 ),
             ]),
-            Grid(columns=3, gap=14, children=[
+            Grid(columns="repeat(auto-fit, minmax(180px, 1fr))", gap=14, children=[
                 Card(
                     padding=18,
                     radius=14,
@@ -1522,6 +1698,28 @@ COMPONENTS_TEMPLATE = (
                 ),
             ], widget_name="WordCloud"))
 
+        if "LanguageSelector" in all_w:
+            secs.append(_sec("LanguageSelector", "Selector de idioma con búsqueda, banderas y detección de locales desde archivos .po.", [
+                LanguageSelector(
+                    locales=["es_ES", "es_EC", "en_US"],
+                    value="es_ES",
+                    width=280,
+                ),
+                Code(
+                    "from martin import LanguageSelector\\n\\n"
+                    "LanguageSelector(\\n"
+                    "    path='locales',\\n"
+                    "    value='es_ES',\\n"
+                    "    translations=load_locale_catalogs('locales'),\\n"
+                    "    width=240,\\n"
+                    ")",
+                    block=True,
+                    language="python",
+                    filename="language_selector.py",
+                    copy=True,
+                ),
+            ], widget_name="LanguageSelector"))
+
         return secs
 
 
@@ -1551,6 +1749,7 @@ COMPONENTS_TEMPLATE = (
         ("Carousel",     "widget-carousel"),
         ("Map",          "widget-map"),
         ("WordCloud",    "widget-wordcloud"),
+        ("Language",     "widget-languageselector"),
     ]
 
 
@@ -1588,11 +1787,13 @@ COMPONENTS_TEMPLATE = (
                     style="flex:1;min-width:0;max-width:900px",
                     children=[
                         Column(gap=8, children=[
-                            Heading("Componentes",
+                            Heading(_t("components.title", "Componentes"),
                                     style=[GradientText.aurora(), TextStyle(size=48, weight="800")]),
                             Paragraph(
-                                "Widgets disponibles con demos en vivo. "
-                                "Haz clic en cualquier elemento para ver c\\u00f3mo funciona.",
+                                _t(
+                                    "components.subtitle",
+                                    "Widgets disponibles con demos en vivo. Haz clic en cualquier elemento para ver c\\u00f3mo funciona.",
+                                ),
                                 style=TextStyle(size=16, color="var(--text-muted)"),
                             ),
                         ]),
@@ -1643,6 +1844,8 @@ def render_new_project_files(name: str, title: str, desc: str):
             "PROJECT_DESC", desc
         ),
         "pages/components.py": COMPONENTS_TEMPLATE.replace("PROJECT_NAME", title),
+        "locales/es_ES.po": LOCALE_ES_ES_TEMPLATE.replace("PROJECT_NAME", title).replace("PROJECT_DESC", desc).replace("YEAR", year),
+        "locales/en_US.po": LOCALE_EN_US_TEMPLATE.replace("PROJECT_NAME", title).replace("PROJECT_DESC", desc).replace("YEAR", year),
         ".gitignore": GITIGNORE,
         "README.md": README_TEMPLATE.format(name=name),
     }

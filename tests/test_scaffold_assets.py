@@ -29,6 +29,7 @@ class ScaffoldAssetsTests(unittest.TestCase):
             desc="Demo description",
         )
         components_page = files["pages/components.py"]
+        main_file = files["main.py"]
 
         self.assertIn("/assets/art_dog_field_sunrise.svg", components_page)
         self.assertIn("/assets/art_dog_field_twilight.svg", components_page)
@@ -46,8 +47,17 @@ class ScaffoldAssetsTests(unittest.TestCase):
         self.assertIn("CommandPalette(", components_page)
         self.assertIn("JSWidgetAdapter(", components_page)
         self.assertIn("widget-advanced-pack", components_page)
+        self.assertIn("LanguageSelector(", components_page)
+        self.assertIn('_t("components.title", "Componentes")', components_page)
+        self.assertIn('repeat(auto-fit, minmax(220px, 1fr))', components_page)
+        self.assertIn('repeat(auto-fit, minmax(180px, 1fr))', components_page)
         self.assertIn('/demo/validate/email', components_page)
         self.assertIn("Signal, Computed, Store, I18n, L10n, PluginRegistry", components_page)
+        self.assertIn("LanguageSelector(", main_file)
+        self.assertIn('path="locales"', main_file)
+        self.assertIn("load_locale_catalogs", main_file)
+        self.assertIn("locales/es_ES.po", files)
+        self.assertIn("locales/en_US.po", files)
 
 
 if __name__ == "__main__":

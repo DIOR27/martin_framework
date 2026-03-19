@@ -3,13 +3,17 @@ Martin — Navigation Widgets
 
 Widgets que estructuran la navegación de la página.
 
-    NavBar     — barra de navegación superior sticky
-    SideMenu   — menú lateral para documentación o paneles
-    Footer     — pie de página con zonas left / center / right
-    Breadcrumb — ruta de navegación jerárquica
-    Tabs       — navegación por pestañas con contenido intercambiable
+    NavBar           — barra de navegación superior sticky
+    SideMenu         — menú lateral para documentación o paneles
+    Footer           — pie de página con zonas left / center / right
+    LanguageSelector — selector de idioma para navbar/footer con banderas
+    Breadcrumb       — ruta de navegación jerárquica
+    Tabs             — navegación por pestañas con contenido intercambiable
 """
 
+import json as _json
+
+from ..i18n import describe_locale, discover_locale_codes, normalize_locale
 from ..widget import Widget
 from .._context import get_current_path
 from .._routing import paths_match
@@ -70,6 +74,7 @@ class NavBar(Widget):
             f"{sticky_css}{border_css}"
             f"background:var(--surface); "
             f"display:flex; align-items:center; "
+            f"justify-content:space-between; position:relative; "
             f"padding:0 32px; height:64px; gap:32px; "
             f"max-width:100%; box-sizing:border-box; "
             f"backdrop-filter:blur(12px); "
@@ -100,7 +105,7 @@ class NavBar(Widget):
         if links_items:
             links_html = (
                 f'<nav id="{uid}_links" aria-label="Principal" style="display:flex;align-items:center;gap:24px;'
-                f"min-width:0;overflow-x:auto;overflow-y:hidden;white-space:nowrap;flex:1;justify-content:center\">"
+                f"min-width:0;overflow-x:auto;overflow-y:hidden;white-space:nowrap;justify-content:center\">"
                 f"{links_items}</nav>"
             )
 
@@ -123,7 +128,7 @@ class NavBar(Widget):
             )
             menu_html = (
                 f'<div id="{uid}_menu" style="display:flex;align-items:center;gap:18px;'
-                f'flex:1;min-width:0;justify-content:space-between">{links_html}{actions_html}</div>'
+                f'position:absolute;left:32px;right:32px;top:0;height:100%;min-width:0;pointer-events:none">{links_html}{actions_html}</div>'
             )
 
         css = (
@@ -131,6 +136,8 @@ class NavBar(Widget):
             f"#{uid}{{overflow-x:clip}}"
             f"#{uid}_links::-webkit-scrollbar{{display:none}}"
             f"#{uid}_menu{{box-sizing:border-box}}"
+            f"#{uid}_links{{position:absolute;left:50%;transform:translateX(-50%);pointer-events:auto}}"
+            f"#{uid}_actions{{margin-left:auto;pointer-events:auto}}"
             f"@media(max-width:840px){{"
             f"#{uid}{{height:64px!important;min-height:64px;padding:0 14px!important;gap:10px!important;"
             f"justify-content:space-between;position:relative;z-index:120}}"
@@ -143,7 +150,8 @@ class NavBar(Widget):
             f"padding:12px;flex-direction:column;align-items:stretch;gap:12px;z-index:140}}"
             f"#{uid}[data-mobile-open='1'] #{uid}_menu{{display:flex!important}}"
             f"#{uid}_links{{display:flex!important;flex-direction:column;align-items:stretch;flex:none!important;"
-            f"justify-content:flex-start!important;white-space:normal!important;overflow:visible!important;gap:6px!important}}"
+            f"justify-content:flex-start!important;white-space:normal!important;overflow:visible!important;gap:6px!important;"
+            f"position:static!important;left:auto!important;transform:none!important}}"
             f"#{uid}_links > *{{display:block;width:100%}}"
             f"#{uid}_menu a{{display:block;color:var(--text)!important;padding:10px 10px;border-radius:8px}}"
             f"#{uid}_actions{{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:8px}}"
@@ -233,6 +241,277 @@ class Footer(Widget):
         right_html = f"<div>{_r(self.right)}</div>" if self.right else "<div></div>"
 
         return f'<footer style="{inline}">{left_html}{center_html}{right_html}</footer>'
+
+
+# =============================================================================
+# LanguageSelector
+# =============================================================================
+
+
+class LanguageSelector(Widget):
+    """
+    Selector de idioma con búsqueda, banderas y persistencia en cliente.
+
+        LanguageSelector(locales=["es_ES", "en_US"], value="es_ES")
+        LanguageSelector(path="locales", translations=load_locale_catalogs("locales"))
+
+    Puede colocarse directamente en NavBar, Footer o cualquier layout.
+    """
+
+    _id_counter = 0
+
+    def __init__(
+        self,
+        locales=None,
+        value=None,
+        path=None,
+        translations=None,
+        default_locale=None,
+        fallback_locale=None,
+        storage_key="martin.locale",
+        query_param="lang",
+        update_url=True,
+        persist=True,
+        search=True,
+        name=None,
+        id=None,
+        placeholder="Idioma",
+        on_change=None,
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.locales = locales or []
+        self.value = normalize_locale(value)
+        self.path = path
+        self.translations = translations or {}
+        self.default_locale = normalize_locale(default_locale or self.value)
+        self.fallback_locale = normalize_locale(fallback_locale or "")
+        self.storage_key = storage_key
+        self.query_param = query_param
+        self.update_url = update_url
+        self.persist = persist
+        self.search = search
+        self.name = name
+        self.placeholder = placeholder
+        self.on_change = on_change or ""
+        LanguageSelector._id_counter += 1
+        self.uid = id or f"lang_select_{LanguageSelector._id_counter}"
+
+    def _resolved_locales(self):
+        locales = discover_locale_codes(
+            path=self.path,
+            locales=self.locales,
+            messages=self.translations,
+        )
+        if not locales and self.value:
+            locales = [self.value]
+        if not locales:
+            locales = ["es_ES", "en_US"]
+        return locales
+
+    def _default_a11y_attrs(self):
+        return {"aria-label": self.placeholder or "Selector de idioma"}
+
+    def render(self):
+        uid = self.uid
+        extra = self._resolve_props()
+        locales = self._resolved_locales()
+        option_meta = [describe_locale(code) for code in locales]
+        selected = next(
+            (
+                item
+                for item in option_meta
+                if item["code"] == (self.value or self.default_locale)
+            ),
+            option_meta[0],
+        )
+
+        translations_js = _json.dumps(self.translations, ensure_ascii=False)
+        meta_js = _json.dumps({item["code"]: item for item in option_meta}, ensure_ascii=False)
+        default_locale_js = _json.dumps(self.default_locale or selected["code"])
+        fallback_locale_js = _json.dumps(self.fallback_locale or "")
+        storage_key_js = _json.dumps(self.storage_key)
+        query_param_js = _json.dumps(self.query_param)
+        update_url_js = "true" if self.update_url else "false"
+        persist_js = "true" if self.persist else "false"
+        on_change_js = _json.dumps(self.on_change)
+        search_display = "block" if self.search else "none"
+        name_attr = f' name="{self.name}"' if self.name else ""
+        hidden_input = f'<input type="hidden" id="{uid}_val" value="{selected["code"]}"{name_attr}>'
+
+        options_html = "".join(
+            (
+                f'<div class="mls-opt" '
+                f'data-locale="{item["code"]}" '
+                f'data-label="{item["label"]}" '
+                f'data-flag="{item["flag"]}" '
+                f'data-dir="{item["dir"]}" '
+                f'role="option" '
+                f'aria-selected="{"true" if item["code"] == selected["code"] else "false"}" '
+                f'style="display:flex;align-items:center;gap:10px;padding:10px 14px;'
+                f'cursor:pointer;border-radius:8px;transition:background .12s">'
+                f'<span style="font-size:18px;line-height:1">{item["flag"]}</span>'
+                f'<span style="color:var(--text);font-size:14px">{item["label"]}</span>'
+                f"</div>"
+            )
+            for item in option_meta
+        )
+
+        wrapper_style = f"position:relative;width:100%;min-width:220px;font-size:14px;{extra}"
+
+        return (
+            f"<style>"
+            f"#{uid}_list .mls-opt:hover{{background:var(--surface-2)}}"
+            f'#{uid}_list .mls-opt[aria-selected="true"]{{background:rgba(99,102,241,0.15);}}'
+            f"</style>"
+            f'<div id="{uid}_wrap" style="{wrapper_style}">'
+            f"{hidden_input}"
+            f'<div id="{uid}_btn" role="combobox" aria-haspopup="listbox" aria-expanded="false" '
+            f'aria-controls="{uid}_list" tabindex="0" '
+            f'style="display:flex;align-items:center;justify-content:space-between;gap:10px;'
+            f'padding:8px 14px;border:1px solid var(--border-input,var(--border));border-radius:8px;'
+            f'background:var(--input-bg,var(--surface));cursor:pointer;user-select:none;transition:border-color .2s">'
+            f'<span id="{uid}_label" style="display:flex;align-items:center;gap:10px;min-width:0">'
+            f'<span id="{uid}_flag" style="font-size:18px;line-height:1">{selected["flag"]}</span>'
+            f'<span id="{uid}_text" style="color:var(--input-color,var(--text));font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{selected["label"]}</span>'
+            f"</span>"
+            f'<svg id="{uid}_arrow" width="12" height="12" viewBox="0 0 12 12" '
+            f'style="flex-shrink:0;transition:transform .2s;opacity:0.55">'
+            f'<path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>'
+            f"</svg>"
+            f"</div>"
+            f'<div id="{uid}_drop" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;'
+            f'z-index:10030;border:1px solid var(--border-input,var(--border));border-radius:10px;'
+            f'box-shadow:0 12px 40px rgba(0,0,0,0.25);overflow:hidden;background:var(--dropdown-bg,var(--surface))">'
+            f'<div style="display:{search_display};padding:8px 8px 6px;border-bottom:1px solid var(--border)">'
+            f'<input id="{uid}_search" type="text" placeholder="Buscar idioma..." '
+            f'style="width:100%;padding:7px 10px;border:1px solid var(--border-input,var(--border));'
+            f'border-radius:6px;font-size:13px;outline:none;box-sizing:border-box;'
+            f'background:var(--input-bg,var(--surface));color:var(--input-color,var(--text))">'
+            f"</div>"
+            f'<div id="{uid}_list" role="listbox" aria-label="Idiomas disponibles" style="max-height:260px;overflow-y:auto;padding:6px">'
+            f"{options_html}"
+            f"</div>"
+            f"</div>"
+            f"</div>"
+            f"<script>(function(){{"
+            f"var uid={_json.dumps(uid)};"
+            f"var meta={meta_js};"
+            f"var translations={translations_js};"
+            f"var defaultLocale={default_locale_js};"
+            f"var fallbackLocale={fallback_locale_js};"
+            f"var storageKey={storage_key_js};"
+            f"var queryParam={query_param_js};"
+            f"var updateUrl={update_url_js};"
+            f"var persist={persist_js};"
+            f"var onChange={on_change_js};"
+            f"var root=document.getElementById(uid+'_wrap');"
+            f"var btn=document.getElementById(uid+'_btn');"
+            f"var drop=document.getElementById(uid+'_drop');"
+            f"var list=document.getElementById(uid+'_list');"
+            f"var search=document.getElementById(uid+'_search');"
+            f"var input=document.getElementById(uid+'_val');"
+            f"var text=document.getElementById(uid+'_text');"
+            f"var flag=document.getElementById(uid+'_flag');"
+            f"var arrow=document.getElementById(uid+'_arrow');"
+            f"if(!root||!btn||!drop||!list||root.dataset.martinLangBound)return;"
+            f"root.dataset.martinLangBound='1';"
+            f"window.MartinI18n=window.MartinI18n||{{}};"
+            f"if(!window.MartinI18n.messages)window.MartinI18n.messages={{}};"
+            f"Object.keys(translations||{{}}).forEach(function(loc){{window.MartinI18n.messages[loc]=translations[loc];}});"
+            f"window.MartinI18n.defaultLocale=window.MartinI18n.defaultLocale||defaultLocale;"
+            f"window.MartinI18n.fallbackLocale=window.MartinI18n.fallbackLocale||fallbackLocale;"
+            f"window.MartinI18n._deepGet=function(obj,key){{"
+            f"  var cur=obj||{{}};"
+            f"  String(key||'').split('.').forEach(function(part){{cur=(cur&&typeof cur==='object'&&part in cur)?cur[part]:undefined;}});"
+            f"  return cur;"
+            f"}};"
+            f"window.MartinI18n._candidates=function(locale){{"
+            f"  var raw=String(locale||'').trim().replace(/-/g,'_');"
+            f"  if(!raw)return[];"
+            f"  var out=[raw];"
+            f"  var base=raw.split('_')[0];"
+            f"  if(base&&out.indexOf(base)===-1)out.push(base);"
+            f"  return out;"
+            f"}};"
+            f"window.MartinI18n.t=function(key,locale,fallback){{"
+            f"  var candidates=[];"
+            f"  window.MartinI18n._candidates(locale).forEach(function(loc){{if(candidates.indexOf(loc)===-1)candidates.push(loc);}});"
+            f"  window.MartinI18n._candidates(window.MartinI18n.fallbackLocale).forEach(function(loc){{if(candidates.indexOf(loc)===-1)candidates.push(loc);}});"
+            f"  window.MartinI18n._candidates(window.MartinI18n.defaultLocale).forEach(function(loc){{if(candidates.indexOf(loc)===-1)candidates.push(loc);}});"
+            f"  for(var i=0;i<candidates.length;i++){{"
+            f"    var hit=window.MartinI18n._deepGet(window.MartinI18n.messages[candidates[i]], key);"
+            f"    if(hit!==undefined&&hit!==null)return String(hit);"
+            f"  }}"
+            f"  return fallback!==undefined?String(fallback):String(key||'');"
+            f"}};"
+            f"window.MartinI18n.applyLocale=function(locale){{"
+            f"  var normalized=String(locale||window.MartinI18n.defaultLocale||'').replace(/-/g,'_');"
+            f"  var info=meta[normalized]||{{dir:(/^ar|^he|^fa|^ur|^ps|^dv/.test(normalized)?'rtl':'ltr')}};"
+            f"  document.documentElement.lang=normalized.replace(/_/g,'-');"
+            f"  document.documentElement.setAttribute('dir', info.dir||'ltr');"
+            f"  document.querySelectorAll('[data-i18n]').forEach(function(el){{"
+            f"    el.textContent=window.MartinI18n.t(el.getAttribute('data-i18n'), normalized, el.textContent);"
+            f"  }});"
+            f"  document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el){{"
+            f"    el.setAttribute('placeholder', window.MartinI18n.t(el.getAttribute('data-i18n-placeholder'), normalized, el.getAttribute('placeholder')||''));"
+            f"  }});"
+            f"  document.querySelectorAll('[data-i18n-title]').forEach(function(el){{"
+            f"    el.setAttribute('title', window.MartinI18n.t(el.getAttribute('data-i18n-title'), normalized, el.getAttribute('title')||''));"
+            f"  }});"
+            f"  document.querySelectorAll('[data-i18n-aria-label]').forEach(function(el){{"
+            f"    el.setAttribute('aria-label', window.MartinI18n.t(el.getAttribute('data-i18n-aria-label'), normalized, el.getAttribute('aria-label')||''));"
+            f"  }});"
+            f"  window.dispatchEvent(new CustomEvent('martin:locale-change',{{detail:{{locale:normalized,dir:info.dir||'ltr'}}}}));"
+            f"}};"
+            f"function closeDrop(){{drop.style.display='none';arrow.style.transform='';btn.style.borderColor='';btn.setAttribute('aria-expanded','false');}}"
+            f"function openDrop(){{drop.style.display='block';arrow.style.transform='rotate(180deg)';btn.style.borderColor='var(--accent)';btn.setAttribute('aria-expanded','true');if(search){{search.value='';filterOptions('');setTimeout(function(){{search.focus();}},30);}}}}"
+            f"function toggleDrop(){{if(drop.style.display==='none'||!drop.style.display)openDrop();else closeDrop();}}"
+            f"function filterOptions(query){{"
+            f"  var q=String(query||'').toLowerCase();"
+            f"  list.querySelectorAll('.mls-opt').forEach(function(opt){{"
+            f"    var label=String(opt.getAttribute('data-label')||'').toLowerCase();"
+            f"    opt.style.display=label.indexOf(q)!==-1?'flex':'none';"
+            f"  }});"
+            f"}}"
+            f"function applySelection(locale, runI18n){{"
+            f"  var info=meta[locale]||meta[defaultLocale]||{{}};"
+            f"  input.value=locale;"
+            f"  text.textContent=info.label||locale;"
+            f"  flag.textContent=info.flag||'🌐';"
+            f"  list.querySelectorAll('.mls-opt').forEach(function(opt){{"
+            f"    var active=opt.getAttribute('data-locale')===locale;"
+            f"    opt.setAttribute('aria-selected', active?'true':'false');"
+            f"  }});"
+            f"  if(persist&&window.localStorage){{try{{localStorage.setItem(storageKey, locale);}}catch(_e){{}}}}"
+            f"  if(updateUrl&&window.history&&window.location){{"
+            f"    var url=new URL(window.location.href);"
+            f"    url.searchParams.set(queryParam, locale);"
+            f"    window.history.replaceState(null,'',url.toString());"
+            f"  }}"
+            f"  if(runI18n&&window.MartinI18n&&typeof window.MartinI18n.applyLocale==='function')window.MartinI18n.applyLocale(locale);"
+            f"  if(onChange){{try{{new Function('locale', onChange)(locale);}}catch(_err){{}}}}"
+            f"  closeDrop();"
+            f"}}"
+            f"btn.addEventListener('click',function(e){{e.stopPropagation();toggleDrop();}});"
+            f"btn.addEventListener('keydown',function(e){{if(e.key==='Enter'||e.key===' '||e.key==='ArrowDown'){{e.preventDefault();openDrop();}}if(e.key==='Escape')closeDrop();}});"
+            f"if(search)search.addEventListener('input',function(){{filterOptions(this.value);}});"
+            f"list.querySelectorAll('.mls-opt').forEach(function(opt){{"
+            f"  opt.addEventListener('click',function(){{applySelection(opt.getAttribute('data-locale'), true);}});"
+            f"}});"
+            f"document.addEventListener('click',function(e){{if(!root.contains(e.target))closeDrop();}});"
+            f"document.addEventListener('keydown',function(e){{if(e.key==='Escape')closeDrop();}});"
+            f"var initial=input.value||defaultLocale;"
+            f"if(window.location){{"
+            f"  var urlLocale=new URL(window.location.href).searchParams.get(queryParam);"
+            f"  if(urlLocale&&meta[String(urlLocale).replace(/-/g,'_')])initial=String(urlLocale).replace(/-/g,'_');"
+            f"}}"
+            f"if(persist&&window.localStorage){{"
+            f"  try{{var stored=localStorage.getItem(storageKey);if(stored&&meta[String(stored).replace(/-/g,'_')])initial=String(stored).replace(/-/g,'_');}}catch(_e){{}}"
+            f"}}"
+            f"applySelection(initial, true);"
+            f"}})();</script>"
+        )
 
 
 # =============================================================================
