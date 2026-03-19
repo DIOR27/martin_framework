@@ -192,7 +192,9 @@ class DataGrid(Widget):
             f"#{uid}_scroll{{height:{self.height}px;overflow:auto;position:relative}}"
             f"#{uid}_tbl{{width:max-content;min-width:100%;border-collapse:collapse;table-layout:fixed}}"
             f"#{uid}_tbl th,#{uid}_tbl td{{border-bottom:1px solid var(--border);padding:0 10px;height:{self.row_height}px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}"
-            f"#{uid}_tbl th{{position:sticky;top:0;background:var(--surface-2,var(--surface));z-index:3;font-size:13px;font-weight:700;color:var(--text);user-select:none}}"
+            f"#{uid}_tbl th{{position:sticky;top:0;background:var(--bg-secondary,var(--surface));"
+            f"backdrop-filter:none;-webkit-backdrop-filter:none;z-index:3;font-size:13px;font-weight:700;color:var(--text);"
+            f"user-select:none;box-shadow:inset 0 -1px 0 var(--border)}}"
             f"#{uid}_tbl td{{font-size:13px;color:var(--text)}}"
             f"#{uid}_tbl tr:nth-child(even) td{{background:color-mix(in srgb, var(--surface) 88%, var(--bg-secondary, #000) 12%)}}"
             f"#{uid}_tbl tr.dg-group td{{background:color-mix(in srgb, var(--accent) 10%, var(--surface));font-weight:700;cursor:pointer}}"
@@ -200,7 +202,7 @@ class DataGrid(Widget):
             f"#{uid}_tbl th .dg-sort{{margin-left:6px;color:var(--text-muted);font-size:10px}}"
             f"#{uid}_tbl th .dg-drag{{opacity:.45;margin-left:7px;font-size:11px}}"
             f"#{uid}_tbl .dg-frozen{{position:sticky;background:var(--surface);z-index:4;box-shadow:1px 0 0 var(--border)}}"
-            f"#{uid}_tbl th.dg-frozen{{z-index:7;background:var(--surface-2,var(--surface))}}"
+            f"#{uid}_tbl th.dg-frozen{{z-index:7;background:var(--bg-secondary,var(--surface))}}"
             f"</style>"
         )
 

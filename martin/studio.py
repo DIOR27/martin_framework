@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import ast
+import html
 import importlib.util
 import inspect
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
 from .widget import Widget
 from . import widgets as _widgets
+from .styles import resolve_styles
 
 
 UNIVERSAL_PROPS = [
@@ -522,9 +525,76 @@ def export_widget_catalog_json(path: str | Path) -> Path:
 
 def parse_source_file_to_design(path: str | Path) -> dict:
     source_path = Path(path)
+    runtime_design = _parse_source_file_to_design_runtime(source_path)
+    if runtime_design is not None:
+        return runtime_design
     module = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
     parser = _StudioAstParser(source_path)
     return parser.parse(module)
+
+
+def update_source_function(
+    path: str | Path,
+    function_name: str,
+    function_code: str,
+    martin_imports: list[str] | None = None,
+) -> Path:
+    source_path = Path(path)
+    source = source_path.read_text(encoding="utf-8")
+    module = ast.parse(source, filename=str(source_path))
+    target = None
+    start_line = None
+    end_line = None
+    for node in module.body:
+        if isinstance(node, ast.FunctionDef) and node.name == function_name:
+            target = node
+            decorators = list(getattr(node, "decorator_list", []) or [])
+            start_line = min([node.lineno] + [item.lineno for item in decorators]) - 1
+            end_line = node.end_lineno
+            break
+
+    replacement = function_code.rstrip() + "\n"
+    if target is None:
+        if source and not source.endswith("\n"):
+            source += "\n"
+        if source.strip():
+            source += "\n"
+        source += replacement
+    else:
+        lines = source.splitlines(keepends=True)
+        new_lines = lines[:start_line] + [replacement] + lines[end_line:]
+        source = "".join(new_lines)
+
+    if martin_imports:
+        source = _update_martin_imports(source, martin_imports)
+
+    source_path.write_text(source, encoding="utf-8")
+    return source_path
+
+
+def _update_martin_imports(source: str, martin_imports: list[str]) -> str:
+    module = ast.parse(source)
+    imports = [name for name in martin_imports if isinstance(name, str) and name]
+    if not imports:
+        return source
+    target = None
+    existing = []
+    for node in module.body:
+        if isinstance(node, ast.ImportFrom) and node.module == "martin":
+            target = node
+            existing = [alias.name for alias in node.names]
+            break
+
+    merged = sorted({*existing, *imports})
+    import_block = "from martin import (\n" + "".join(f"    {name},\n" for name in merged) + ")\n"
+    if target is None:
+        return import_block + "\n" + source
+
+    lines = source.splitlines(keepends=True)
+    start_line = target.lineno - 1
+    end_line = target.end_lineno
+    new_lines = lines[:start_line] + [import_block] + lines[end_line:]
+    return "".join(new_lines)
 
 
 def render_source_file_preview_html(path: str | Path) -> str:
@@ -566,6 +636,159 @@ def render_source_file_preview_html(path: str | Path) -> str:
         sys.modules.pop(module_name, None)
         if added_path and project_path in sys.path:
             sys.path.remove(project_path)
+
+
+def _parse_source_file_to_design_runtime(source_path: Path) -> dict | None:
+    candidate = _load_source_candidate(source_path)
+    if candidate is None:
+        return None
+    try:
+        result = candidate()
+        root = result[0] if isinstance(result, tuple) and result else result
+        if not isinstance(root, Widget):
+            return None
+        serializer = _StudioRuntimeSerializer(source_path)
+        return {
+            "version": 1,
+            "title": source_path.stem,
+            "source_file": str(source_path),
+            "root": serializer.serialize_widget(root),
+        }
+    except Exception:
+        return None
+
+
+def _load_source_candidate(source_path: Path):
+    source_path = source_path.resolve()
+    module_name = f"_martin_studio_design_{source_path.stem}_{abs(hash(str(source_path)))}"
+    project_path = str(source_path.parent.parent if source_path.parent.name == "pages" else source_path.parent)
+    added_path = False
+    if project_path not in sys.path:
+        sys.path.insert(0, project_path)
+        added_path = True
+    try:
+        spec = importlib.util.spec_from_file_location(module_name, str(source_path))
+        if spec is None or spec.loader is None:
+            return None
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+        candidate_names = [source_path.stem, "home", "page", "build"]
+        for name in candidate_names:
+            fn = getattr(module, name, None)
+            if callable(fn):
+                return fn
+        for value in module.__dict__.values():
+            if callable(value) and getattr(value, "__module__", None) == module.__name__ and not getattr(value, "__name__", "").startswith("_"):
+                return value
+        return None
+    finally:
+        sys.modules.pop(module_name, None)
+        if added_path and project_path in sys.path:
+            sys.path.remove(project_path)
+
+
+class _StudioRuntimeSerializer:
+    def __init__(self, source_path: Path):
+        self.source_path = source_path
+        self._node_counter = 0
+
+    def serialize_widget(self, widget: Widget) -> dict:
+        widget_type = widget.__class__.__name__
+        signature = inspect.signature(widget.__class__.__init__)
+        props = {}
+        children = []
+
+        for param in signature.parameters.values():
+            if param.name in IGNORED_PARAMS:
+                continue
+            if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+                continue
+            value = getattr(widget, param.name, None)
+            if param.name == "children":
+                children.extend(self._serialize_children(value))
+                continue
+            if param.name == "child":
+                if isinstance(value, Widget):
+                    children.append(self.serialize_widget(value))
+                elif value not in (None, "", []):
+                    props[param.name] = self._literal_from_runtime(value)
+                continue
+            literal = self._literal_from_runtime(value)
+            if literal is not None:
+                props[param.name] = literal
+
+        for key, value in (getattr(widget, "_props", {}) or {}).items():
+            if key == "attrs":
+                continue
+            if value is None:
+                continue
+            if key == "style":
+                props[key] = resolve_styles(value)
+                continue
+            literal = self._literal_from_runtime(value)
+            if literal is not None:
+                props[key] = literal
+
+        return {
+            "id": self._next_id(),
+            "type": widget_type,
+            "props": props,
+            "children": children,
+        }
+
+    def _serialize_children(self, value):
+        if not value:
+            return []
+        if isinstance(value, list):
+            return [self.serialize_widget(item) for item in value if isinstance(item, Widget)]
+        if isinstance(value, tuple):
+            return [self.serialize_widget(item) for item in value if isinstance(item, Widget)]
+        if isinstance(value, Widget):
+            return [self.serialize_widget(value)]
+        return []
+
+    def _literal_from_runtime(self, value):
+        if value is None:
+            return None
+        if isinstance(value, (str, int, float, bool)):
+            return value
+        if isinstance(value, Widget):
+            if value.__class__.__name__ == "Raw" and hasattr(value, "html"):
+                text = re.sub(r"<[^>]+>", "", str(getattr(value, "html", "")))
+                return html.unescape(text).strip() or getattr(value, "html", "")
+            return None
+        if isinstance(value, list):
+            items = []
+            for item in value:
+                literal = self._literal_from_runtime(item)
+                if literal is None:
+                    return None
+                items.append(literal)
+            return items
+        if isinstance(value, tuple):
+            items = []
+            for item in value:
+                literal = self._literal_from_runtime(item)
+                if literal is None:
+                    return None
+                items.append(literal)
+            return items
+        if isinstance(value, dict):
+            result = {}
+            for key, item in value.items():
+                if not isinstance(key, str):
+                    return None
+                literal = self._literal_from_runtime(item)
+                if literal is None:
+                    return None
+                result[key] = literal
+            return result
+        return str(value)
+
+    def _next_id(self) -> str:
+        self._node_counter += 1
+        return f"rt_{self._node_counter}"
 
 
 class _StudioAstParser:
@@ -766,6 +989,13 @@ class _StudioAstParser:
     def _literal_value(self, node):
         if isinstance(node, ast.Constant):
             return node.value
+        if isinstance(node, ast.Call):
+            helper_name = self._resolve_called_name(node.func)
+            if helper_name == "_t" and len(node.args) >= 2:
+                fallback = self._literal_value(node.args[1])
+                if fallback is not None:
+                    return fallback
+            return None
         if isinstance(node, ast.Name):
             if node.id in self._loop_vars:
                 return "{" + node.id + "}"

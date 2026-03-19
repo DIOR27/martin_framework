@@ -7,6 +7,7 @@ from martin.studio import (
     get_widget_catalog,
     parse_source_file_to_design,
     render_source_file_preview_html,
+    update_source_function,
 )
 
 
@@ -103,6 +104,58 @@ class StudioMetadataTests(unittest.TestCase):
 
         design = parse_source_file_to_design(temp_path)
         self.assertEqual(design["root"]["type"], "Column")
+
+    def test_parser_uses_translation_helper_fallback_text(self):
+        source = textwrap.dedent(
+            """
+            from martin import Column, Heading
+
+            def _t(key, fallback, tag="span"):
+                return fallback
+
+            def home():
+                return Column(children=[Heading(_t("hero.title", "Hello world"), level=1)])
+            """
+        )
+        with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False, encoding="utf-8") as handle:
+            handle.write(source)
+            temp_path = handle.name
+
+        design = parse_source_file_to_design(temp_path)
+        self.assertEqual(design["root"]["children"][0]["props"]["content"], "Hello world")
+
+    def test_update_source_function_preserves_other_symbols(self):
+        source = textwrap.dedent(
+            """
+            from martin import Column, Heading
+
+            def helper():
+                return 1
+
+            def home():
+                return Column(children=[Heading("Old", level=1)])
+            """
+        )
+        with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False, encoding="utf-8") as handle:
+            handle.write(source)
+            temp_path = handle.name
+
+        update_source_function(
+            temp_path,
+            "home",
+            textwrap.dedent(
+                """
+                def home():
+                    return Column(children=[Heading("New", level=1)])
+                """
+            ),
+            ["Column", "Heading", "Button"],
+        )
+        with open(temp_path, "r", encoding="utf-8") as handle:
+            updated = handle.read()
+        self.assertIn('def helper():', updated)
+        self.assertIn('"New"', updated)
+        self.assertIn("Button", updated)
 
 
 if __name__ == "__main__":

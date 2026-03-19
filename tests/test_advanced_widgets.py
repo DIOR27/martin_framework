@@ -33,6 +33,7 @@ class AdvancedWidgetsTests(unittest.TestCase):
         self.assertIn("_setGroupBy", html)
         self.assertIn("_setRows", html)
         self.assertIn("groupBy", html)
+        self.assertIn("background:var(--bg-secondary,var(--surface))", html)
 
     def test_command_palette_drawer_and_splitpane_render(self):
         palette_html = CommandPalette(

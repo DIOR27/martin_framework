@@ -33,6 +33,7 @@ from .studio import (
     export_widget_catalog_json,
     parse_source_file_to_design,
     render_source_file_preview_html,
+    update_source_function,
 )
 from .styles import (
     CSS,
@@ -182,6 +183,7 @@ __all__ = [
     "export_widget_catalog_json",
     "parse_source_file_to_design",
     "render_source_file_preview_html",
+    "update_source_function",
     "App",
     "Router",
     "PageConfig",
