@@ -171,20 +171,31 @@ class Calendar(Widget):
     def _serialize_events(self):
         import json as _j
 
-        return _j.dumps(
-            [
-                {
-                    "title": ev.title,
-                    "date": ev.date,
-                    "start_time": ev.start_time or "",
-                    "end_time": ev.end_time or "",
-                    "color": ev.color or "",
-                    "description": ev.description or "",
-                    "all_day": ev.all_day,
-                    "url": ev.url or "",
+        def _event_payload(ev):
+            if isinstance(ev, dict):
+                return {
+                    "title": ev.get("title", ""),
+                    "date": ev.get("date", ""),
+                    "start_time": ev.get("start_time") or "",
+                    "end_time": ev.get("end_time") or "",
+                    "color": ev.get("color") or "",
+                    "description": ev.get("description") or "",
+                    "all_day": bool(ev.get("all_day", False)),
+                    "url": ev.get("url") or "",
                 }
-                for ev in self.events
-            ]
+            return {
+                "title": ev.title,
+                "date": ev.date,
+                "start_time": ev.start_time or "",
+                "end_time": ev.end_time or "",
+                "color": ev.color or "",
+                "description": ev.description or "",
+                "all_day": ev.all_day,
+                "url": ev.url or "",
+            }
+
+        return _j.dumps(
+            [_event_payload(ev) for ev in self.events]
         )
 
     def render(self):
