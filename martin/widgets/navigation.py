@@ -345,12 +345,22 @@ class LanguageSelector(Widget):
                 f'data-locale="{item["code"]}" '
                 f'data-label="{item["label"]}" '
                 f'data-flag="{item["flag"]}" '
+                f'data-flag-url="{item.get("flag_url", "")}" '
+                f'data-country="{item.get("country", "")}" '
                 f'data-dir="{item["dir"]}" '
                 f'role="option" '
                 f'aria-selected="{"true" if item["code"] == selected["code"] else "false"}" '
                 f'style="display:flex;align-items:center;gap:10px;padding:10px 14px;'
                 f'cursor:pointer;border-radius:8px;transition:background .12s">'
-                f'<span style="font-size:18px;line-height:1">{item["flag"]}</span>'
+                f'<span class="mls-flagbox" aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;'
+                f'width:20px;height:15px;flex:0 0 20px;border-radius:3px;overflow:hidden;'
+                f'border:1px solid color-mix(in srgb,var(--border,#334155) 80%, transparent);background:var(--surface-2,#1f2937)">'
+                f'<img src="{item.get("flag_url", "")}" alt="" loading="lazy" referrerpolicy="no-referrer" '
+                f'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'inline-flex\'" '
+                f'style="width:100%;height:100%;object-fit:cover;display:block">'
+                f'<span class="mls-flag-fallback" style="display:none;align-items:center;justify-content:center;'
+                f'width:100%;height:100%;font-size:9px;font-weight:700;letter-spacing:.04em;color:var(--text-muted,var(--text))">'
+                f'{item.get("country", "") or item["flag"]}</span></span>'
                 f'<span style="color:var(--text);font-size:14px">{item["label"]}</span>'
                 f"</div>"
             )
@@ -363,6 +373,12 @@ class LanguageSelector(Widget):
             f"<style>"
             f"#{uid}_list .mls-opt:hover{{background:var(--surface-2)}}"
             f'#{uid}_list .mls-opt[aria-selected="true"]{{background:rgba(99,102,241,0.15);}}'
+            f"#{uid}_btn .mls-flagbox{{display:inline-flex;align-items:center;justify-content:center;width:20px;height:15px;flex:0 0 20px;"
+            f"border-radius:3px;overflow:hidden;border:1px solid color-mix(in srgb,var(--border,#334155) 80%, transparent);"
+            f"background:var(--surface-2,#1f2937)}}"
+            f"#{uid}_btn .mls-flagbox img{{width:100%;height:100%;object-fit:cover;display:block}}"
+            f"#{uid}_btn .mls-flag-fallback{{display:none;align-items:center;justify-content:center;width:100%;height:100%;"
+            f"font-size:9px;font-weight:700;letter-spacing:.04em;color:var(--text-muted,var(--text))}}"
             f"</style>"
             f'<div id="{uid}_wrap" style="{wrapper_style}">'
             f"{hidden_input}"
@@ -372,7 +388,11 @@ class LanguageSelector(Widget):
             f'padding:8px 14px;border:1px solid var(--border-input,var(--border));border-radius:8px;'
             f'background:var(--input-bg,var(--surface));cursor:pointer;user-select:none;transition:border-color .2s">'
             f'<span id="{uid}_label" style="display:flex;align-items:center;gap:10px;min-width:0">'
-            f'<span id="{uid}_flag" style="font-size:18px;line-height:1">{selected["flag"]}</span>'
+            f'<span id="{uid}_flagbox" class="mls-flagbox" aria-hidden="true">'
+            f'<img id="{uid}_flag_img" src="{selected.get("flag_url", "")}" alt="" loading="lazy" referrerpolicy="no-referrer" '
+            f'onerror="this.style.display=\'none\';document.getElementById(\'{uid}_flag_fallback\').style.display=\'inline-flex\'">'
+            f'<span id="{uid}_flag_fallback" class="mls-flag-fallback">{selected.get("country", "") or selected["flag"]}</span>'
+            f"</span>"
             f'<span id="{uid}_text" style="color:var(--input-color,var(--text));font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{selected["label"]}</span>'
             f"</span>"
             f'<svg id="{uid}_arrow" width="12" height="12" viewBox="0 0 12 12" '
@@ -412,7 +432,8 @@ class LanguageSelector(Widget):
             f"var search=document.getElementById(uid+'_search');"
             f"var input=document.getElementById(uid+'_val');"
             f"var text=document.getElementById(uid+'_text');"
-            f"var flag=document.getElementById(uid+'_flag');"
+            f"var flagImg=document.getElementById(uid+'_flag_img');"
+            f"var flagFallback=document.getElementById(uid+'_flag_fallback');"
             f"var arrow=document.getElementById(uid+'_arrow');"
             f"if(!root||!btn||!drop||!list||root.dataset.martinLangBound)return;"
             f"root.dataset.martinLangBound='1';"
@@ -478,7 +499,14 @@ class LanguageSelector(Widget):
             f"  var info=meta[locale]||meta[defaultLocale]||{{}};"
             f"  input.value=locale;"
             f"  text.textContent=info.label||locale;"
-            f"  flag.textContent=info.flag||'🌐';"
+            f"  if(flagImg){{"
+            f"    flagImg.style.display='block';"
+            f"    flagImg.src=info.flag_url||'';"
+            f"  }}"
+            f"  if(flagFallback){{"
+            f"    flagFallback.textContent=info.country||info.flag||'GL';"
+            f"    flagFallback.style.display=(info.flag_url?'none':'inline-flex');"
+            f"  }}"
             f"  list.querySelectorAll('.mls-opt').forEach(function(opt){{"
             f"    var active=opt.getAttribute('data-locale')===locale;"
             f"    opt.setAttribute('aria-selected', active?'true':'false');"

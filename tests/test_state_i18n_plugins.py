@@ -60,6 +60,7 @@ class StateI18nPluginsTests(unittest.TestCase):
     def test_locale_helpers_and_po_loading(self):
         info = describe_locale("es_ES")
         self.assertEqual(info["flag"], "🇪🇸")
+        self.assertEqual(info["flag_url"], "https://flagcdn.com/es.svg")
         self.assertEqual(info["label"], "Español (España)")
 
         with self.subTest("discover locales from messages"):

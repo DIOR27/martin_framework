@@ -14,7 +14,8 @@ class LanguageSelectorWidgetTests(unittest.TestCase):
             },
         ).render()
 
-        self.assertIn("🇪🇸", html)
+        self.assertIn("https://flagcdn.com/es.svg", html)
+        self.assertIn('data-country="ES"', html)
         self.assertIn("English (United States)", html)
         self.assertIn("Buscar idioma...", html)
         self.assertIn("window.MartinI18n.applyLocale", html)

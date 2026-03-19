@@ -605,9 +605,20 @@ class _StudioAstParser:
                         self.assignments[target.id] = node.value
 
     def _find_root_widget(self, module: ast.Module):
-        for node in module.body:
-            if not isinstance(node, ast.FunctionDef):
-                continue
+        functions = [node for node in module.body if isinstance(node, ast.FunctionDef)]
+        preferred_names = [
+            self.source_path.stem,
+            "home",
+            "page",
+            "build",
+        ]
+        ordered = []
+        for name in preferred_names:
+            ordered.extend(node for node in functions if node.name == name and node not in ordered)
+        ordered.extend(node for node in functions if not node.name.startswith("_") and node not in ordered)
+        ordered.extend(node for node in functions if node not in ordered)
+
+        for node in ordered:
             self._local_assignments = {}
             for inner in node.body:
                 if isinstance(inner, ast.Assign):

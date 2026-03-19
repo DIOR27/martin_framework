@@ -130,6 +130,13 @@ def flag_emoji(country_code: str | None) -> str:
     return chr(base + ord(code[0])) + chr(base + ord(code[1]))
 
 
+def flag_image_url(country_code: str | None) -> str:
+    code = str(country_code or "").strip().lower()
+    if len(code) != 2 or not code.isalpha():
+        return ""
+    return f"https://flagcdn.com/{code}.svg"
+
+
 def locale_label(locale: str | None) -> str:
     norm = normalize_locale(locale)
     if not norm:
@@ -154,6 +161,7 @@ def describe_locale(locale: str | None) -> Dict[str, str]:
         "country": country,
         "label": locale_label(norm),
         "flag": flag_emoji(country),
+        "flag_url": flag_image_url(country),
         "dir": "rtl" if is_rtl_locale(norm) else "ltr",
     }
 

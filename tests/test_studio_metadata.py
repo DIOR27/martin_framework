@@ -85,6 +85,25 @@ class StudioMetadataTests(unittest.TestCase):
         self.assertIn("Preview test", html)
         self.assertIn("<html", html)
 
+    def test_parser_prefers_page_function_over_helper(self):
+        source = textwrap.dedent(
+            """
+            from martin import Raw, Column, Heading
+
+            def _t(key, fallback):
+                return Raw(f"<span>{fallback}</span>")
+
+            def home():
+                return Column(children=[Heading("Hola", level=1)])
+            """
+        )
+        with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False, encoding="utf-8") as handle:
+            handle.write(source)
+            temp_path = handle.name
+
+        design = parse_source_file_to_design(temp_path)
+        self.assertEqual(design["root"]["type"], "Column")
+
 
 if __name__ == "__main__":
     unittest.main()
