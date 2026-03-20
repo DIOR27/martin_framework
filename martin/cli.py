@@ -33,7 +33,7 @@ def _write_project_files(target: Path, files: dict):
 
 
 def _print_new_project_summary(name: str, title: str, desc: str):
-    print("  ✓  Proyecto '" + name + "' creado")
+    print("  OK  Proyecto '" + name + "' creado")
     print("")
     print("  Título      : " + title)
     print("  Descripción : " + desc)
@@ -80,7 +80,7 @@ def cmd_new(args):
 
     print("")
     print("  Nuevo proyecto Martin · '" + name + "'")
-    print("  " + "─" * 38)
+    print("  " + "-" * 38)
 
     title = _prompt("Título del proyecto", default=name)
     desc = _prompt("Descripción", default=DEFAULT_PROJECT_DESC)

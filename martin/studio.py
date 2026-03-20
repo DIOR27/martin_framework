@@ -12,6 +12,7 @@ import re
 import sys
 from pathlib import Path
 
+from .backend import ApiCall, MethodCall, Ref
 from .widget import Widget
 from . import widgets as _widgets
 from .styles import resolve_styles
@@ -322,6 +323,20 @@ WIDGET_PRESETS = {
 }
 
 PROP_EDITORS = {
+    "Code.language": {
+        "type": "code_language",
+        "options": [
+            "python",
+            "javascript",
+            "typescript",
+            "html",
+            "css",
+            "json",
+            "bash",
+            "powershell",
+            "custom",
+        ],
+    },
     "Calendar.events": {
         "type": "collection",
         "item_label": "Event",
@@ -719,7 +734,7 @@ class _StudioRuntimeSerializer:
                 continue
             if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
                 continue
-            value = getattr(widget, param.name, None)
+            value = self._runtime_param_value(widget, param.name)
             if param.name == "children":
                 children.extend(self._serialize_children(value))
                 continue
@@ -752,6 +767,19 @@ class _StudioRuntimeSerializer:
             "children": children,
         }
 
+    def _runtime_param_value(self, widget: Widget, param_name: str):
+        value = getattr(widget, param_name, None)
+        if value is not None:
+            return value
+        legacy_aliases = {
+            "id": ("box_id", "modal_id"),
+        }
+        for alias in legacy_aliases.get(param_name, ()):
+            alias_value = getattr(widget, alias, None)
+            if alias_value is not None:
+                return alias_value
+        return None
+
     def _serialize_children(self, value):
         if not value:
             return []
@@ -768,6 +796,37 @@ class _StudioRuntimeSerializer:
             return None
         if isinstance(value, (str, int, float, bool)):
             return value
+        if isinstance(value, Ref):
+            return {
+                "__martin_expr__": "Ref",
+                "input_id": value.input_id,
+                "label": bool(getattr(value, "label", False)),
+            }
+        if isinstance(value, MethodCall):
+            payload = getattr(value, "body", {}) or {}
+            return {
+                "__martin_expr__": "MethodCall",
+                "method": payload.get("method", ""),
+                "params": self._literal_from_runtime(payload.get("params")),
+                "args": self._literal_from_runtime(payload.get("args")),
+                "kwargs": self._literal_from_runtime(payload.get("kwargs")),
+                "endpoint": getattr(value, "url", "/api/_method"),
+                "target": getattr(value, "target", None),
+                "loading": getattr(value, "loading", None),
+                "on_success": getattr(value, "on_success", None),
+                "on_error": getattr(value, "on_error", None),
+            }
+        if isinstance(value, ApiCall):
+            return {
+                "__martin_expr__": "ApiCall",
+                "url": getattr(value, "url", ""),
+                "method": getattr(value, "method", "POST"),
+                "body": self._literal_from_runtime(getattr(value, "body", None)),
+                "target": getattr(value, "target", None),
+                "loading": getattr(value, "loading", None),
+                "on_success": getattr(value, "on_success", None),
+                "on_error": getattr(value, "on_error", None),
+            }
         if isinstance(value, Widget):
             if value.__class__.__name__ == "Raw" and hasattr(value, "html"):
                 text = re.sub(r"<[^>]+>", "", str(getattr(value, "html", "")))
@@ -796,9 +855,20 @@ class _StudioRuntimeSerializer:
                     return None
                 literal = self._literal_from_runtime(item)
                 if literal is None:
-                    return None
+                    continue
                 result[key] = literal
-            return result
+            return result if result else None
+        if hasattr(value, "__dict__"):
+            result = {}
+            for key, item in vars(value).items():
+                if not isinstance(key, str) or key.startswith("_"):
+                    continue
+                literal = self._literal_from_runtime(item)
+                if literal is None:
+                    continue
+                result[key] = literal
+            if result:
+                return result
         return str(value)
 
     def _next_id(self) -> str:

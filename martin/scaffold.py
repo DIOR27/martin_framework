@@ -495,6 +495,14 @@ COMPONENTS_TEMPLATE = (
         return Raw(f'<{tag} data-i18n="{key}">{fallback}</{tag}>')
 
 
+    def _in_studio_preview() -> bool:
+        module_name = str(globals().get("__name__", ""))
+        return (
+            module_name.startswith("_martin_studio_preview_")
+            or module_name.startswith("_martin_studio_design_")
+        )
+
+
     def _sec(title, subtitle, children, widget_name=None):
         anchor_id = f"widget-{_slug(widget_name or title)}"
         return Card(
@@ -1876,14 +1884,57 @@ COMPONENTS_TEMPLATE = (
 
     def components():
         side_items = [(label, f"#{anchor}") for label, anchor in _MENU_ITEMS]
+        main_content = Column(
+            class_name="docs-main",
+            gap=24,
+            style="flex:1;min-width:0;max-width:900px",
+            children=[
+                Column(gap=8, children=[
+                    Heading(_t("components.title", "Componentes"),
+                            style=[GradientText.aurora(), TextStyle(size=48, weight="800")]),
+                    Paragraph(
+                        _t(
+                            "components.subtitle",
+                            "Widgets disponibles con demos en vivo. Haz clic en cualquier elemento para ver c\\u00f3mo funciona.",
+                        ),
+                        style=TextStyle(size=16, color="var(--text-muted)"),
+                    ),
+                ]),
+                *_sections(),
+            ],
+        )
+
+        base_style = [
+            MeshBackground.themed(),
+            "max-width:1300px;margin:0 auto;padding:32px 24px;box-sizing:border-box;min-height:100vh",
+        ]
+
+        if _in_studio_preview():
+            return Column(
+                gap=20,
+                style=base_style,
+                children=[
+                    Card(
+                        padding=16,
+                        style="border:1px dashed var(--border);background:var(--surface-2,var(--surface))",
+                        children=[
+                            Column(gap=6, children=[
+                                Text("Studio preview", style=TextStyle(size=12, weight="700", color="var(--text-muted)", letter_spacing=0.6)),
+                                Paragraph(
+                                    "El SideMenu lateral se oculta en el editor visual para dar m\\u00e1s espacio al canvas. En tiempo de ejecuci\\u00f3n la p\\u00e1gina se muestra con men\\u00fa lateral.",
+                                    style=TextStyle(size=14, color="var(--text-muted)"),
+                                ),
+                            ]),
+                        ],
+                    ),
+                    main_content,
+                ],
+            ), PageConfig(title="Componentes \\u2014 PROJECT_NAME")
 
         return Row(
             gap=0,
             align="flex-start",
-            style=[
-                MeshBackground.themed(),
-                "max-width:1300px;margin:0 auto;padding:32px 24px;box-sizing:border-box;min-height:100vh",
-            ],
+            style=base_style,
             children=[
                 Raw(
                     "<style>"
@@ -1902,25 +1953,7 @@ COMPONENTS_TEMPLATE = (
                     top=80,
                     style="max-height:calc(100vh - 100px);overflow-y:auto;flex-shrink:0;margin-right:28px",
                 ),
-                Column(
-                    class_name="docs-main",
-                    gap=24,
-                    style="flex:1;min-width:0;max-width:900px",
-                    children=[
-                        Column(gap=8, children=[
-                            Heading(_t("components.title", "Componentes"),
-                                    style=[GradientText.aurora(), TextStyle(size=48, weight="800")]),
-                            Paragraph(
-                                _t(
-                                    "components.subtitle",
-                                    "Widgets disponibles con demos en vivo. Haz clic en cualquier elemento para ver c\\u00f3mo funciona.",
-                                ),
-                                style=TextStyle(size=16, color="var(--text-muted)"),
-                            ),
-                        ]),
-                        *_sections(),
-                    ],
-                ),
+                main_content,
             ],
         ), PageConfig(title="Componentes \\u2014 PROJECT_NAME")
     """
