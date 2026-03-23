@@ -1,6 +1,6 @@
 import unittest
 
-from martin import Icon, Script, Stylesheet, StyleTag, ScrollToTop, ThemeToggle, WhatsAppButton
+from martin import Counter, Icon, Script, Stylesheet, StyleTag, ScrollToTop, ThemeToggle, WhatsAppButton
 
 from tests.snapshot_utils import assert_snapshot
 
@@ -64,6 +64,12 @@ class SpecialWidgetsSnapshotTests(unittest.TestCase):
         self.assertIn("fa-arrow-up", scroll_html)
         self.assertIn("fa-brands", wa_html)
         self.assertIn("fa-whatsapp", wa_html)
+
+    def test_counter_render(self):
+        html = Counter(to="2026-12-31 23:59:59", mode="countdown", format="clock").render()
+        self.assertIn('data-martin-counter="1"', html)
+        self.assertIn('"format": "clock"', html)
+        self.assertIn("beforeunload", html)
 
 
 if __name__ == "__main__":

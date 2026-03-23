@@ -1,6 +1,6 @@
 import unittest
 
-from martin import App, Button, Code, Row, ScrollToTop, Text, TextField, ThemeToggle
+from martin import App, Button, Code, Counter, Field, Row, ScrollToTop, Text, TextArea, TextField, ThemeToggle
 
 
 class UniversalAttrsTests(unittest.TestCase):
@@ -78,6 +78,23 @@ class UniversalAttrsTests(unittest.TestCase):
         self.assertIn("height:48px", html)
         self.assertIn("getComputedStyle", html)
         self.assertNotIn("offsetParent===null", html)
+
+    def test_condition_props_support_field_expressions(self):
+        button_html = Button("Continuar", visible=Field("estado") == "activo").render()
+        textarea_html = TextArea("demo", readonly=Field("modo") == "lock").render()
+        self.assertIn('data-martin-condition="1"', button_html)
+        self.assertIn('"__martin_expr__": "Condition"', button_html)
+        self.assertIn('"input_id": "estado"', button_html)
+        self.assertIn('data-martin-condition="1"', textarea_html)
+        self.assertIn('"input_id": "modo"', textarea_html)
+        self.assertIn("__martinConditionEngine", textarea_html)
+
+    def test_counter_renders_runtime_script(self):
+        html = Counter(to="2026-12-31 23:59:59", mode="countdown", format="human").render()
+        self.assertIn('data-martin-counter="1"', html)
+        self.assertIn('"mode": "countdown"', html)
+        self.assertIn('"format": "human"', html)
+        self.assertIn("setInterval", html)
 
 
 if __name__ == "__main__":

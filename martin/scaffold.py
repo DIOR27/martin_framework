@@ -477,7 +477,7 @@ COMPONENTS_TEMPLATE = (
         WordCloud, Map, Calendar, CalendarEvent, Timeline, TimelineItem, Hero,
         Gallery, GalleryItem, Carousel, CarouselItem,
         Border, Shadow, TextStyle, Glass, GradientText, MeshBackground, Colors,
-        SideMenu, Raw, ScrollToTop, WhatsAppButton, PageConfig,
+        SideMenu, Raw, ScrollToTop, WhatsAppButton, Counter, Field, PageConfig,
     )
     from martin.backend import ApiCall, Backend, MethodCall, Ref, Response, ResultBox
     from martin.fx import (
@@ -1847,6 +1847,74 @@ COMPONENTS_TEMPLATE = (
                 ),
             ], widget_name="ScrollToTop"))
 
+        if "Counter" in all_w:
+            secs.append(_sec("Counter", "Cuenta regresiva, progresiva y condiciones reactivas entre widgets.", [
+                Column(gap=14, children=[
+                    TextField(
+                        id="demo_role",
+                        placeholder="Escribe admin o lock",
+                        value="admin",
+                        width="100%",
+                    ),
+                    Row(gap=12, wrap=True, children=[
+                        Button(
+                            "Visible solo si el valor es admin",
+                            visible=Field("demo_role") == "admin",
+                        ),
+                        TextArea(
+                            value="Este campo pasa a solo lectura cuando escribes lock.",
+                            rows=3,
+                            width=320,
+                            readonly=Field("demo_role") == "lock",
+                        ),
+                        Button(
+                            "Deshabilitado si el campo está vacío",
+                            variant="secondary",
+                            disabled=~Field("demo_role"),
+                        ),
+                    ]),
+                    Row(gap=16, wrap=True, children=[
+                        Counter(
+                            to="2026-12-31 23:59:59",
+                            mode="countdown",
+                            format="human",
+                            padding=12,
+                            background="var(--surface-2,var(--surface))",
+                            radius=12,
+                        ),
+                        Counter(
+                            from_="2026-03-01 08:00:00",
+                            mode="countup",
+                            format="clock",
+                            padding=12,
+                            background="var(--surface-2,var(--surface))",
+                            radius=12,
+                        ),
+                    ]),
+                ]),
+                Code(
+                    "from martin import TextField, TextArea, Button, Counter, Field\\n\\n"
+                    "TextField(id='demo_role', placeholder='Escribe admin o lock')\\n\\n"
+                    "Button(\\n"
+                    "    'Visible solo si el valor es admin',\\n"
+                    "    visible=Field('demo_role') == 'admin',\\n"
+                    ")\\n\\n"
+                    "TextArea(\\n"
+                    "    value='Este campo pasa a solo lectura cuando escribes lock.',\\n"
+                    "    readonly=Field('demo_role') == 'lock',\\n"
+                    ")\\n\\n"
+                    "Button(\\n"
+                    "    'Deshabilitado si el campo está vacío',\\n"
+                    "    disabled=~Field('demo_role'),\\n"
+                    ")\\n\\n"
+                    "Counter(to='2026-12-31 23:59:59', mode='countdown', format='human')",
+                    block=True,
+                    language="python",
+                    filename="counter_conditions.py",
+                    copy=True,
+                ),
+            ], widget_name="Counter"))
+
         return secs
 
 
@@ -1878,6 +1946,7 @@ COMPONENTS_TEMPLATE = (
         ("Calendar",     "widget-calendar"),
         ("WordCloud",    "widget-wordcloud"),
         ("Language",     "widget-languageselector"),
+        ("Counter",      "widget-counter"),
         ("ScrollTop",    "widget-scrolltotop"),
     ]
 

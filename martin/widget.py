@@ -20,9 +20,11 @@ These are merged on top of the widget's own base styles automatically.
 """
 
 import html as _html
+import json as _json
 import re as _re
 from functools import wraps as _wraps
 
+from .conditions import serialize_condition, ConditionExpr
 from .styles import resolve_styles, StyleBase
 
 
@@ -63,6 +65,7 @@ class Widget:
         def _wrapped_render(self, *args, **kwargs):
             html = render(self, *args, **kwargs)
             html = self._apply_universal_attrs(html)
+            html = self._apply_conditional_behavior(html)
             html = self._apply_floating_behavior(html)
             return html
 
@@ -84,6 +87,9 @@ class Widget:
             "shadow",
             "opacity",
             "hidden",
+            "visible",
+            "readonly",
+            "disabled",
             "url",
             "url_target",
             "attrs",
@@ -106,6 +112,10 @@ class Widget:
             attrs.setdefault("role", props.get("role"))
         if props.get("tabindex") is not None:
             attrs.setdefault("tabindex", props.get("tabindex"))
+        if props.get("disabled") is True:
+            attrs.setdefault("aria-disabled", "true")
+        if props.get("readonly") is True:
+            attrs.setdefault("aria-readonly", "true")
 
         for key in list(kwargs.keys()):
             if key.startswith("aria_") or key.startswith("data_"):
@@ -217,6 +227,140 @@ class Widget:
     def _apply_universal_attrs(self, html: str) -> str:
         attrs = self._get_universal_attrs()
         return self._inject_attrs_into_first_tag(html, attrs)
+
+    def _apply_conditional_behavior(self, html: str) -> str:
+        props = getattr(self, "_props", {}) or {}
+        visible = props.get("visible")
+        if visible is None and props.get("hidden") is not None:
+            visible = not bool(props.get("hidden"))
+        readonly = props.get("readonly")
+        disabled = props.get("disabled")
+
+        if visible is None and readonly is None and disabled is None:
+            return html
+
+        uid = f"martin_cond_{id(self) & 0xFFFFFF:x}"
+        display_mode = "contents"
+        static_wrapper_style = "display:none;" if visible is False else f"display:{display_mode};"
+        config = {
+            "visible": serialize_condition(visible) if visible is not None else True,
+            "readonly": serialize_condition(readonly) if readonly is not None else False,
+            "disabled": serialize_condition(disabled) if disabled is not None else False,
+            "display": display_mode,
+        }
+        script = (
+            "<script>(function(){"
+            "if(!window.__martinConditionEngine){"
+            "window.__martinConditionEngine={"
+            "items:{},"
+            "getTarget:function(wrapper){"
+            "if(!wrapper)return null;"
+            "for(var i=0;i<wrapper.children.length;i++){"
+            "var child=wrapper.children[i];"
+            "if(!child||!child.tagName)continue;"
+            "if(/^(SCRIPT|STYLE|LINK|META)$/i.test(child.tagName))continue;"
+            "return child;"
+            "}"
+            "return wrapper.firstElementChild||wrapper;"
+            "},"
+            "getField:function(inputId,source){"
+            "if(!inputId)return null;"
+            "var el=document.getElementById(inputId)||document.getElementById(inputId+'_val')||document.querySelector('[name=\"'+String(inputId).replace(/\"/g,'\\\\\"')+'\"]');"
+            "if(!el)return null;"
+            "var tag=(el.tagName||'').toUpperCase();"
+            "var type=(el.type||'').toLowerCase();"
+            "var mode=(source||'auto').toLowerCase();"
+            "if(mode==='text')return (el.textContent||'').trim();"
+            "if(mode==='checked')return !!el.checked;"
+            "if(tag==='SELECT'&&el.multiple){return Array.prototype.slice.call(el.selectedOptions||[]).map(function(opt){return opt.value;});}"
+            "if(type==='checkbox')return !!el.checked;"
+            "if(type==='radio'){"
+            "if(el.name){var checked=document.querySelector('input[type=\"radio\"][name=\"'+String(el.name).replace(/\"/g,'\\\\\"')+'\"]:checked');return checked?checked.value:null;}"
+            "return !!el.checked;"
+            "}"
+            "if(el.value!==undefined)return el.value;"
+            "return (el.textContent||'').trim();"
+            "},"
+            "truthy:function(value){"
+            "if(Array.isArray(value))return value.length>0;"
+            "return !!value;"
+            "},"
+            "compare:function(left,operator,right){"
+            "if(operator==='contains'){return Array.isArray(left)?left.indexOf(right)>-1:String(left||'').indexOf(String(right||''))>-1;}"
+            "if(operator==='starts_with'){return String(left||'').startsWith(String(right||''));}"
+            "if(operator==='ends_with'){return String(left||'').endsWith(String(right||''));}"
+            "var leftNum=parseFloat(left), rightNum=parseFloat(right);"
+            "var bothNumeric=!isNaN(leftNum)&&!isNaN(rightNum)&&String(left).trim()!==''&&String(right).trim()!=='';"
+            "var a=bothNumeric?leftNum:left, b=bothNumeric?rightNum:right;"
+            "if(operator==='==')return a==b;"
+            "if(operator==='!=')return a!=b;"
+            "if(operator==='>')return a>b;"
+            "if(operator==='>=')return a>=b;"
+            "if(operator==='<')return a<b;"
+            "if(operator==='<=')return a<=b;"
+            "return !!a;"
+            "},"
+            "eval:function(expr){"
+            "if(expr===undefined||expr===null)return expr;"
+            "if(typeof expr!=='object'||Array.isArray(expr))return expr;"
+            "var kind=expr.__martin_expr__||'';"
+            "if(kind==='Field')return this.getField(expr.input_id,expr.source);"
+            "if(kind==='Condition')return this.compare(this.eval(expr.left),expr.operator||'==',this.eval(expr.right));"
+            "if(kind==='ConditionGroup'){"
+            "var items=Array.isArray(expr.items)?expr.items:[];"
+            "if((expr.operator||'and')==='or')return items.some(function(item){return window.__martinConditionEngine.truthy(window.__martinConditionEngine.eval(item));});"
+            "return items.every(function(item){return window.__martinConditionEngine.truthy(window.__martinConditionEngine.eval(item));});"
+            "}"
+            "if(kind==='ConditionNot')return !this.truthy(this.eval(expr.expr));"
+            "return expr;"
+            "},"
+            "apply:function(id){"
+            "var item=this.items[id];"
+            "if(!item)return;"
+            "var wrapper=document.getElementById(id);"
+            "if(!wrapper)return;"
+            "var target=this.getTarget(wrapper);"
+            "var isVisible=this.truthy(this.eval(item.visible));"
+            "wrapper.style.display=isVisible?(item.display||'contents'):'none';"
+            "var isDisabled=this.truthy(this.eval(item.disabled));"
+            "var isReadonly=this.truthy(this.eval(item.readonly));"
+            "if(target){"
+            "var supportsDisabled=('disabled' in target);"
+            "var supportsReadonly=('readOnly' in target);"
+            "if(supportsDisabled)target.disabled=!!isDisabled;"
+            "if(isDisabled){target.setAttribute('aria-disabled','true');target.setAttribute('data-martin-disabled','1');}"
+            "else{target.removeAttribute('aria-disabled');target.removeAttribute('data-martin-disabled');}"
+            "if(supportsReadonly)target.readOnly=!!isReadonly;"
+            "if(isReadonly){target.setAttribute('aria-readonly','true');target.setAttribute('data-martin-readonly','1');"
+            "if(!supportsReadonly&&supportsDisabled)target.disabled=true;}"
+            "else{target.removeAttribute('aria-readonly');target.removeAttribute('data-martin-readonly');}"
+            "}"
+            "if(window.__martinFloatLayout&&window.__martinFloatLayout.schedule){window.__martinFloatLayout.schedule();}"
+            "},"
+            "mount:function(id,config){this.items[id]=config;this.apply(id);},"
+            "refresh:function(){var self=this;Object.keys(self.items).forEach(function(id){self.apply(id);});},"
+            "ensure:function(){"
+            "if(this._bound)return;"
+            "this._bound=true;"
+            "var self=this;"
+            "document.addEventListener('input',function(){self.refresh();},true);"
+            "document.addEventListener('change',function(){self.refresh();},true);"
+            "document.addEventListener('click',function(){self.refresh();},true);"
+            "window.addEventListener('load',function(){self.refresh();});"
+            "document.addEventListener('DOMContentLoaded',function(){self.refresh();});"
+            "window.addEventListener('martin:condition-refresh',function(){self.refresh();});"
+            "}"
+            "};"
+            "window.__martinConditionEngine.ensure();"
+            "}"
+            "window.__martinConditionEngine.mount("
+            + _json.dumps(uid)
+            + ","
+            + _json.dumps(config, ensure_ascii=False)
+            + ");"
+            "})();</script>"
+        )
+        return f'<div id="{uid}" data-martin-condition="1" style="{static_wrapper_style}">{html}</div>' + script
 
     def _apply_floating_behavior(self, html: str) -> str:
         props = getattr(self, "_props", {}) or {}
@@ -367,7 +511,7 @@ class Widget:
         if op is not None:
             parts.append(f"opacity: {op}")
 
-        if props.get("hidden"):
+        if props.get("hidden") or props.get("visible") is False:
             parts.append("display: none")
 
         return "; ".join(p for p in parts if p)

@@ -10,6 +10,7 @@ Widgets especiales y utilitarios de alto nivel.
     ThemeToggle    — alterna tema dark/light/auto
     ScrollToTop    — botón flotante para volver al inicio
     WhatsAppButton — botón flotante de WhatsApp configurable
+    Counter        — contador progresivo/regresivo humanizado
     CookieCategory — configuración de categoría de cookies
     CookieBanner   — banner GDPR con persistencia
 """
@@ -523,6 +524,135 @@ class WhatsAppButton(Widget):
             + f'<span aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;line-height:1">{content_html}</span>'
             + label_html
             + f"</{tag}>"
+        )
+
+
+class Counter(Widget):
+    """
+    Contador progresivo o regresivo basado en fecha/hora.
+
+        Counter(to="2026-12-31 23:59:59", mode="countdown")
+        Counter(from_="2026-03-01 09:00:00", mode="countup", format="clock")
+        Counter(to="2026-04-01", mode="remaining", format="human")
+    """
+
+    _id_counter = 0
+
+    def __init__(
+        self,
+        to=None,
+        from_=None,
+        mode="countdown",
+        format="full",
+        prefix="",
+        suffix="",
+        completed_text="Ahora",
+        tick=1000,
+        labels=None,
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.to = to
+        self.from_ = from_
+        self.mode = str(mode or "countdown").lower()
+        self.format = str(format or "full").lower()
+        self.prefix = str(prefix or "")
+        self.suffix = str(suffix or "")
+        self.completed_text = str(completed_text or "Ahora")
+        self.tick = max(250, int(tick or 1000))
+        self.labels = labels or {
+            "day": "día",
+            "days": "días",
+            "hour": "hora",
+            "hours": "horas",
+            "minute": "minuto",
+            "minutes": "minutos",
+            "second": "segundo",
+            "seconds": "segundos",
+            "remaining": "Faltan",
+            "elapsed": "Han pasado",
+        }
+        Counter._id_counter += 1
+        self.uid = f"martin_counter_{Counter._id_counter}"
+
+    def render(self):
+        import json as _json
+
+        base = (
+            "display:inline-flex;align-items:center;gap:8px;"
+            "font-variant-numeric:tabular-nums;"
+            "color:var(--text);font-weight:700"
+        )
+        inline = self._resolve_props(base)
+        payload = {
+            "mode": self.mode,
+            "format": self.format,
+            "to": self.to,
+            "from": self.from_,
+            "prefix": self.prefix,
+            "suffix": self.suffix,
+            "completed_text": self.completed_text,
+            "tick": self.tick,
+            "labels": self.labels,
+        }
+        return (
+            f'<span id="{self.uid}" data-martin-counter="1" style="{inline}">'
+            f'{self.prefix}{self.completed_text}{self.suffix}'
+            f"</span>"
+            f"<script>(function(){{"
+            f"var el=document.getElementById({_json.dumps(self.uid)});"
+            f"if(!el||el.dataset.counterBound)return;"
+            f"el.dataset.counterBound='1';"
+            f"var cfg={_json.dumps(payload, ensure_ascii=False)};"
+            f"function parseDate(value){{"
+            f"  if(!value)return null;"
+            f"  var parsed=new Date(value);"
+            f"  return isNaN(parsed.getTime())?null:parsed;"
+            f"}}"
+            f"function pad(n){{n=Math.max(0,Math.floor(n||0));return n<10?'0'+n:String(n);}}"
+            f"function splitParts(totalMs){{"
+            f"  var total=Math.max(0,Math.floor(totalMs/1000));"
+            f"  var days=Math.floor(total/86400);"
+            f"  var hours=Math.floor((total%86400)/3600);"
+            f"  var minutes=Math.floor((total%3600)/60);"
+            f"  var seconds=total%60;"
+            f"  return {{days:days,hours:hours,minutes:minutes,seconds:seconds}};"
+            f"}}"
+            f"function human(parts,labels,prefix){{"
+            f"  var units=[];"
+            f"  if(parts.days)units.push(parts.days+' '+(parts.days===1?labels.day:labels.days));"
+            f"  if(parts.hours)units.push(parts.hours+' '+(parts.hours===1?labels.hour:labels.hours));"
+            f"  if(parts.minutes)units.push(parts.minutes+' '+(parts.minutes===1?labels.minute:labels.minutes));"
+            f"  if(parts.seconds||!units.length)units.push(parts.seconds+' '+(parts.seconds===1?labels.second:labels.seconds));"
+            f"  return (prefix?prefix+' ':'')+units.slice(0,2).join(' ');"
+            f"}}"
+            f"function formatText(diffMs){{"
+            f"  var parts=splitParts(diffMs);"
+            f"  if(cfg.format==='clock')return pad(parts.hours+(parts.days*24))+':'+pad(parts.minutes)+':'+pad(parts.seconds);"
+            f"  if(cfg.format==='human'){{"
+            f"    var marker=(cfg.mode==='countup')?cfg.labels.elapsed:cfg.labels.remaining;"
+            f"    return human(parts,cfg.labels,marker);"
+            f"  }}"
+            f"  return parts.days+'d '+pad(parts.hours)+'h '+pad(parts.minutes)+'m '+pad(parts.seconds)+'s';"
+            f"}}"
+            f"function render(){{"
+            f"  var now=new Date();"
+            f"  var target=parseDate(cfg.to);"
+            f"  var source=parseDate(cfg.from)||now;"
+            f"  var diff=0;"
+            f"  if(cfg.mode==='countup')diff=Math.max(0,now.getTime()-source.getTime());"
+            f"  else if(target)diff=target.getTime()-now.getTime();"
+            f"  else diff=0;"
+            f"  if(diff<=0&&(cfg.mode==='countdown'||cfg.mode==='remaining')){{"
+            f"    el.textContent=(cfg.prefix||'')+(cfg.completed_text||'Ahora')+(cfg.suffix||'');"
+            f"    return;"
+            f"  }}"
+            f"  el.textContent=(cfg.prefix||'')+formatText(diff)+(cfg.suffix||'');"
+            f"}}"
+            f"render();"
+            f"var timer=window.setInterval(render,Math.max(250,parseInt(cfg.tick||1000,10)||1000));"
+            f"window.addEventListener('beforeunload',function(){{clearInterval(timer);}});"
+            f"}})();</script>"
         )
 
 

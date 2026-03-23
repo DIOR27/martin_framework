@@ -14,7 +14,15 @@ Widgets de interacción: botones, campos de texto y selectores.
 import json as _json
 import uuid as _uuid
 
+from ..conditions import ConditionExpr
 from ..widget import Widget
+
+
+def _bind_runtime_prop(props, name, value, fallback=False):
+    if isinstance(value, ConditionExpr):
+        props[name] = value
+        return fallback
+    return value
 
 
 # =============================================================================
@@ -73,7 +81,7 @@ class Button(Widget):
         self.label = label
         self.variant = variant
         self.href = href
-        self.disabled = disabled
+        self.disabled = _bind_runtime_prop(self._props, "disabled", disabled, False)
         self.id = id
         self.class_name = class_name
         self.on_click = on_click  # str JS | objeto con .to_js(btn_id)
@@ -165,7 +173,7 @@ class TextField(Widget):
         self.type = type
         self.name = name
         self.id = id
-        self.disabled = disabled
+        self.disabled = _bind_runtime_prop(self._props, "disabled", disabled, False)
 
     def render(self):
         base = (
@@ -253,8 +261,8 @@ class TextArea(Widget):
         self.value = value
         self.rows = rows
         self.name = name
-        self.disabled = disabled
-        self.readonly = readonly
+        self.disabled = _bind_runtime_prop(self._props, "disabled", disabled, False)
+        self.readonly = _bind_runtime_prop(self._props, "readonly", readonly, False)
         self.resize = resize
         self.auto_resize = auto_resize
         self.max_length = max_length
@@ -887,7 +895,7 @@ class Slider(Widget):
         self.show_ticks = show_ticks
         self.format = format
         self.name = name
-        self.disabled = disabled
+        self.disabled = _bind_runtime_prop(self._props, "disabled", disabled, False)
         self.color = color
         Slider._id_counter += 1
         self.uid = id or f"sl_{Slider._id_counter}"
@@ -1170,7 +1178,7 @@ class RadioGroup(Widget):
         self.name = name
         self.label = label
         self.direction = direction
-        self.disabled = disabled
+        self.disabled = _bind_runtime_prop(self._props, "disabled", disabled, False)
         self.on_change = on_change
         RadioGroup._id_counter += 1
         self.uid = id or f"rg_{RadioGroup._id_counter}"
@@ -1296,7 +1304,7 @@ class NumberInput(Widget):
         self.step = step
         self.format = format
         self.name = name
-        self.disabled = disabled
+        self.disabled = _bind_runtime_prop(self._props, "disabled", disabled, False)
         self.on_change = on_change
         NumberInput._id_counter += 1
         self.uid = id or f"ni_{NumberInput._id_counter}"
@@ -1432,7 +1440,7 @@ class TimePicker(Widget):
         self.seconds = seconds
         self.format_12h = format_12h
         self.name = name
-        self.disabled = disabled
+        self.disabled = _bind_runtime_prop(self._props, "disabled", disabled, False)
         self.step = step
         self.on_change = on_change
         TimePicker._id_counter += 1
@@ -1762,7 +1770,7 @@ class Rating(Widget):
         self.value = value
         self.max = max
         self.label = label
-        self.readonly = readonly
+        self.readonly = _bind_runtime_prop(self._props, "readonly", readonly, False)
         self.half = half
         self.symbol = symbol
         self.color = color
@@ -1921,7 +1929,7 @@ class FileInput(Widget):
         self.accept = accept
         self.multiple = multiple
         self.drag_drop = drag_drop
-        self.disabled = disabled
+        self.disabled = _bind_runtime_prop(self._props, "disabled", disabled, False)
         self.on_change = on_change
         self.max_size_mb = max_size_mb
         FileInput._id_counter += 1
@@ -2206,7 +2214,7 @@ class ColorPicker(Widget):
         self.presets = presets or []
         self.show_hex = show_hex
         self.name = name
-        self.disabled = disabled
+        self.disabled = _bind_runtime_prop(self._props, "disabled", disabled, False)
         ColorPicker._id_counter += 1
         self.uid = id or f"cp_{ColorPicker._id_counter}"
 
@@ -2410,7 +2418,7 @@ class DatePicker(Widget):
         self.name = name
         self.name_start = name_start or (f"{name}_start" if name else "")
         self.name_end = name_end or (f"{name}_end" if name else "")
-        self.disabled = disabled
+        self.disabled = _bind_runtime_prop(self._props, "disabled", disabled, False)
         self.fmt = format
         DatePicker._id_counter += 1
         self.uid = id or f"dp_{DatePicker._id_counter}"

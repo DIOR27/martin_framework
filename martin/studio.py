@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 from .backend import ApiCall, MethodCall, Ref
+from .conditions import ConditionExpr, serialize_condition
 from .widget import Widget
 from . import widgets as _widgets
 from .styles import resolve_styles
@@ -30,6 +31,9 @@ UNIVERSAL_PROPS = [
     {"name": "shadow", "type": "string", "default": None, "group": "style"},
     {"name": "opacity", "type": "float", "default": None, "group": "style"},
     {"name": "hidden", "type": "boolean", "default": None, "group": "style"},
+    {"name": "visible", "type": "condition", "default": True, "group": "state", "editor": {"type": "condition"}},
+    {"name": "readonly", "type": "condition", "default": False, "group": "state", "editor": {"type": "condition"}},
+    {"name": "disabled", "type": "condition", "default": False, "group": "state", "editor": {"type": "condition"}},
     {"name": "url", "type": "string", "default": None, "group": "link"},
     {"name": "url_target", "type": "string", "default": None, "group": "link"},
     {"name": "role", "type": "string", "default": None, "group": "a11y"},
@@ -109,6 +113,7 @@ WIDGET_CATEGORIES = {
     "ThemeToggle": "utility",
     "ScrollToTop": "utility",
     "WhatsAppButton": "utility",
+    "Counter": "utility",
     "SafeArea": "utility",
     "CookieBanner": "utility",
     "CookieCategory": "utility",
@@ -154,6 +159,8 @@ ENUMS = {
     "Hero.actions_direction": ["row", "column"],
     "Drawer.side": ["left", "right"],
     "Code.theme": ["auto", "dark", "light"],
+    "Counter.mode": ["countdown", "countup", "remaining"],
+    "Counter.format": ["full", "human", "clock"],
 }
 
 
@@ -223,6 +230,7 @@ WIDGET_PRESETS = {
     "ThemeToggle": {"title": "Cambiar tema"},
     "ScrollToTop": {"icon": "↑", "show_after": 240},
     "WhatsAppButton": {"phone": "593999999999", "message": "Hola Martin"},
+    "Counter": {"to": "2026-12-31 23:59:59", "mode": "countdown", "format": "human"},
     "CookieBanner": {"title": "Cookies", "message": "We use cookies to improve the experience."},
     "CookieCategory": {"title": "Analytics", "description": "Anonymous usage metrics."},
     "SafeArea": {},
@@ -323,6 +331,30 @@ WIDGET_PRESETS = {
 }
 
 PROP_EDITORS = {
+    "ScrollToTop.icon": {
+        "type": "icon_widget",
+    },
+    "WhatsAppButton.icon": {
+        "type": "icon_widget",
+    },
+    "Icon.provider": {
+        "type": "icon_provider",
+        "options": [
+            "none",
+            "fontawesome",
+            "bootstrap-icons",
+            "material-symbols",
+            "material-icons",
+            "mdi",
+            "custom",
+        ],
+    },
+    "Icon.name": {
+        "type": "icon_name",
+    },
+    "Icon.icon": {
+        "type": "icon_value",
+    },
     "Code.language": {
         "type": "code_language",
         "options": [
@@ -403,6 +435,8 @@ def _infer_type(widget_name: str, param_name: str, annotation, default):
     enum_key = f"{widget_name}.{param_name}"
     if enum_key in ENUMS:
         return "enum"
+    if param_name in {"visible", "readonly", "disabled"}:
+        return "condition"
 
     if param_name in {
         "options",
@@ -480,6 +514,10 @@ def _describe_parameter(widget_name: str, param: inspect.Parameter) -> dict:
     editor_key = f"{widget_name}.{param.name}"
     if editor_key in PROP_EDITORS:
         result["editor"] = dict(PROP_EDITORS[editor_key])
+    elif param.name in {"visible", "readonly", "disabled"}:
+        result["editor"] = {"type": "condition"}
+    elif param.name == "icon" and result["type"] == "string":
+        result["editor"] = {"type": "icon_value"}
     return result
 
 
@@ -512,6 +550,7 @@ def get_widget_catalog() -> dict:
             if param.name in STRUCTURAL_PARAMS:
                 accepts_children = True
 
+        existing_param_names = {param["name"] for param in params}
         widgets.append(
             {
                 "name": name,
@@ -522,7 +561,7 @@ def get_widget_catalog() -> dict:
                 "accepts_children": accepts_children,
                 "has_content_slot": has_content_slot,
                 "preset_props": get_widget_preset(name),
-                "params": params + [dict(prop) for prop in UNIVERSAL_PROPS],
+                "params": params + [dict(prop) for prop in UNIVERSAL_PROPS if prop["name"] not in existing_param_names],
             }
         )
 
@@ -796,6 +835,8 @@ class _StudioRuntimeSerializer:
             return None
         if isinstance(value, (str, int, float, bool)):
             return value
+        if isinstance(value, ConditionExpr):
+            return serialize_condition(value)
         if isinstance(value, Ref):
             return {
                 "__martin_expr__": "Ref",
@@ -828,6 +869,20 @@ class _StudioRuntimeSerializer:
                 "on_error": getattr(value, "on_error", None),
             }
         if isinstance(value, Widget):
+            if value.__class__.__name__ == "Icon":
+                return {
+                    "__martin_expr__": "IconWidget",
+                    "icon": getattr(value, "icon", None),
+                    "name": getattr(value, "name", None),
+                    "provider": getattr(value, "provider", None),
+                    "variant": getattr(value, "variant", None),
+                    "icon_class": getattr(value, "icon_class", None),
+                    "class_name": getattr(value, "class_name", None),
+                    "base_class": getattr(value, "base_class", None),
+                    "name_prefix": getattr(value, "name_prefix", None),
+                    "name_suffix": getattr(value, "name_suffix", None),
+                    "size": getattr(value, "size", None),
+                }
             if value.__class__.__name__ == "Raw" and hasattr(value, "html"):
                 text = re.sub(r"<[^>]+>", "", str(getattr(value, "html", "")))
                 return html.unescape(text).strip() or getattr(value, "html", "")

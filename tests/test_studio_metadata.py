@@ -43,6 +43,17 @@ class StudioMetadataTests(unittest.TestCase):
         self.assertIn("bottom-right", params["float_position"]["options"])
         self.assertIn("float_gap", params)
         self.assertEqual(params["float_gap"]["default"], 12)
+        self.assertIn("visible", params)
+        self.assertEqual(params["visible"]["type"], "condition")
+        self.assertEqual(params["visible"]["editor"]["type"], "condition")
+
+    def test_counter_is_exposed_in_catalog(self):
+        counter = describe_widget("Counter")
+        self.assertIsNotNone(counter)
+        params = {param["name"]: param for param in counter["params"]}
+        self.assertIn("mode", params)
+        self.assertEqual(params["mode"]["type"], "enum")
+        self.assertIn("countdown", params["mode"]["options"])
 
     def test_complex_widget_params_expose_editor_metadata(self):
         calendar = describe_widget("Calendar")
