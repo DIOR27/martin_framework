@@ -1,6 +1,6 @@
 import unittest
 
-from martin import Counter, Icon, Script, Stylesheet, StyleTag, ScrollToTop, ThemeToggle, WhatsAppButton
+from martin import Counter, Icon, Script, Stylesheet, StyleTag, ScrollToTop, ThemeToggle, Toast, ToastCenter, WhatsAppButton
 
 from tests.snapshot_utils import assert_snapshot
 
@@ -70,6 +70,25 @@ class SpecialWidgetsSnapshotTests(unittest.TestCase):
         self.assertIn('data-martin-counter="1"', html)
         self.assertIn('"format": "clock"', html)
         self.assertIn("beforeunload", html)
+
+    def test_toast_render(self):
+        html = Toast(
+            title="Saved",
+            message="Changes applied",
+            variant="success",
+            duration=0,
+            position="top-right",
+        ).render()
+        self.assertIn('data-martin-toast="1"', html)
+        self.assertIn("window.__martinToastLayout", html)
+        self.assertIn("Changes applied", html)
+        self.assertIn("top-right", html)
+
+    def test_toast_center_render(self):
+        html = ToastCenter(items=[{"message": "Ready", "variant": "info"}]).render()
+        self.assertIn("window.martinNotify", html)
+        self.assertIn("__martinToastFromPayload", html)
+        self.assertIn("Ready", html)
 
 
 if __name__ == "__main__":

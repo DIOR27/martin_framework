@@ -1,5 +1,7 @@
 import unittest
 from unittest.mock import patch
+import tempfile
+from pathlib import Path
 
 from martin import App, Button, Text
 from martin.backend import ApiCall, Backend, Mailer, MethodCall, Response, SMTPConfig
@@ -36,6 +38,7 @@ class BackendExtensionTests(unittest.TestCase):
         self.assertIn("fetch(", html)
         self.assertIn("/api/save", html)
         self.assertIn("send_btn", html)
+        self.assertIn("__martinToastFromPayload", html)
 
     def test_backend_respects_response_instances(self):
         backend = Backend(prefix="/api")
@@ -125,6 +128,84 @@ class BackendExtensionTests(unittest.TestCase):
             password="secret",
         )
         self.assertIs(backend.mailer, mailer)
+
+    def test_backend_with_toast_adds_feedback_payload(self):
+        backend = Backend(prefix="/api")
+        payload = backend.with_toast({"message": "ok"}, message="Saved", variant="success")
+        self.assertEqual(payload["message"], "ok")
+        self.assertEqual(payload["toast"]["message"], "Saved")
+        self.assertEqual(payload["toast"]["variant"], "success")
+
+    def test_request_parses_multipart_form_and_files(self):
+        backend = Backend(prefix="/api")
+
+        @backend.post("/upload")
+        def upload(req):
+            asset = req.file("asset")
+            return {
+                "title": req.form().get("title"),
+                "name": asset.filename,
+                "size": asset.size,
+                "content_type": asset.content_type,
+            }
+
+        boundary = "----martinBoundary"
+        body = (
+            f"--{boundary}\r\n"
+            'Content-Disposition: form-data; name="title"\r\n\r\n'
+            "Demo file\r\n"
+            f"--{boundary}\r\n"
+            'Content-Disposition: form-data; name="asset"; filename="demo.txt"\r\n'
+            "Content-Type: text/plain\r\n\r\n"
+            "hello martin\r\n"
+            f"--{boundary}--\r\n"
+        ).encode("utf-8")
+        resp = backend.handle_request(
+            "POST",
+            "/api/upload",
+            "",
+            body,
+            {"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        )
+        self.assertEqual(resp.status, 200)
+        payload, _ = resp.to_bytes()
+        self.assertIn(b'"title": "Demo file"', payload)
+        self.assertIn(b'"name": "demo.txt"', payload)
+        self.assertIn(b'"content_type": "text/plain"', payload)
+
+    def test_backend_auth_session_flow(self):
+        backend = Backend(prefix="/api")
+
+        @backend.post("/auth/login")
+        def login(req):
+            return backend.login({"user": "admin"})
+
+        @backend.get("/auth/me")
+        @backend.require_auth
+        def me(req):
+            return {"user": backend.get_session(req)}
+
+        login_resp = backend.handle_request("POST", "/api/auth/login", "", b"{}", {"Content-Type": "application/json"})
+        self.assertEqual(login_resp.status, 200)
+        cookies = login_resp.headers.get("Set-Cookie")
+        self.assertTrue(cookies)
+        me_resp = backend.handle_request("GET", "/api/auth/me", "", b"", {"Cookie": cookies})
+        self.assertEqual(me_resp.status, 200)
+        payload, _ = me_resp.to_bytes()
+        self.assertIn(b'"user": {"user": "admin"}', payload)
+
+    def test_backend_can_persist_sessions_to_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = Path(tmp) / "sessions.json"
+            backend = Backend(prefix="/api", session_store=str(store))
+            sid = backend.create_session({"user": "persisted"})
+            self.assertTrue(store.exists())
+
+            backend2 = Backend(prefix="/api", session_store=str(store))
+            req_headers = {"Cookie": f"{backend2.session_cookie}={sid}"}
+            req_resp = backend2.handle_request("GET", "/api/missing", "", b"", req_headers)
+            self.assertEqual(backend2.get_session(type("Req", (), {"cookies": {backend2.session_cookie: sid}})()), {"user": "persisted"})
+            self.assertEqual(req_resp.status, 404)
 
 
 if __name__ == "__main__":

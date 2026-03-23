@@ -2044,6 +2044,452 @@ class FileInput(Widget):
 
 
 # =============================================================================
+# Uploader
+# =============================================================================
+
+
+class Uploader(Widget):
+    """
+    Widget de subida avanzada con drag & drop, cola visual y progreso.
+
+        Uploader(upload_url="/api/upload")
+        Uploader(accept="image/*", multiple=True, show_preview=True)
+        Uploader(max_files=4, max_size_mb=8, chunk_size_mb=1)
+    """
+
+    _id_counter = 0
+
+    def __init__(
+        self,
+        label=None,
+        name="file",
+        accept="*",
+        multiple=True,
+        drag_drop=True,
+        id=None,
+        disabled=False,
+        upload_url=None,
+        auto_upload=False,
+        max_files=None,
+        max_size_mb=None,
+        chunk_size_mb=None,
+        layout="list",
+        show_preview=True,
+        helper_text=None,
+        button_label="Seleccionar archivos",
+        upload_label="Subir archivos",
+        empty_text="Arrastra archivos aquí o selecciónalos para empezar.",
+        headers=None,
+        on_change=None,
+        on_success=None,
+        on_error=None,
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.label = label
+        self.name = name or "file"
+        self.accept = accept or "*"
+        self.multiple = bool(multiple)
+        self.drag_drop = bool(drag_drop)
+        self.disabled = _bind_runtime_prop(self._props, "disabled", disabled, False)
+        self.upload_url = upload_url
+        self.auto_upload = bool(auto_upload)
+        self.max_files = max(1, int(max_files)) if max_files else None
+        self.max_size_mb = float(max_size_mb) if max_size_mb else None
+        self.chunk_size_mb = float(chunk_size_mb) if chunk_size_mb else None
+        self.layout = str(layout or "list").lower()
+        if self.layout not in {"list", "gallery"}:
+            self.layout = "list"
+        self.show_preview = bool(show_preview)
+        self.helper_text = helper_text
+        self.button_label = str(button_label or "Seleccionar archivos")
+        self.upload_label = str(upload_label or "Subir archivos")
+        self.empty_text = str(empty_text or "Arrastra archivos aquí o selecciónalos para empezar.")
+        self.headers = headers or {}
+        self.on_change = on_change
+        self.on_success = on_success
+        self.on_error = on_error
+        Uploader._id_counter += 1
+        self.uid = id or f"uploader_{Uploader._id_counter}"
+
+    def render(self):
+        uid = self.uid
+        extra = self._resolve_props()
+        accept_js = _json.dumps(self.accept)
+        upload_url_js = _json.dumps(self.upload_url or "")
+        headers_js = _json.dumps(self.headers, ensure_ascii=False)
+        empty_text_js = _json.dumps(self.empty_text)
+        helper_text_js = _json.dumps(self.helper_text or "")
+        button_label_js = _json.dumps(self.button_label)
+        upload_label_js = _json.dumps(self.upload_label)
+        on_change_js = _json.dumps(self.on_change or "")
+        on_success_js = _json.dumps(self.on_success or "")
+        on_error_js = _json.dumps(self.on_error or "")
+        max_files_js = "null" if self.max_files is None else str(self.max_files)
+        max_size_bytes_js = "null" if self.max_size_mb is None else str(int(self.max_size_mb * 1024 * 1024))
+        chunk_bytes_js = "null" if self.chunk_size_mb is None else str(int(self.chunk_size_mb * 1024 * 1024))
+        layout_js = _json.dumps(self.layout)
+        label_html = (
+            f'<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">{self.label}</div>'
+            if self.label
+            else ""
+        )
+        disabled_attr = " disabled" if self.disabled else ""
+        multiple_attr = " multiple" if self.multiple else ""
+        helper_html = (
+            f'<div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">{self.helper_text}</div>'
+            if self.helper_text
+            else ""
+        )
+        icon = (
+            '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" '
+            'stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" '
+            'style="color:var(--accent);flex-shrink:0">'
+            '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>'
+            '<polyline points="17 8 12 3 7 8"/>'
+            '<line x1="12" y1="3" x2="12" y2="15"/>'
+            "</svg>"
+        )
+        drop_hint = "Arrastra y suelta" if self.drag_drop else "Selecciona"
+        helper_meta = []
+        if self.max_files:
+            helper_meta.append(f"{self.max_files} archivos máx.")
+        if self.max_size_mb:
+            helper_meta.append(f"{self.max_size_mb:g} MB por archivo")
+        if self.chunk_size_mb:
+            helper_meta.append(f"chunk {self.chunk_size_mb:g} MB")
+        meta_html = ""
+        if helper_meta:
+            meta_html = (
+                '<div style="font-size:11px;color:var(--text-muted);margin-top:6px">'
+                + " · ".join(helper_meta)
+                + "</div>"
+            )
+
+        wrapper_style = "display:flex;flex-direction:column;gap:10px"
+        if extra:
+            wrapper_style += f";{extra}"
+
+        js = f"""<script>(function(){{
+var uid={_json.dumps(uid)};
+var uploadUrl={upload_url_js};
+var input=document.getElementById(uid+'_input');
+var zone=document.getElementById(uid+'_zone');
+var queue=document.getElementById(uid+'_queue');
+var status=document.getElementById(uid+'_status');
+var uploadBtn=document.getElementById(uid+'_upload');
+var pickBtn=document.getElementById(uid+'_pick');
+var disabled={str(self.disabled).lower()};
+var accept={accept_js};
+var maxFiles={max_files_js};
+var maxSizeBytes={max_size_bytes_js};
+var chunkBytes={chunk_bytes_js};
+var layoutMode={layout_js};
+var autoUpload={str(self.auto_upload).lower()};
+var showPreview={str(self.show_preview).lower()};
+var inputName={_json.dumps(self.name)};
+var customHeaders={headers_js};
+var helperText={helper_text_js};
+var state={{items:[], busy:false}};
+
+if(!window.__martinToastFromPayload){{
+  window.__martinToastHide=function(id){{var el=document.getElementById(id);if(!el)return;
+    el.style.opacity='0';el.style.transform='translateY(10px) scale(.96)';
+    setTimeout(function(){{if(el&&el.parentNode){{el.parentNode.removeChild(el);window.__martinToastLayout&&window.__martinToastLayout();}}}},220);
+  }};
+  window.__martinToastLayout=function(){{var groups={{}};
+    document.querySelectorAll('[data-martin-toast="1"]').forEach(function(el){{var pos=el.getAttribute('data-toast-position')||'bottom-right';(groups[pos]=groups[pos]||[]).push(el);}});
+    Object.keys(groups).forEach(function(pos){{var items=groups[pos], offset=20;
+      items.forEach(function(el){{var anchor=el.getAttribute('data-toast-anchor')||'bottom';
+        if(anchor==='top'){{el.style.top=offset+'px';el.style.bottom='';}}else{{el.style.bottom=offset+'px';el.style.top='';}}
+        offset += el.offsetHeight + 12; el.style.opacity='1'; el.style.transform='translateY(0) scale(1)';
+      }});
+    }});
+  }};
+  window.__martinToastFromPayload=function(payload){{if(!payload||typeof payload!=='object')return;
+    var variant=payload.variant||'info';
+    var map={{info:{{bg:'rgba(59,130,246,0.14)',border:'rgba(59,130,246,0.28)',icon:'ℹ️',color:'#60a5fa'}},success:{{bg:'rgba(34,197,94,0.14)',border:'rgba(34,197,94,0.28)',icon:'✅',color:'#4ade80'}},warning:{{bg:'rgba(234,179,8,0.14)',border:'rgba(234,179,8,0.28)',icon:'⚠️',color:'#facc15'}},error:{{bg:'rgba(239,68,68,0.14)',border:'rgba(239,68,68,0.28)',icon:'❌',color:'#f87171'}}}};
+    var cfg=map[variant]||map.info, pos=payload.position||'bottom-right', anchor=pos.indexOf('top')===0?'top':'bottom';
+    var wrap=document.createElement('div'), id='martin_toast_runtime_'+Math.random().toString(36).slice(2);
+    wrap.id=id; wrap.setAttribute('data-martin-toast','1'); wrap.setAttribute('data-toast-position',pos); wrap.setAttribute('data-toast-anchor',anchor);
+    wrap.style.cssText='position:fixed;left:'+(pos.indexOf('left')>=0?'20px':'')+';right:'+(pos.indexOf('right')>=0?'20px':'')+';max-width:360px;width:min(calc(100vw - 32px),360px);display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-radius:16px;background:'+cfg.bg+';border:1px solid '+cfg.border+';backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 16px 48px rgba(0,0,0,0.24);z-index:1200;opacity:0;transform:translateY(12px) scale(.96);transition:opacity .22s ease,transform .22s ease;';
+    var title=payload.title?'<div style=\"font-weight:700;font-size:14px;color:'+cfg.color+';margin-bottom:4px;\">'+payload.title+'</div>':'';
+    var closable=payload.closable!==false;
+    wrap.innerHTML='<div style=\"font-size:18px;line-height:1.1\">'+(payload.icon||cfg.icon)+'</div><div style=\"flex:1;min-width:0;font-size:14px;color:var(--text);line-height:1.5\">'+title+(payload.message||'')+'</div>'+(closable?'<button type=\"button\" style=\"margin-left:auto;border:none;background:transparent;color:var(--text-muted);font-size:16px;cursor:pointer;line-height:1;padding:2px 0 0 6px\">×</button>':'');
+    document.body.appendChild(wrap);
+    if(closable){{var btn=wrap.querySelector('button'); if(btn) btn.addEventListener('click', function(){{window.__martinToastHide(id);}});}}
+    requestAnimationFrame(function(){{window.__martinToastLayout&&window.__martinToastLayout();}});
+    var duration=Number(payload.duration||0); if(duration>0) setTimeout(function(){{window.__martinToastHide&&window.__martinToastHide(id);}}, duration);
+  }};
+  window.addEventListener('resize', window.__martinToastLayout);
+}}
+
+function exec(code, payload){{
+  if(!code) return;
+  try{{ new Function('payload', code)(payload); }}catch(err){{ console.error(err); }}
+}}
+function fmtBytes(bytes){{
+  var units=['B','KB','MB','GB']; var value=Number(bytes||0), idx=0;
+  while(value>=1024 && idx<units.length-1){{ value/=1024; idx++; }}
+  return (idx===0?Math.round(value):value.toFixed(1))+' '+units[idx];
+}}
+function setStatus(message, tone){{
+  if(!status) return;
+  status.textContent=message||'';
+  status.style.color=tone==='error'?'var(--danger,#ef4444)':tone==='success'?'var(--success,#22c55e)':'var(--text-muted)';
+}}
+function showToast(payload){{
+  if(payload && window.__martinToastFromPayload) window.__martinToastFromPayload(payload);
+}}
+function acceptList(){{
+  return String(accept||'*').split(',').map(function(part){{ return part.trim().toLowerCase(); }}).filter(Boolean);
+}}
+function fileAccepted(file){{
+  var rules=acceptList();
+  if(!rules.length || rules.indexOf('*')>=0) return true;
+  var name=String(file.name||'').toLowerCase();
+  var type=String(file.type||'').toLowerCase();
+  return rules.some(function(rule){{
+    if(rule==='*') return true;
+    if(rule.slice(0,1)==='.') return name.endsWith(rule);
+    if(rule.endsWith('/*')) return type.indexOf(rule.slice(0,-1))===0;
+    return type===rule || name.endsWith('.'+rule.split('/').pop());
+  }});
+}}
+function ensurePreview(item){{
+  if(!showPreview) return '';
+  if(item.preview) return item.preview;
+  if(item.file && item.file.type && item.file.type.indexOf('image/')===0){{
+    try{{ item.preview=URL.createObjectURL(item.file); }}catch(err){{ item.preview=''; }}
+  }}
+  return item.preview||'';
+}}
+function renderQueue(){{
+  if(!queue) return;
+  if(!state.items.length){{
+    queue.innerHTML='<div style="font-size:13px;color:var(--text-muted);padding:14px 0">'+{empty_text_js}+'</div>';
+  }} else {{
+    if(layoutMode==='gallery'){{
+      queue.style.display='grid';
+      queue.style.gridTemplateColumns='repeat(auto-fit,minmax(180px,1fr))';
+    }}else{{
+      queue.style.display='grid';
+      queue.style.gridTemplateColumns='1fr';
+    }}
+    queue.innerHTML=state.items.map(function(item, index){{
+      var preview=ensurePreview(item);
+      var badgeColor=item.status==='error'?'var(--danger,#ef4444)':item.status==='done'?'var(--success,#22c55e)':'var(--text-muted)';
+      var statusLabel=item.status==='uploading'?'Subiendo':item.status==='done'?'Completado':item.status==='error'?'Error':'Pendiente';
+      var previewHtml=preview
+        ? '<img src=\"'+preview+'\" alt=\"'+item.name+'\" style=\"'+(layoutMode==='gallery'?'width:100%;height:132px;':'width:44px;height:44px;')+'border-radius:10px;object-fit:cover;border:1px solid var(--border)\">'
+        : '<div style=\"'+(layoutMode==='gallery'?'width:100%;height:132px;':'width:44px;height:44px;')+'border-radius:10px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;background:var(--surface-2,var(--surface));color:var(--text-muted);font-size:18px\">'+(item.file && item.file.type && item.file.type.indexOf('image/')===0?'🖼':'📄')+'</div>';
+      var removeDisabled=state.busy?'disabled':'';
+      return layoutMode==='gallery'
+        ? ''
+        + '<div style=\"display:grid;gap:10px;padding:12px;border:1px solid var(--border);border-radius:14px;background:var(--surface-2,var(--surface))\">'
+        + previewHtml
+        + '<div style=\"display:grid;gap:6px;min-width:0\">'
+        +   '<div style=\"display:flex;gap:8px;align-items:center;justify-content:space-between\">'
+        +     '<strong style=\"font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis\">'+item.name+'</strong>'
+        +     '<span style=\"font-size:11px;color:'+badgeColor+'\">'+statusLabel+'</span>'
+        +   '</div>'
+        +   '<div style=\"font-size:12px;color:var(--text-muted)\">'+fmtBytes(item.size)+(item.error?' · '+item.error:'')+'</div>'
+        +   '<div style=\"height:8px;border-radius:999px;background:rgba(148,163,184,.16);overflow:hidden\"><div style=\"height:100%;width:'+Math.max(0,Math.min(100,item.progress||0))+'%;background:linear-gradient(90deg,var(--accent),#22d3ee);transition:width .2s ease\"></div></div>'
+        + '</div>'
+        + '<button type=\"button\" '+removeDisabled+' onclick=\"window[uid+\\'_remove\\']('+index+')\" style=\"justify-self:end;border:none;background:transparent;color:var(--text-muted);cursor:pointer;font-size:18px;line-height:1;padding:2px\">×</button>'
+        + '</div>'
+        : ''
+        + '<div style=\"display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid var(--border);border-radius:14px;background:var(--surface-2,var(--surface))\">'
+        + previewHtml
+        + '<div style=\"flex:1;min-width:0;display:grid;gap:6px\">'
+        +   '<div style=\"display:flex;gap:8px;align-items:center;justify-content:space-between\">'
+        +     '<strong style=\"font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis\">'+item.name+'</strong>'
+        +     '<span style=\"font-size:11px;color:'+badgeColor+'\">'+statusLabel+'</span>'
+        +   '</div>'
+        +   '<div style=\"font-size:12px;color:var(--text-muted)\">'+fmtBytes(item.size)+(item.error?' · '+item.error:'')+'</div>'
+        +   '<div style=\"height:8px;border-radius:999px;background:rgba(148,163,184,.16);overflow:hidden\">'
+        +     '<div style=\"height:100%;width:'+Math.max(0,Math.min(100,item.progress||0))+'%;background:linear-gradient(90deg,var(--accent),#22d3ee);transition:width .2s ease\"></div>'
+        +   '</div>'
+        + '</div>'
+        + '<button type=\"button\" '+removeDisabled+' onclick=\"window[uid+\\'_remove\\']('+index+')\" style=\"border:none;background:transparent;color:var(--text-muted);cursor:pointer;font-size:18px;line-height:1;padding:4px 2px\">×</button>'
+        + '</div>';
+    }}).join('');
+  }}
+  if(uploadBtn) uploadBtn.disabled = disabled || state.busy || !uploadUrl || !state.items.some(function(item){{ return item.status!=='done'; }});
+}}
+function normalizeFiles(list){{
+  var incoming=Array.from(list||[]);
+  var rejected=0;
+  incoming.forEach(function(file){{
+    if(maxFiles!==null && state.items.length>=maxFiles){{ rejected++; return; }}
+    if(maxSizeBytes!==null && Number(file.size||0)>maxSizeBytes){{
+      state.items.push({{file:file,name:file.name,size:file.size,type:file.type,progress:100,status:'error',error:'Supera el límite permitido'}});
+      return;
+    }}
+    if(!fileAccepted(file)){{
+      state.items.push({{file:file,name:file.name,size:file.size,type:file.type,progress:100,status:'error',error:'Tipo no permitido'}});
+      return;
+    }}
+    state.items.push({{file:file,name:file.name,size:file.size,type:file.type,progress:0,status:'pending',error:'',preview:''}});
+  }});
+  if(rejected) setStatus('Se alcanzó el máximo de archivos permitidos.', 'error');
+  else if(state.items.length) setStatus('Archivos listos para subir.', 'success');
+  renderQueue();
+  exec({on_change_js}, {{files: state.items}});
+  if(autoUpload && uploadUrl) uploadAll();
+}}
+function sendFile(item, index){{
+  return new Promise(function(resolve){{
+    var xhr=new XMLHttpRequest();
+    xhr.open('POST', uploadUrl, true);
+    Object.keys(customHeaders||{{}}).forEach(function(key){{ xhr.setRequestHeader(key, customHeaders[key]); }});
+    xhr.upload.onprogress=function(evt){{
+      if(evt.lengthComputable){{
+        item.progress=Math.round((evt.loaded/evt.total)*100);
+        item.status='uploading';
+        renderQueue();
+      }}
+    }};
+    xhr.onreadystatechange=function(){{
+      if(xhr.readyState!==4) return;
+      var payload=null;
+      try{{ payload=JSON.parse(xhr.responseText||'null'); }}catch(err){{ payload={{raw:xhr.responseText||''}}; }}
+      if(xhr.status>=200 && xhr.status<300){{
+        item.progress=100; item.status='done'; item.error='';
+        renderQueue();
+        showToast(payload&&(payload.toast||payload._toast));
+        exec({on_success_js}, {{file:item, response:payload, index:index}});
+      }}else{{
+        item.status='error'; item.error=(payload&& (payload.error||payload.message)) || 'No se pudo subir';
+        renderQueue();
+        showToast(payload&&(payload.toast||payload._toast));
+        exec({on_error_js}, {{file:item, response:payload, index:index, status:xhr.status}});
+      }}
+      resolve();
+    }};
+    var form=new FormData();
+    form.append(inputName, item.file, item.name);
+    form.append('file_name', item.name);
+    form.append('file_index', String(index));
+    form.append('total_files', String(state.items.length));
+    xhr.send(form);
+  }});
+}}
+function sendChunks(item, index){{
+  return new Promise(async function(resolve){{
+    var total=Math.max(1, Math.ceil(item.file.size / chunkBytes));
+    for(var chunkIndex=0; chunkIndex<total; chunkIndex++) {{
+      var start=chunkIndex*chunkBytes;
+      var end=Math.min(item.file.size, start+chunkBytes);
+      var blob=item.file.slice(start,end);
+      await new Promise(function(chunkDone){{
+        var xhr=new XMLHttpRequest();
+        xhr.open('POST', uploadUrl, true);
+        Object.keys(customHeaders||{{}}).forEach(function(key){{ xhr.setRequestHeader(key, customHeaders[key]); }});
+        xhr.setRequestHeader('X-Chunk-Index', String(chunkIndex));
+        xhr.setRequestHeader('X-Chunk-Total', String(total));
+        xhr.setRequestHeader('X-File-Name', encodeURIComponent(item.name));
+        xhr.setRequestHeader('X-File-Size', String(item.file.size));
+        xhr.setRequestHeader('X-Upload-Mode', 'chunked');
+        xhr.onreadystatechange=function(){{
+          if(xhr.readyState!==4) return;
+          if(xhr.status>=200 && xhr.status<300){{
+            item.status='uploading';
+            item.progress=Math.round(((chunkIndex+1)/total)*100);
+            renderQueue();
+          }}else{{
+            var payload=null;
+            try{{ payload=JSON.parse(xhr.responseText||'null'); }}catch(err){{ payload={{raw:xhr.responseText||''}}; }}
+            item.status='error';
+            item.error=(payload && (payload.error||payload.message)) || 'Error en chunk';
+            renderQueue();
+            showToast(payload&&(payload.toast||payload._toast));
+            exec({on_error_js}, {{file:item, response:payload, index:index, status:xhr.status}});
+          }}
+          chunkDone();
+        }};
+        var form=new FormData();
+        form.append(inputName, blob, item.name);
+        form.append('file_name', item.name);
+        form.append('chunk_index', String(chunkIndex));
+        form.append('chunk_total', String(total));
+        form.append('file_index', String(index));
+        xhr.send(form);
+      }});
+      if(item.status==='error'){{ resolve(); return; }}
+    }}
+    item.progress=100; item.status='done'; item.error='';
+    renderQueue();
+    exec({on_success_js}, {{file:item, response:{{chunked:true}}, index:index}});
+    resolve();
+  }});
+}}
+async function uploadAll(){{
+  if(!uploadUrl || state.busy || disabled) return;
+  state.busy=true;
+  setStatus('Subiendo archivos...', 'info');
+  renderQueue();
+  for(var i=0;i<state.items.length;i++) {{
+    var item=state.items[i];
+    if(item.status==='done') continue;
+    if(chunkBytes && item.file && item.file.size>chunkBytes) await sendChunks(item, i);
+    else await sendFile(item, i);
+  }}
+  state.busy=false;
+  var hasErrors=state.items.some(function(item){{ return item.status==='error'; }});
+  setStatus(hasErrors?'Algunos archivos no se pudieron subir.':'Subida completada.', hasErrors?'error':'success');
+  renderQueue();
+}}
+window[uid+'_remove']=function(index){{
+  if(state.busy) return;
+  var item=state.items[index];
+  if(item && item.preview){{ try{{ URL.revokeObjectURL(item.preview); }}catch(err){{}} }}
+  state.items.splice(index,1);
+  renderQueue();
+}};
+if(pickBtn) pickBtn.addEventListener('click', function(){{ if(!disabled && input) input.click(); }});
+if(uploadBtn) uploadBtn.addEventListener('click', function(){{ uploadAll(); }});
+if(input) input.addEventListener('change', function(){{ normalizeFiles(this.files||[]); this.value=''; }});
+if(zone){{
+  zone.addEventListener('click', function(e){{ if(e.target===pickBtn || disabled) return; if(input) input.click(); }});
+  zone.addEventListener('dragover', function(e){{ if(disabled) return; e.preventDefault(); zone.style.borderColor='var(--accent)'; zone.style.background='color-mix(in srgb,var(--accent) 7%,var(--surface))'; }});
+  zone.addEventListener('dragleave', function(){{ zone.style.borderColor=''; zone.style.background=''; }});
+  zone.addEventListener('drop', function(e){{ if(disabled) return; e.preventDefault(); zone.style.borderColor=''; zone.style.background=''; normalizeFiles((e.dataTransfer&&e.dataTransfer.files)||[]); }});
+}}
+renderQueue();
+if(helperText) setStatus(helperText, 'info');
+}})();</script>"""
+
+        return (
+            f'<div style="{wrapper_style}">'
+            + label_html
+            + helper_html
+            + f'<div id="{uid}_zone" style="display:grid;gap:12px;padding:18px;border:2px dashed var(--border-input,var(--border));'
+            + 'border-radius:18px;background:var(--input-bg,var(--surface));cursor:pointer;transition:border-color .2s ease,background .2s ease">'
+            + f'<div style="display:flex;gap:12px;align-items:flex-start">{icon}'
+            + '<div style="min-width:0;flex:1">'
+            + f'<div style="font-size:14px;font-weight:700;color:var(--text)">{drop_hint}</div>'
+            + f'<div style="font-size:13px;color:var(--text-muted);margin-top:4px">{self.empty_text}</div>'
+            + meta_html
+            + "</div></div>"
+            + f'<div style="display:flex;gap:10px;flex-wrap:wrap">'
+            + f'<button type="button" id="{uid}_pick"{disabled_attr} style="padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2,var(--surface));color:var(--text);cursor:pointer">{self.button_label}</button>'
+            + (
+                f'<button type="button" id="{uid}_upload"{disabled_attr} style="padding:10px 14px;border-radius:10px;border:none;background:var(--accent);color:#fff;cursor:pointer">{self.upload_label}</button>'
+                if self.upload_url
+                else ""
+            )
+            + "</div>"
+            + f'<input type="file" id="{uid}_input" name="{self.name}" accept="{self.accept}"{multiple_attr}{disabled_attr} style="display:none">'
+            + "</div>"
+            + f'<div id="{uid}_queue" style="display:grid;gap:10px"></div>'
+            + f'<div id="{uid}_status" style="font-size:12px;color:var(--text-muted);min-height:18px"></div>'
+            + js
+            + "</div>"
+        )
+
+
+# =============================================================================
 # FormGroup
 # =============================================================================
 

@@ -23,9 +23,10 @@ from .input import (
     ProgressBar,
     Rating,
     FileInput,
+    Uploader,
     FormGroup,
 )
-from .feedback import Badge, Alert
+from .feedback import Badge, Alert, Toast, ToastCenter
 from .navigation import NavBar, SideMenu, Footer, LanguageSelector, Breadcrumb, Tabs
 from .data import Table
 from .overlay import Modal
@@ -64,6 +65,8 @@ from .calendar import Calendar, CalendarEvent
 from .advanced import (
     DataGridColumn,
     DataGrid,
+    WizardStep,
+    Wizard,
     CommandPalette,
     Drawer,
     SplitPane,
@@ -71,6 +74,19 @@ from .advanced import (
     EmptyState,
     ErrorState,
     Form,
+    ResourceForm,
+    ResourceEditor,
+    ResourceTable,
+    ResourceDetails,
+    ResourceCardList,
+    ResourceFilters,
+    ResourceActions,
+    ResourceBulkActions,
+    ResourceToolbar,
+    ResourceCreateButton,
+    ResourceDuplicateButton,
+    ResourceDeleteButton,
+    ResourceView,
     JSWidgetAdapter,
 )
 
@@ -113,10 +129,13 @@ __all__ = [
     "ProgressBar",
     "Rating",
     "FileInput",
+    "Uploader",
     "FormGroup",
     # Feedback
     "Badge",
     "Alert",
+    "Toast",
+    "ToastCenter",
     # Navigation
     "NavBar",
     "SideMenu",
@@ -166,6 +185,8 @@ __all__ = [
     "CalendarEvent",
     "DataGridColumn",
     "DataGrid",
+    "WizardStep",
+    "Wizard",
     "CommandPalette",
     "Drawer",
     "SplitPane",
@@ -173,5 +194,18 @@ __all__ = [
     "EmptyState",
     "ErrorState",
     "Form",
+    "ResourceForm",
+    "ResourceEditor",
+    "ResourceTable",
+    "ResourceDetails",
+    "ResourceCardList",
+    "ResourceFilters",
+    "ResourceActions",
+    "ResourceBulkActions",
+    "ResourceToolbar",
+    "ResourceCreateButton",
+    "ResourceDuplicateButton",
+    "ResourceDeleteButton",
+    "ResourceView",
     "JSWidgetAdapter",
 ]

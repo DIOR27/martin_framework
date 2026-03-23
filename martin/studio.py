@@ -15,41 +15,12 @@ from pathlib import Path
 from .backend import ApiCall, MethodCall, Ref
 from .conditions import ConditionExpr, serialize_condition
 from .widget import Widget
+from .widget_schema import UNIVERSAL_WIDGET_PROPS, get_widget_schema
 from . import widgets as _widgets
 from .styles import resolve_styles
 
 
-UNIVERSAL_PROPS = [
-    {"name": "style", "type": "style", "default": None, "group": "style"},
-    {"name": "padding", "type": "integer", "default": None, "group": "style"},
-    {"name": "margin", "type": "integer", "default": None, "group": "style"},
-    {"name": "width", "type": "string", "default": None, "group": "style"},
-    {"name": "height", "type": "string", "default": None, "group": "style"},
-    {"name": "color", "type": "string", "default": None, "group": "style"},
-    {"name": "background", "type": "string", "default": None, "group": "style"},
-    {"name": "radius", "type": "integer", "default": None, "group": "style"},
-    {"name": "shadow", "type": "string", "default": None, "group": "style"},
-    {"name": "opacity", "type": "float", "default": None, "group": "style"},
-    {"name": "hidden", "type": "boolean", "default": None, "group": "style"},
-    {"name": "visible", "type": "condition", "default": True, "group": "state", "editor": {"type": "condition"}},
-    {"name": "readonly", "type": "condition", "default": False, "group": "state", "editor": {"type": "condition"}},
-    {"name": "disabled", "type": "condition", "default": False, "group": "state", "editor": {"type": "condition"}},
-    {"name": "url", "type": "string", "default": None, "group": "link"},
-    {"name": "url_target", "type": "string", "default": None, "group": "link"},
-    {"name": "role", "type": "string", "default": None, "group": "a11y"},
-    {"name": "tabindex", "type": "integer", "default": None, "group": "a11y"},
-    {"name": "floating", "type": "boolean", "default": None, "group": "floating"},
-    {
-        "name": "float_position",
-        "type": "enum",
-        "default": "bottom-right",
-        "group": "floating",
-        "options": ["bottom-right", "bottom-left", "top-right", "top-left"],
-    },
-    {"name": "float_offset", "type": "integer", "default": 20, "group": "floating"},
-    {"name": "float_gap", "type": "integer", "default": 12, "group": "floating"},
-    {"name": "float_z_index", "type": "integer", "default": 999, "group": "floating"},
-]
+UNIVERSAL_PROPS = [dict(prop) for prop in UNIVERSAL_WIDGET_PROPS]
 
 
 WIDGET_CATEGORIES = {
@@ -87,9 +58,12 @@ WIDGET_CATEGORIES = {
     "ProgressBar": "input",
     "Rating": "input",
     "FileInput": "input",
+    "Uploader": "input",
     "FormGroup": "input",
     "Badge": "feedback",
     "Alert": "feedback",
+    "Toast": "feedback",
+    "ToastCenter": "feedback",
     "NavBar": "navigation",
     "SideMenu": "navigation",
     "Footer": "navigation",
@@ -105,6 +79,19 @@ WIDGET_CATEGORIES = {
     "EmptyState": "advanced",
     "ErrorState": "advanced",
     "Form": "advanced",
+    "ResourceForm": "advanced",
+    "ResourceEditor": "advanced",
+    "ResourceTable": "advanced",
+    "ResourceDetails": "advanced",
+    "ResourceCardList": "advanced",
+    "ResourceFilters": "advanced",
+    "ResourceActions": "advanced",
+    "ResourceBulkActions": "advanced",
+    "ResourceToolbar": "advanced",
+    "ResourceCreateButton": "advanced",
+    "ResourceDuplicateButton": "advanced",
+    "ResourceDeleteButton": "advanced",
+    "ResourceView": "advanced",
     "JSWidgetAdapter": "advanced",
     "Raw": "utility",
     "Script": "utility",
@@ -207,8 +194,11 @@ WIDGET_PRESETS = {
     "ProgressBar": {"value": 72, "label": "Completion"},
     "Rating": {"value": 4},
     "FileInput": {"label": "Upload file"},
+    "Uploader": {"label": "Upload assets", "upload_url": "/api/upload", "accept": "image/*,.pdf", "layout": "gallery"},
     "Badge": {"content": "Badge"},
     "Alert": {"title": "Heads up", "message": "This is an alert example."},
+    "Toast": {"title": "Saved", "message": "Changes were saved successfully.", "variant": "success"},
+    "ToastCenter": {"items": [{"message": "Ready", "variant": "info"}]},
     "NavBar": {"sticky": True, "bordered": True},
     "Footer": {"bordered": True},
     "Breadcrumb": {"items": [["Home", "/"], ["Docs", "/docs"], ["Studio", None]]},
@@ -231,6 +221,85 @@ WIDGET_PRESETS = {
     "ScrollToTop": {"icon": "↑", "show_after": 240},
     "WhatsAppButton": {"phone": "593999999999", "message": "Hola Martin"},
     "Counter": {"to": "2026-12-31 23:59:59", "mode": "countdown", "format": "human"},
+    "ResourceForm": {
+        "resource": "leads",
+        "title": "Nuevo lead",
+        "fields": [
+            {"name": "nombre", "type": "text", "required": True},
+            {"name": "email", "type": "email", "required": True},
+        ],
+    },
+    "ResourceEditor": {
+        "resource": "leads",
+        "record_id": "1",
+        "title": "Editar lead",
+        "fields": [
+            {"name": "nombre", "type": "text", "required": True},
+            {"name": "email", "type": "email", "required": True},
+            {"name": "plan", "type": "select", "options": [["starter", "Starter"], ["pro", "Pro"], ["enterprise", "Enterprise"]]},
+        ],
+    },
+    "ResourceTable": {
+        "resource": "leads",
+        "title": "Leads",
+        "columns": [{"key": "nombre", "label": "Nombre"}, {"key": "estado", "label": "Estado"}],
+    },
+    "ResourceDetails": {
+        "resource": "leads",
+        "title": "Lead details",
+        "fields": ["nombre", "email", "estado"],
+    },
+    "ResourceCardList": {
+        "resource": "leads",
+        "title": "Lead cards",
+        "subtitle_field": "email",
+        "badge_field": "estado",
+    },
+    "ResourceFilters": {
+        "target": "leads_table",
+        "filters": [{"name": "estado", "type": "select"}, {"name": "plan", "type": "select"}],
+    },
+    "ResourceActions": {
+        "actions": [{"label": "Refresh", "variant": "secondary"}],
+    },
+    "ResourceBulkActions": {
+        "target": "leads_table",
+        "actions": [{"label": "Mark follow-up", "variant": "secondary", "url": "/api/resources/leads/bulk", "method": "POST"}],
+    },
+    "ResourceToolbar": {
+        "target": "leads_table",
+        "title": "Toolbar",
+        "actions": [{"label": "Refresh", "variant": "secondary", "on_click": "window['leads_table_refresh']&&window['leads_table_refresh']()"}],
+    },
+    "ResourceCreateButton": {
+        "resource": "leads",
+        "label": "Create quick lead",
+        "body": {"nombre": "Lead rápido", "email": "demo@martin.dev"},
+    },
+    "ResourceDuplicateButton": {
+        "resource": "leads",
+        "record_id": "1",
+        "label": "Duplicate lead",
+    },
+    "ResourceDeleteButton": {
+        "resource": "leads",
+        "record_id": "2",
+        "label": "Delete lead",
+    },
+    "ResourceView": {
+        "resource": "leads",
+        "title": "Leads resource view",
+        "columns": [{"key": "nombre", "label": "Nombre"}, {"key": "estado", "label": "Estado"}],
+        "form_fields": [
+            {"name": "nombre", "type": "text", "required": True},
+            {"name": "email", "type": "email", "required": True},
+        ],
+        "filters": [{"name": "estado", "type": "select"}],
+        "actions": [{"label": "Refresh", "variant": "secondary"}],
+        "toolbar_actions": [{"label": "New quick", "variant": "ghost", "on_click": "console.log('new quick')"}],
+        "bulk_actions": [{"label": "Mark follow-up", "variant": "secondary", "url": "/api/resources/leads/bulk"}],
+        "detail_fields": ["nombre", "email", "estado"],
+    },
     "CookieBanner": {"title": "Cookies", "message": "We use cookies to improve the experience."},
     "CookieCategory": {"title": "Analytics", "description": "Anonymous usage metrics."},
     "SafeArea": {},
@@ -522,7 +591,26 @@ def _describe_parameter(widget_name: str, param: inspect.Parameter) -> dict:
 
 
 def get_widget_preset(name: str) -> dict:
+    schema = get_widget_schema(name)
+    if schema and isinstance(schema.get("preset_props"), dict):
+        return dict(schema.get("preset_props", {}))
     return dict(WIDGET_PRESETS.get(name, {}))
+
+
+def _build_widget_from_schema(name: str, cls, schema: dict, *, accepts_children: bool, has_content_slot: bool) -> dict:
+    schema_params = [dict(param) for param in (schema.get("params") or [])]
+    existing_param_names = {param["name"] for param in schema_params}
+    return {
+        "name": name,
+        "category": schema.get("category") or WIDGET_CATEGORIES.get(name, "other"),
+        "module": schema.get("module") or cls.__module__,
+        "doc": schema.get("doc") or _clean_doc(cls.__doc__),
+        "summary": schema.get("summary") or _first_sentence(cls.__doc__),
+        "accepts_children": accepts_children if schema.get("accepts_children") is None else bool(schema.get("accepts_children")),
+        "has_content_slot": has_content_slot if schema.get("has_content_slot") is None else bool(schema.get("has_content_slot")),
+        "preset_props": get_widget_preset(name),
+        "params": schema_params + [dict(prop) for prop in UNIVERSAL_PROPS if prop["name"] not in existing_param_names],
+    }
 
 
 def get_widget_catalog() -> dict:
@@ -549,6 +637,19 @@ def get_widget_catalog() -> dict:
                 has_content_slot = True
             if param.name in STRUCTURAL_PARAMS:
                 accepts_children = True
+
+        schema = get_widget_schema(name)
+        if schema:
+            widgets.append(
+                _build_widget_from_schema(
+                    name,
+                    cls,
+                    schema,
+                    accepts_children=accepts_children,
+                    has_content_slot=has_content_slot,
+                )
+            )
+            continue
 
         existing_param_names = {param["name"] for param in params}
         widgets.append(

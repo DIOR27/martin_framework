@@ -197,6 +197,17 @@ def cmd_version(args):
     print("martin " + __version__)
 
 
+def cmd_docs(args):
+    from martin import export_widget_docs
+
+    output = export_widget_docs(
+        args.out,
+        format=args.format,
+        widget_names=args.widgets or None,
+    )
+    print("  OK  Docs exportadas -> " + str(output))
+
+
 def _build_parser():
     parser = argparse.ArgumentParser(
         prog="martin",
@@ -214,6 +225,8 @@ def _build_parser():
             martin export --out build
             martin export --format html
             martin export --with-backend
+            martin docs
+            martin docs --format json
             martin version
         """
         ),
@@ -244,6 +257,16 @@ def _build_parser():
         help="Genera export hibrido: frontend estatico + runtime Python para backend",
     )
 
+    p_docs = sub.add_parser("docs", help="Genera documentación automática de widgets")
+    p_docs.add_argument("--out", default="WIDGETS.md", help="Archivo de salida")
+    p_docs.add_argument(
+        "--format",
+        default="markdown",
+        choices=["markdown", "md", "json"],
+        help="Formato de salida",
+    )
+    p_docs.add_argument("--widgets", nargs="*", help="Filtra por nombres de widget")
+
     sub.add_parser("version", help="Muestra la version")
     return parser
 
@@ -256,6 +279,7 @@ def main():
         "new": cmd_new,
         "run": cmd_run,
         "export": cmd_export,
+        "docs": cmd_docs,
         "version": cmd_version,
     }
 

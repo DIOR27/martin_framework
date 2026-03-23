@@ -467,12 +467,12 @@ COMPONENTS_TEMPLATE = (
         """
     from martin import (
         Container, Column, Row, Grid, Card, Section, Divider, Spacer,
-        Heading, Text, Paragraph, Link, Code, Button, Icon, Badge, Alert,
+        Heading, Text, Paragraph, Link, Code, Button, Icon, Badge, Alert, Toast, ToastCenter,
         Image, Avatar, IconPack, NavBar, Footer, LanguageSelector, Tabs, Breadcrumb,
-        Table, Modal, TextField, TextArea, Select, MultiSelect, Checkbox,
+        Table, Modal, TextField, TextArea, Select, MultiSelect, Checkbox, Uploader,
         Slider, ColorPicker, DatePicker,
-        DataGrid, DataGridColumn, CommandPalette, Drawer, SplitPane,
-        Skeleton, EmptyState, ErrorState, Form, JSWidgetAdapter,
+        DataGrid, DataGridColumn, Wizard, WizardStep, CommandPalette, Drawer, SplitPane,
+        Skeleton, EmptyState, ErrorState, Form, ResourceForm, ResourceEditor, ResourceTable, ResourceDetails, ResourceCardList, ResourceFilters, ResourceActions, ResourceBulkActions, ResourceToolbar, ResourceCreateButton, ResourceDuplicateButton, ResourceDeleteButton, ResourceView, JSWidgetAdapter,
         Signal, Computed, Store, I18n, L10n, PluginRegistry,
         WordCloud, Map, Calendar, CalendarEvent, Timeline, TimelineItem, Hero,
         Gallery, GalleryItem, Carousel, CarouselItem,
@@ -522,6 +522,12 @@ COMPONENTS_TEMPLATE = (
 
 
     def register_components_backend(backend: Backend):
+        _resource_leads = [
+            {"id": "1", "nombre": "Ana García", "email": "ana@example.com", "estado": "Nuevo", "plan": "pro", "notas": "Lead inbound desde web."},
+            {"id": "2", "nombre": "Luis Torres", "email": "luis@example.com", "estado": "Calificado", "plan": "starter", "notas": "Solicita demo corta."},
+            {"id": "3", "nombre": "María Silva", "email": "maria@example.com", "estado": "Seguimiento", "plan": "enterprise", "notas": "Comparando planes empresariales."},
+        ]
+
         @backend.post("/demo/contact")
         def demo_contact(req):
             data = req.json(default={}, silent=True) or {}
@@ -530,10 +536,26 @@ COMPONENTS_TEMPLATE = (
             mensaje = str(data.get("mensaje", "")).strip()
 
             if not nombre or not email or not mensaje:
-                return Response({"message": "Completa nombre, email y mensaje."}, status=400)
+                return Response(
+                    backend.with_toast(
+                        {"message": "Completa nombre, email y mensaje."},
+                        message="Completa nombre, email y mensaje.",
+                        variant="error",
+                        position="top-right",
+                    ),
+                    status=400,
+                )
 
             if "@" not in email or "." not in email.split("@")[-1]:
-                return Response({"message": "Ingresa un email valido."}, status=400)
+                return Response(
+                    backend.with_toast(
+                        {"message": "Ingresa un email valido."},
+                        message="Ingresa un email valido.",
+                        variant="error",
+                        position="top-right",
+                    ),
+                    status=400,
+                )
 
             if backend.mailer:
                 backend.send_mail(
@@ -552,16 +574,223 @@ COMPONENTS_TEMPLATE = (
                     ),
                     reply_to=email,
                 )
-                return {"message": "Mensaje enviado por SMTP correctamente."}
+                return backend.with_toast(
+                    {"message": "Mensaje enviado por SMTP correctamente."},
+                    message="Correo enviado por SMTP.",
+                    variant="success",
+                    position="top-right",
+                )
 
-            return {
+            return backend.with_toast({
                 "message": (
                     "Demo recibida. Configura SMTP con "
                     "backend.configure_smtp(...) para envio real."
                 ),
                 "nombre": nombre,
                 "email": email,
-            }
+            }, message="Demo recibida correctamente.", variant="success", position="top-right")
+
+        @backend.get("/resources/leads/list")
+        def resource_leads_list(req):
+            estado = str(req.query.get("estado", "")).strip().lower()
+            plan = str(req.query.get("plan", "")).strip().lower()
+            query = str(req.query.get("q", "")).strip().lower()
+            rows = list(_resource_leads)
+            if estado:
+                rows = [row for row in rows if str(row.get("estado", "")).strip().lower() == estado]
+            if plan:
+                rows = [row for row in rows if str(row.get("plan", "")).strip().lower() == plan]
+            if query:
+                rows = [
+                    row for row in rows
+                    if query in str(row.get("nombre", "")).strip().lower()
+                    or query in str(row.get("email", "")).strip().lower()
+                    or query in str(row.get("plan", "")).strip().lower()
+                ]
+            return backend.with_toast(
+                {"rows": rows},
+                message="Lista de leads actualizada.",
+                variant="info",
+                position="top-right",
+                duration=2200,
+            )
+
+        @backend.get("/resources/leads/detail")
+        def resource_leads_detail(req):
+            wanted = str(req.query.get("id", "1") or "1").strip()
+            record = next((item for item in _resource_leads if str(item.get("id", "")).strip() == wanted), None)
+            if record is None:
+                try:
+                    index = max(0, int(wanted))
+                except Exception:
+                    index = 0
+                record = _resource_leads[index] if _resource_leads else {}
+            return {"record": dict(record)}
+
+        @backend.post("/resources/leads/save")
+        def resource_leads_save(req):
+            data = req.json(default={}, silent=True) or {}
+            record_id = str(data.get("id", "") or "").strip()
+            nombre = str(data.get("nombre", "")).strip()
+            email = str(data.get("email", "")).strip()
+            plan = str(data.get("plan", "starter") or "starter").strip()
+            notas = str(data.get("notas", "")).strip()
+            if not nombre or not email:
+                return Response(
+                    backend.with_toast(
+                        {"message": "Nombre y email son obligatorios."},
+                        message="Completa nombre y email.",
+                        variant="error",
+                        position="top-right",
+                    ),
+                    status=400,
+                )
+            updated = False
+            if record_id:
+                for item in _resource_leads:
+                    if str(item.get("id", "")).strip() == record_id:
+                        item["nombre"] = nombre
+                        item["email"] = email
+                        item["plan"] = plan
+                        item["notas"] = notas
+                        item["estado"] = str(data.get("estado", item.get("estado", "Nuevo")) or item.get("estado", "Nuevo")).strip()
+                        updated = True
+                        break
+            if not updated:
+                next_id = str(max([int(str(item.get("id", "0") or "0")) for item in _resource_leads] + [0]) + 1)
+                _resource_leads.append(
+                    {
+                        "id": next_id,
+                        "nombre": nombre,
+                        "email": email,
+                        "estado": "Nuevo",
+                        "plan": plan,
+                        "notas": notas,
+                    }
+                )
+            return backend.with_toast(
+                {"message": f"Lead guardado para {nombre}.", "rows": list(_resource_leads)},
+                message=f"Lead {'actualizado' if updated else 'guardado'}: {nombre}.",
+                variant="success",
+                position="top-right",
+            )
+
+        @backend.post("/resources/leads/delete")
+        def resource_leads_delete(req):
+            data = req.json(default={}, silent=True) or {}
+            record_id = str(data.get("id", "") or "").strip()
+            before = len(_resource_leads)
+            _resource_leads[:] = [item for item in _resource_leads if str(item.get("id", "")).strip() != record_id]
+            removed = len(_resource_leads) < before
+            return backend.with_toast(
+                {"deleted": removed, "rows": list(_resource_leads)},
+                message="Lead eliminado." if removed else "No se encontró el lead a eliminar.",
+                variant="success" if removed else "warning",
+                position="top-right",
+            )
+
+        @backend.post("/resources/leads/duplicate")
+        def resource_leads_duplicate(req):
+            data = req.json(default={}, silent=True) or {}
+            record_id = str(data.get("id", "") or "").strip()
+            source = next((item for item in _resource_leads if str(item.get("id", "")).strip() == record_id), None)
+            if source is None:
+                return Response(
+                    backend.with_toast(
+                        {"message": "No se encontró el lead a duplicar."},
+                        message="No se encontró el lead a duplicar.",
+                        variant="warning",
+                        position="top-right",
+                    ),
+                    status=404,
+                )
+            next_id = str(max([int(str(item.get("id", "0") or "0")) for item in _resource_leads] + [0]) + 1)
+            duplicated = dict(source)
+            duplicated["id"] = next_id
+            duplicated["nombre"] = str(data.get("nombre") or f"{source.get('nombre', 'Lead')} copia").strip()
+            duplicated["email"] = str(data.get("email") or source.get("email") or "").strip()
+            duplicated["estado"] = str(data.get("estado") or "Nuevo").strip()
+            duplicated["notas"] = str(data.get("notas") or source.get("notas") or "").strip()
+            _resource_leads.append(duplicated)
+            return backend.with_toast(
+                {"message": f"Lead duplicado: {duplicated['nombre']}.", "rows": list(_resource_leads)},
+                message=f"Lead duplicado: {duplicated['nombre']}.",
+                variant="success",
+                position="top-right",
+            )
+
+        @backend.post("/resources/leads/bulk")
+        def resource_leads_bulk(req):
+            data = req.json(default={}, silent=True) or {}
+            ids = [str(item).strip() for item in (data.get("ids") or []) if str(item).strip()]
+            action = str(data.get("action", "follow_up") or "follow_up").strip()
+            if not ids:
+                return Response(
+                    backend.with_toast(
+                        {"message": "Selecciona al menos un lead."},
+                        message="Selecciona al menos un lead.",
+                        variant="warning",
+                        position="top-right",
+                    ),
+                    status=400,
+                )
+            changed = 0
+            if action == "delete":
+                before = len(_resource_leads)
+                _resource_leads[:] = [item for item in _resource_leads if str(item.get("id", "")).strip() not in ids]
+                changed = before - len(_resource_leads)
+            else:
+                for item in _resource_leads:
+                    if str(item.get("id", "")).strip() in ids:
+                        item["estado"] = "Seguimiento"
+                        changed += 1
+            return backend.with_toast(
+                {"rows": list(_resource_leads), "changed": changed, "action": action},
+                message=f"Acción masiva aplicada a {changed} lead(s).",
+                variant="success",
+                position="top-right",
+            )
+
+        @backend.post("/auth/login")
+        def demo_auth_login(req):
+            data = req.json(default={}, silent=True) or {}
+            user = str(data.get("user", "")).strip()
+            password = str(data.get("password", "")).strip()
+            if user != "admin" or password != "martin":
+                return Response(
+                    backend.with_toast(
+                        {"error": "Credenciales inválidas."},
+                        message="Credenciales inválidas.",
+                        variant="error",
+                        position="top-right",
+                    ),
+                    status=401,
+                )
+            resp = backend.login({"user": user, "role": "admin"})
+            resp.data = backend.with_toast(
+                {"message": f"Sesión iniciada para {user}.", "user": user},
+                message=f"Bienvenido, {user}.",
+                variant="success",
+                position="top-right",
+            )
+            return resp
+
+        @backend.post("/auth/logout")
+        def demo_auth_logout(req):
+            resp = backend.logout(req)
+            resp.data = backend.with_toast(
+                {"message": "Sesión cerrada."},
+                message="Sesión cerrada.",
+                variant="info",
+                position="top-right",
+            )
+            return resp
+
+        @backend.get("/auth/me")
+        @backend.require_auth
+        def demo_auth_me(req):
+            session = backend.get_session(req, default={}) or {}
+            return {"user": session}
 
         @backend.post("/demo/validate/email")
         def demo_validate_email(req):
@@ -576,6 +805,32 @@ COMPONENTS_TEMPLATE = (
                 return {"valid": False, "message": "Este email ya esta en uso en la demo."}
             return {"valid": True}
 
+        @backend.post("/demo/upload")
+        def demo_upload(req):
+            uploaded = req.file("asset")
+            if uploaded is None:
+                uploaded = req.file("file")
+            if uploaded is None:
+                return Response(
+                    backend.with_toast(
+                        {"error": "No se recibió ningún archivo."},
+                        message="No se recibió ningún archivo.",
+                        variant="error",
+                        position="top-right",
+                    ),
+                    status=400,
+                )
+
+            return backend.with_toast({
+                "message": f"Archivo recibido: {uploaded.filename}",
+                "file": {
+                    "name": uploaded.filename,
+                    "content_type": uploaded.content_type,
+                    "size": uploaded.size,
+                },
+                "form": req.form(default={}, silent=True),
+            }, message=f"Archivo subido: {uploaded.filename}", variant="success", position="top-right")
+
         @backend.method("demo.lead.create")
         def demo_lead_create(ctx, nombre="", email="", plan="", mensaje=""):
             nombre = str(nombre or "").strip()
@@ -585,10 +840,26 @@ COMPONENTS_TEMPLATE = (
             plan = str(plan or "").strip() or "starter"
             mensaje = str(mensaje or "").strip()
             if not nombre or not email:
-                return Response({"message": "Nombre y email son obligatorios."}, status=400)
+                return Response(
+                    backend.with_toast(
+                        {"message": "Nombre y email son obligatorios."},
+                        message="Nombre y email son obligatorios.",
+                        variant="error",
+                        position="top-right",
+                    ),
+                    status=400,
+                )
             if "@" not in email:
-                return Response({"message": "Email invalido."}, status=400)
-            return {
+                return Response(
+                    backend.with_toast(
+                        {"message": "Email invalido."},
+                        message="Email invalido.",
+                        variant="error",
+                        position="top-right",
+                    ),
+                    status=400,
+                )
+            return backend.with_toast({
                 "message": (
                     f"Lead creado: {nombre} ({email}) en plan {plan}. "
                     f"Metodo backend: {ctx.method_name}"
@@ -599,7 +870,7 @@ COMPONENTS_TEMPLATE = (
                     "plan": plan,
                     "mensaje": mensaje,
                 },
-            }
+            }, message=f"Lead creado para {nombre}.", variant="success", position="top-right")
 
 
     def _sections():
@@ -686,6 +957,69 @@ COMPONENTS_TEMPLATE = (
                 ]),
             ], widget_name="Badge"))
 
+        # ── Toast ───────────────────────────────────────────────────────
+        if "Toast" in all_w:
+            secs.append(_sec("Toast", "Notificaciones flotantes con variantes, stacking y cierre automático.", [
+                Paragraph(
+                    "Este widget se renderiza como una notificación flotante real. Puedes usarlo para feedback rápido y también configurarlo desde Martin Studio.",
+                    style=TextStyle(size=13, color="var(--text-muted)", line_height=1.6),
+                ),
+                Toast(
+                    title="Guardado",
+                    message="Los cambios del sitio se aplicaron correctamente.",
+                    variant="success",
+                    duration=0,
+                    position="top-right",
+                ),
+                Code(
+                    "from martin import Toast\n\n"
+                    "Toast(\n"
+                    "    title='Guardado',\n"
+                    "    message='Los cambios se aplicaron correctamente.',\n"
+                    "    variant='success',\n"
+                    "    duration=4000,\n"
+                    "    position='top-right',\n"
+                    ")",
+                    language="python",
+                    filename="toast_demo.py",
+                    copy=True,
+                    block=True,
+                ),
+            ], widget_name="Toast"))
+
+        if "ToastCenter" in all_w:
+            secs.append(_sec("ToastCenter", "Runtime global para disparar toasts desde botones, backend o cualquier acción JS.", [
+                ToastCenter(),
+                Row(gap=10, wrap=True, children=[
+                    Button(
+                        "Toast success",
+                        on_click="window.martinNotify&&window.martinNotify({title:'Publicado',message:'El sitio quedó listo para revisión.',variant:'success',position:'top-right'})",
+                    ),
+                    Button(
+                        "Toast warning",
+                        variant="secondary",
+                        on_click="window.martinNotify&&window.martinNotify({message:'Aún faltan traducciones por revisar.',variant:'warning',position:'top-right'})",
+                    ),
+                    Button(
+                        "Toast error",
+                        variant="ghost",
+                        on_click="window.martinNotify&&window.martinNotify({message:'No se pudo sincronizar.',variant:'error',position:'top-right'})",
+                    ),
+                ]),
+                Code(
+                    "from martin import ToastCenter, Button\\n\\n"
+                    "ToastCenter()\\n\\n"
+                    "Button(\\n"
+                    "    'Avisar',\\n"
+                    "    on_click=\\\"window.martinNotify({message:'Hola',variant:'success'})\\\",\\n"
+                    ")",
+                    block=True,
+                    language="python",
+                    filename="toast_center_demo.py",
+                    copy=True,
+                ),
+            ], widget_name="ToastCenter"))
+
         # ── Button ────────────────────────────────────────────────────────
         if "Button" in all_w:
             secs.append(_sec("Button", "Variantes, con enlace y con acci\\u00f3n JS.", [
@@ -732,6 +1066,45 @@ COMPONENTS_TEMPLATE = (
                     ]),
                 ]),
             ], widget_name="TextField"))
+
+        # ── Uploader ─────────────────────────────────────────────────────
+        if "Uploader" in all_w:
+            secs.append(_sec("Uploader", "Subida avanzada con drag & drop, cola visual, progreso y backend listo para multipart.", [
+                Uploader(
+                    label="Assets del proyecto",
+                    name="asset",
+                    accept="image/*,.pdf,.svg",
+                    multiple=True,
+                    max_files=4,
+                    max_size_mb=8,
+                    chunk_size_mb=1,
+                    layout="gallery",
+                    show_preview=True,
+                    upload_url="/api/demo/upload",
+                    helper_text="El demo usa martin.backend y acepta imágenes, PDF o SVG.",
+                    on_success="console.log('upload ok', payload)",
+                    on_error="console.warn('upload error', payload)",
+                ),
+                Code(
+                    "from martin import Uploader\\n\\n"
+                    "Uploader(\\n"
+                    "    label='Assets del proyecto',\\n"
+                    "    name='asset',\\n"
+                    "    accept='image/*,.pdf,.svg',\\n"
+                    "    multiple=True,\\n"
+                    "    max_files=4,\\n"
+                    "    max_size_mb=8,\\n"
+                    "    chunk_size_mb=1,\\n"
+                    "    layout='gallery',\\n"
+                    "    upload_url='/api/demo/upload',\\n"
+                    "    show_preview=True,\\n"
+                    ")",
+                    block=True,
+                    language="python",
+                    filename="uploader_demo.py",
+                    copy=True,
+                ),
+            ], widget_name="Uploader"))
 
         # ── Slider ────────────────────────────────────────────────────────
         if "Slider" in all_w:
@@ -1106,6 +1479,314 @@ COMPONENTS_TEMPLATE = (
                 ),
             ], widget_name="advanced-pack"))
 
+        if "ResourceForm" in all_w and "ResourceTable" in all_w:
+            secs.append(_sec("Resources", "Formularios y tablas conectados al backend por convención para flujos CRUD simples.", [
+                ResourceForm(
+                    resource="leads",
+                    title="Nuevo lead",
+                    helper_text="Este widget envía JSON a `/api/resources/leads/save` y reutiliza validación de `Form`.",
+                    submit_label="Guardar lead",
+                    fields=[
+                        {"name": "nombre", "label": "Nombre", "type": "text", "required": True, "placeholder": "Nombre del contacto"},
+                        {"name": "email", "label": "Email", "type": "email", "required": True, "placeholder": "correo@empresa.com"},
+                        {"name": "plan", "label": "Plan", "type": "select", "options": [("starter", "Starter"), ("pro", "Pro"), ("enterprise", "Enterprise")], "value": "starter"},
+                        {"name": "notas", "label": "Notas", "type": "textarea", "rows": 3, "placeholder": "Contexto del lead"},
+                    ],
+                ),
+                ResourceEditor(
+                    resource="leads",
+                    record_id="1",
+                    title="Editar lead existente",
+                    helper_text="Carga el registro desde `/api/resources/leads/detail?id=1` y vuelve a guardar en `/api/resources/leads/save`.",
+                    submit_label="Actualizar lead",
+                    fields=[
+                        {"name": "nombre", "label": "Nombre", "type": "text", "required": True},
+                        {"name": "email", "label": "Email", "type": "email", "required": True},
+                        {"name": "plan", "label": "Plan", "type": "select", "options": [("starter", "Starter"), ("pro", "Pro"), ("enterprise", "Enterprise")]},
+                        {"name": "notas", "label": "Notas", "type": "textarea", "rows": 3},
+                    ],
+                ),
+                ResourceActions(
+                    title="Acciones rápidas",
+                    actions=[
+                        {
+                            "label": "Refrescar leads",
+                            "variant": "secondary",
+                            "on_click": "window['leads_table_refresh']&&window['leads_table_refresh']()",
+                        },
+                        {
+                            "label": "Crear lead demo",
+                            "variant": "ghost",
+                            "backend_method": "demo.lead.create",
+                            "params": {"nombre": "Lead rápido", "email": "rapido@martin.dev", "plan": "starter"},
+                        },
+                        {
+                            "label": "Quién soy",
+                            "variant": "secondary",
+                            "url": "/api/auth/me",
+                            "method": "GET",
+                            "target": "auth_result",
+                        },
+                    ],
+                ),
+                ResourceToolbar(
+                    target="leads_table",
+                    title="Toolbar de recurso",
+                    search_placeholder="Busca por nombre o email",
+                    actions=[
+                        {"label": "Refrescar", "variant": "secondary", "on_click": "window['leads_table_refresh']&&window['leads_table_refresh']()"},
+                    ],
+                ),
+                Row(gap=10, wrap=True, children=[
+                    ResourceCreateButton(
+                        resource="leads",
+                        label="Crear lead rápido",
+                        body={"nombre": "Lead rápido", "email": "crear@martin.dev", "plan": "starter", "notas": "Creado desde botón"},
+                        target="lead_result",
+                    ),
+                    ResourceDuplicateButton(
+                        resource="leads",
+                        record_id="1",
+                        label="Duplicar lead 1",
+                        endpoint="/api/resources/leads/duplicate",
+                        body={"nombre": "Lead 1 copia"},
+                        target="lead_result",
+                    ),
+                    ResourceDeleteButton(
+                        resource="leads",
+                        record_id="2",
+                        label="Eliminar lead 2",
+                        endpoint="/api/resources/leads/delete",
+                        target="lead_result",
+                    ),
+                ]),
+                ResourceBulkActions(
+                    target="leads_table",
+                    title="Acciones masivas",
+                    actions=[
+                        {
+                            "label": "Marcar seguimiento",
+                            "variant": "secondary",
+                            "url": "/api/resources/leads/bulk",
+                            "method": "POST",
+                            "body": {"action": "follow_up"},
+                            "target": "lead_result",
+                        },
+                        {
+                            "label": "Eliminar seleccionados",
+                            "variant": "danger",
+                            "url": "/api/resources/leads/bulk",
+                            "method": "POST",
+                            "body": {"action": "delete"},
+                            "confirm_message": "¿Eliminar los leads seleccionados?",
+                            "target": "lead_result",
+                        },
+                    ],
+                ),
+                ResourceFilters(
+                    target="leads_table",
+                    title="Filtra la tabla por estado o plan",
+                    filters=[
+                        {"name": "estado", "type": "select", "options": [("", "Todos"), ("Nuevo", "Nuevo"), ("Calificado", "Calificado"), ("Seguimiento", "Seguimiento")]},
+                        {"name": "plan", "type": "select", "options": [("", "Todos"), ("starter", "Starter"), ("pro", "Pro"), ("enterprise", "Enterprise")]},
+                    ],
+                ),
+                ResourceTable(
+                    id="leads_table",
+                    resource="leads",
+                    title="Leads guardados",
+                    helper_text="Carga datos desde `/api/resources/leads/list` y reutiliza DataGrid internamente.",
+                    columns=[
+                        DataGridColumn("nombre", "Nombre", width=200),
+                        DataGridColumn("email", "Email", width=220),
+                        DataGridColumn("estado", "Estado", width=140),
+                        DataGridColumn("plan", "Plan", width=120),
+                    ],
+                    searchable=True,
+                    height=300,
+                    selectable=True,
+                ),
+                ResourceDetails(
+                    resource="leads",
+                    title="Detalle del lead 1",
+                    record_id="1",
+                    fields=["nombre", "email", "estado", "plan", "notas"],
+                ),
+                ResourceCardList(
+                    resource="leads",
+                    title="Vista en tarjetas",
+                    subtitle_field="email",
+                    badge_field="estado",
+                    columns=3,
+                ),
+                ResourceView(
+                    resource="leads",
+                    title="Vista compuesta del recurso",
+                    helper_text="Combina creación, acciones, filtros, tabla y detalle en un solo widget reutilizable.",
+                    form_fields=[
+                        {"name": "nombre", "label": "Nombre", "type": "text", "required": True},
+                        {"name": "email", "label": "Email", "type": "email", "required": True},
+                        {"name": "plan", "label": "Plan", "type": "select", "options": [("starter", "Starter"), ("pro", "Pro"), ("enterprise", "Enterprise")]},
+                    ],
+                    columns=[
+                        DataGridColumn("nombre", "Nombre", width=180),
+                        DataGridColumn("estado", "Estado", width=140),
+                        DataGridColumn("plan", "Plan", width=120),
+                    ],
+                    filters=[
+                        {"name": "estado", "type": "select", "options": [("", "Todos"), ("Nuevo", "Nuevo"), ("Calificado", "Calificado")]},
+                    ],
+                    actions=[
+                        {"label": "Refrescar", "variant": "secondary", "on_click": "window['leads_compound_refresh']&&window['leads_compound_refresh']()"},
+                    ],
+                    toolbar_actions=[
+                        {"label": "Nuevo rápido", "variant": "ghost", "on_click": "window.__martinToastFromPayload&&window.__martinToastFromPayload({message:'Acción rápida de toolbar',variant:'info',position:'top-right'})"},
+                    ],
+                    bulk_actions=[
+                        {"label": "Marcar seguimiento", "variant": "secondary", "url": "/api/resources/leads/bulk", "method": "POST", "body": {"action": "follow_up"}},
+                    ],
+                    detail_fields=["nombre", "email", "estado", "plan"],
+                    table_id="leads_compound",
+                    show_cards=False,
+                    show_bulk_actions=True,
+                ),
+                Code(
+                    "from martin import ResourceForm, ResourceEditor, ResourceTable, ResourceDetails, ResourceCardList, ResourceFilters, ResourceActions, ResourceBulkActions, ResourceToolbar, ResourceCreateButton, ResourceDuplicateButton, ResourceDeleteButton, ResourceView, DataGridColumn\\n\\n"
+                    "ResourceForm(\\n"
+                    "    resource='leads',\\n"
+                    "    fields=[\\n"
+                    "        {'name':'nombre','type':'text','required':True},\\n"
+                    "        {'name':'email','type':'email','required':True},\\n"
+                    "    ],\\n"
+                    ")\\n\\n"
+                    "ResourceEditor(\\n"
+                    "    resource='leads',\\n"
+                    "    record_id='1',\\n"
+                    "    fields=[{'name':'nombre','type':'text'},{'name':'email','type':'email'}],\\n"
+                    ")\\n\\n"
+                    "ResourceTable(\\n"
+                    "    resource='leads',\\n"
+                    "    columns=[DataGridColumn('nombre','Nombre'), DataGridColumn('estado','Estado')],\\n"
+                    ")\\n\\n"
+                    "ResourceCreateButton(resource='leads', body={'nombre':'Lead rápido','email':'demo@martin.dev'})\\n"
+                    "ResourceDuplicateButton(resource='leads', record_id='1', endpoint='/api/resources/leads/duplicate')\\n"
+                    "ResourceDeleteButton(resource='leads', record_id='2', endpoint='/api/resources/leads/delete')\\n\\n"
+                    "ResourceToolbar(target='leads_table', actions=[{'label':'Refrescar','on_click':\\\"window['leads_table_refresh']&&window['leads_table_refresh']()\\\"}])\\n"
+                    "ResourceBulkActions(target='leads_table', actions=[{'label':'Marcar seguimiento','url':'/api/resources/leads/bulk','body':{'action':'follow_up'}}])\\n"
+                    "ResourceFilters(target='leads_table', filters=[{'name':'estado','type':'select'}])\\n"
+                    "ResourceActions(actions=[{'label':'Refrescar','on_click':\\\"window['leads_table_refresh']&&window['leads_table_refresh']()\\\"}])\\n"
+                    "ResourceDetails(resource='leads', fields=['nombre','email'])\\n"
+                    "ResourceCardList(resource='leads', subtitle_field='email', badge_field='estado')\\n\\n"
+                    "ResourceView(resource='leads', columns=[DataGridColumn('nombre','Nombre')], form_fields=[{'name':'nombre','type':'text'}])",
+                    block=True,
+                    language="python",
+                    filename="resources_demo.py",
+                    copy=True,
+                ),
+            ], widget_name="Resources"))
+
+        # ── Wizard ───────────────────────────────────────────────────────
+        if "Wizard" in all_w:
+            secs.append(_sec("Wizard", "Flujos multi-paso reutilizando widgets normales dentro de cada paso.", [
+                Wizard(
+                    previous_label="Anterior",
+                    next_label="Continuar",
+                    finish_label="Finalizar",
+                    on_finish="alert('Wizard completado')",
+                    children=[
+                        WizardStep(
+                            title="Brief",
+                            description="Contexto inicial del proyecto.",
+                            children=[
+                                Grid(columns=2, gap=12, children=[
+                                    TextField(name="brief_nombre", placeholder="Nombre del proyecto"),
+                                    Select(
+                                        name="brief_tipo",
+                                        options=[
+                                            ("landing", "Landing page"),
+                                            ("dashboard", "Dashboard"),
+                                            ("catalogo", "Catalogo"),
+                                        ],
+                                        value="landing",
+                                        search=True,
+                                        placeholder="Tipo de sitio",
+                                    ),
+                                ]),
+                                TextArea(
+                                    name="brief_objetivo",
+                                    placeholder="Cual es el objetivo principal del sitio?",
+                                    rows=3,
+                                ),
+                            ],
+                        ),
+                        WizardStep(
+                            title="Experiencia",
+                            description="Decisiones de UI y comportamiento.",
+                            children=[
+                                Grid(columns=2, gap=12, children=[
+                                    Checkbox("Modo oscuro habilitado", checked=True),
+                                    Checkbox("PWA instalable", checked=False),
+                                    Checkbox("Animaciones suaves", checked=True),
+                                    Checkbox("i18n es/en", checked=True),
+                                ]),
+                                Alert(
+                                    "Puedes combinar cualquier widget dentro de cada paso, y Martin Studio puede seguir editando la estructura.",
+                                    variant="info",
+                                ),
+                            ],
+                        ),
+                        WizardStep(
+                            title="Resumen",
+                            description="Revision final antes de terminar.",
+                            children=[
+                                Card(
+                                    padding=14,
+                                    radius=12,
+                                    children=[
+                                        Text("El wizard reutiliza widgets normales.", style=TextStyle(weight="700")),
+                                        Paragraph(
+                                            "Esto mantiene la filosofia de Martin: todo es un widget y cada paso puede componerse con inputs, cards, alerts o cualquier layout.",
+                                            style=TextStyle(size=13, color="var(--text-muted)", line_height=1.6),
+                                        ),
+                                        Row(gap=8, wrap=True, children=[
+                                            Badge("Studio compatible", background=Colors.indigo),
+                                            Badge("Reusable", background="var(--surface-2,var(--surface))", color="var(--text-muted)"),
+                                        ]),
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+                Code(
+                    "from martin import Wizard, WizardStep, TextField, TextArea, Checkbox\\n\\n"
+                    "Wizard(\\n"
+                    "    previous_label='Anterior',\\n"
+                    "    next_label='Continuar',\\n"
+                    "    finish_label='Finalizar',\\n"
+                    "    children=[\\n"
+                    "        WizardStep(\\n"
+                    "            title='Brief',\\n"
+                    "            description='Contexto del proyecto',\\n"
+                    "            children=[TextField(placeholder='Nombre')],\\n"
+                    "        ),\\n"
+                    "        WizardStep(\\n"
+                    "            title='Experiencia',\\n"
+                    "            children=[Checkbox('Modo oscuro')],\\n"
+                    "        ),\\n"
+                    "        WizardStep(\\n"
+                    "            title='Resumen',\\n"
+                    "            children=[TextArea(value='Listo para revisar')],\\n"
+                    "        ),\\n"
+                    "    ],\\n"
+                    ")",
+                    block=True,
+                    language="python",
+                    filename="wizard_demo.py",
+                    copy=True,
+                ),
+            ], widget_name="Wizard"))
+
         # ── Backend ───────────────────────────────────────────────────────
         secs.append(_sec("Backend", "REST + metodos backend desde widgets (`ApiCall` y `MethodCall`) con SMTP opcional.", [
             Alert(
@@ -1197,6 +1878,62 @@ COMPONENTS_TEMPLATE = (
                 copy=True,
             ),
         ], widget_name="Backend"))
+
+        secs.append(_sec("Auth", "Sesiones simples con cookies desde `martin.backend`, útiles para proteger rutas o recursos.", [
+            Card(
+                padding=18,
+                radius=16,
+                children=[
+                    Column(gap=12, children=[
+                        Grid(columns=2, gap=12, children=[
+                            TextField(id="auth_user", placeholder="Usuario", value="admin"),
+                            TextField(id="auth_password", placeholder="Password", type="password", value="martin"),
+                        ]),
+                        Row(gap=10, wrap=True, children=[
+                            Button(
+                                "Login",
+                                on_click=ApiCall(
+                                    "/api/auth/login",
+                                    body={"user": Ref("auth_user"), "password": Ref("auth_password")},
+                                    target="auth_result",
+                                ),
+                            ),
+                            Button(
+                                "Quién soy",
+                                variant="secondary",
+                                on_click=ApiCall("/api/auth/me", method="GET", target="auth_result"),
+                            ),
+                            Button(
+                                "Logout",
+                                variant="ghost",
+                                on_click=ApiCall("/api/auth/logout", body={}, target="auth_result"),
+                            ),
+                        ]),
+                        ResultBox(id="auth_result", format="json"),
+                    ]),
+                ],
+            ),
+            Code(
+                "from martin.backend import Backend\\n\\n"
+                "backend = Backend(prefix='/api', session_store='.martin/sessions.json')\\n\\n"
+                "@backend.post('/auth/login')\\n"
+                "def login(req):\\n"
+                "    data = req.json(default={}, silent=True) or {}\\n"
+                "    if data.get('user') == 'admin' and data.get('password') == 'martin':\\n"
+                "        resp = backend.login({'user': 'admin', 'role': 'admin'})\\n"
+                "        resp.data = backend.with_toast({'message': 'ok'}, message='Sesión iniciada', variant='success')\\n"
+                "        return resp\\n"
+                "    return Response({'error': 'Credenciales inválidas'}, status=401)\\n\\n"
+                "@backend.get('/auth/me')\\n"
+                "@backend.require_auth\\n"
+                "def me(req):\\n"
+                "    return {'user': backend.get_session(req)}",
+                block=True,
+                language="python",
+                filename="auth_demo.py",
+                copy=True,
+            ),
+        ], widget_name="Auth"))
 
         # ── Modal ─────────────────────────────────────────────────────────
         if "Modal" in all_w:
@@ -1923,17 +2660,23 @@ COMPONENTS_TEMPLATE = (
         ("Texto",        "widget-texto"),
         ("Code",         "widget-code"),
         ("Badge & Alert","widget-badge"),
+        ("Toast",        "widget-toast"),
+        ("ToastCenter",  "widget-toastcenter"),
         ("Button",       "widget-button"),
         ("Inputs",       "widget-textfield"),
+        ("Uploader",     "widget-uploader"),
         ("Slider",       "widget-slider"),
         ("ColorPicker",  "widget-colorpicker"),
         ("DatePicker",   "widget-datepicker"),
         ("Avatar",       "widget-avatar"),
         ("Icons",        "widget-icons"),
         ("Backend",      "widget-backend"),
+        ("Auth",         "widget-auth"),
         ("Tabs",         "widget-tabs"),
         ("Table",        "widget-table"),
         ("Advanced Pack","widget-advanced-pack"),
+        ("Resources",    "widget-resources"),
+        ("Wizard",       "widget-wizard"),
         ("Modal",        "widget-modal"),
         ("Breadcrumb",   "widget-breadcrumb"),
         ("GradientText", "widget-gradienttext"),

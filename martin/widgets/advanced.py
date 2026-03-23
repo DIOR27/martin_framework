@@ -9,6 +9,8 @@ from ..widget import Widget
 __all__ = [
     "DataGridColumn",
     "DataGrid",
+    "WizardStep",
+    "Wizard",
     "CommandPalette",
     "Drawer",
     "SplitPane",
@@ -16,6 +18,19 @@ __all__ = [
     "EmptyState",
     "ErrorState",
     "Form",
+    "ResourceForm",
+    "ResourceEditor",
+    "ResourceTable",
+    "ResourceDetails",
+    "ResourceCardList",
+    "ResourceFilters",
+    "ResourceActions",
+    "ResourceBulkActions",
+    "ResourceToolbar",
+    "ResourceCreateButton",
+    "ResourceDuplicateButton",
+    "ResourceDeleteButton",
+    "ResourceView",
     "JSWidgetAdapter",
 ]
 
@@ -260,6 +275,157 @@ class DataGrid(Widget):
             + f"</div>"
             + js
             + f"</div>"
+        )
+
+
+class WizardStep(Widget):
+    """
+    Single step used inside Wizard.
+    """
+
+    def __init__(self, title="", description="", child=None, children=None, **kwargs):
+        self._props = Widget._extract_props(kwargs)
+        self.title = title
+        self.description = description
+        self.child = child
+        self.children = children
+
+    def render_content(self):
+        return self._resolve_inner(None, self.child, self.children)
+
+    def render(self):
+        body = self.render_content()
+        extra = self._resolve_props()
+        return (
+            f'<div style="{extra}">'
+            f"{body}"
+            f"</div>"
+        )
+
+
+class Wizard(Widget):
+    """
+    Multi-step flow with progress, step navigation and finish actions.
+    """
+
+    _id_counter = 0
+
+    def __init__(
+        self,
+        children=None,
+        child=None,
+        initial_step=0,
+        show_progress=True,
+        show_actions=True,
+        previous_label="Back",
+        next_label="Next",
+        finish_label="Finish",
+        on_finish="",
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.children = children or ([] if child is None else [child])
+        self.initial_step = max(0, int(initial_step or 0))
+        self.show_progress = bool(show_progress)
+        self.show_actions = bool(show_actions)
+        self.previous_label = str(previous_label or "Back")
+        self.next_label = str(next_label or "Next")
+        self.finish_label = str(finish_label or "Finish")
+        self.on_finish = str(on_finish or "")
+        Wizard._id_counter += 1
+        self.uid = f"wiz_{Wizard._id_counter}"
+
+    def _normalize_steps(self):
+        steps = []
+        for index, item in enumerate(self.children):
+            if isinstance(item, WizardStep):
+                steps.append(item)
+            elif isinstance(item, Widget):
+                steps.append(WizardStep(title=f"Step {index + 1}", child=item))
+        return steps
+
+    def render(self):
+        steps = self._normalize_steps()
+        if not steps:
+            return ""
+        uid = self.uid
+        extra = self._resolve_props("display:block")
+        initial = min(self.initial_step, max(0, len(steps) - 1))
+
+        head_html = ""
+        if self.show_progress:
+            items = []
+            for index, step in enumerate(steps):
+                title = str(step.title or f"Step {index + 1}")
+                description = str(step.description or "")
+                items.append(
+                    f'<button type="button" id="{uid}_tab_{index}" data-step="{index}" '
+                    f'style="display:flex;align-items:flex-start;gap:10px;text-align:left;border:none;background:transparent;'
+                    f'cursor:pointer;padding:0;color:inherit;min-width:0">'
+                    f'  <span id="{uid}_bullet_{index}" style="width:30px;height:30px;border-radius:999px;'
+                    f'     display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;'
+                    f'     border:1px solid var(--border);background:var(--surface-2);color:var(--text-muted);flex-shrink:0">{index + 1}</span>'
+                    f'  <span style="display:grid;gap:2px;min-width:0">'
+                    f'    <strong style="font-size:13px;line-height:1.2;color:var(--text)">{title}</strong>'
+                    f'    <small style="font-size:11px;line-height:1.3;color:var(--text-muted)">{description}</small>'
+                    f"  </span>"
+                    f"</button>"
+                )
+            head_html = (
+                f'<div id="{uid}_progress" style="display:grid;grid-template-columns:repeat({len(steps)},minmax(0,1fr));'
+                f'gap:14px;margin-bottom:18px">{ "".join(items) }</div>'
+            )
+
+        body_html = "".join(
+            f'<section id="{uid}_panel_{index}" data-step-panel="{index}" style="display:none">'
+            f"{step.render_content()}"
+            f"</section>"
+            for index, step in enumerate(steps)
+        )
+
+        actions_html = ""
+        if self.show_actions:
+            actions_html = (
+                f'<div style="display:flex;justify-content:space-between;gap:12px;margin-top:18px">'
+                f'  <button type="button" id="{uid}_prev" style="padding:10px 14px;border-radius:10px;'
+                f'     border:1px solid var(--border);background:var(--surface-2);color:var(--text);cursor:pointer">{self.previous_label}</button>'
+                f'  <button type="button" id="{uid}_next" style="padding:10px 16px;border-radius:10px;'
+                f'     border:none;background:var(--accent);color:#fff;cursor:pointer;font-weight:600">{self.next_label}</button>'
+                f"</div>"
+            )
+
+        js = (
+            f"<script>(function(){{"
+            f"var uid='{uid}',count={len(steps)},step={initial};"
+            f"var prev=document.getElementById(uid+'_prev');"
+            f"var next=document.getElementById(uid+'_next');"
+            f"function setStep(n){{step=Math.max(0,Math.min(count-1,n));"
+            f"for(var i=0;i<count;i++){{"
+            f"var panel=document.getElementById(uid+'_panel_'+i);"
+            f"var bullet=document.getElementById(uid+'_bullet_'+i);"
+            f"var tab=document.getElementById(uid+'_tab_'+i);"
+            f"if(panel)panel.style.display=i===step?'block':'none';"
+            f"if(bullet){{bullet.style.background=i<=step?'var(--accent)':'var(--surface-2)';bullet.style.color=i<=step?'#fff':'var(--text-muted)';bullet.style.borderColor=i<=step?'transparent':'var(--border)';}}"
+            f"if(tab)tab.setAttribute('aria-current',i===step?'step':'false');"
+            f"}}"
+            f"if(prev)prev.disabled=step===0;"
+            f"if(prev)prev.style.opacity=step===0?'.55':'1';"
+            f"if(next)next.textContent=step===count-1?{_json.dumps(self.finish_label)}:{_json.dumps(self.next_label)};"
+            f"}}"
+            f"for(var j=0;j<count;j++){{(function(index){{var tab=document.getElementById(uid+'_tab_'+index);if(tab)tab.addEventListener('click',function(){{setStep(index);}});}})(j);}}"
+            f"if(prev)prev.addEventListener('click',function(){{setStep(step-1);}});"
+            f"if(next)next.addEventListener('click',function(){{if(step>=count-1){{"
+            + (f"try{{(new Function({_json.dumps(self.on_finish)}))();}}catch(e){{console.error(e);}}" if self.on_finish else "")
+            + f"return;}}setStep(step+1);}});"
+            f"setStep(step);"
+            f"}})();</script>"
+        )
+
+        return (
+            f'<div style="{extra}">'
+            f'<div style="border:1px solid var(--border);border-radius:18px;padding:20px;'
+            f'background:var(--surface);box-shadow:var(--shadow)">{head_html}{body_html}{actions_html}</div>'
+            f"{js}</div>"
         )
 
 
@@ -734,6 +900,1021 @@ class Form(Widget):
             + "</form>"
             + js
         )
+
+
+class ResourceForm(Widget):
+    """
+    Formulario orientado a recurso, conectado al backend por convención.
+    """
+
+    _id_counter = 0
+
+    def __init__(
+        self,
+        resource,
+        fields=None,
+        endpoint=None,
+        title=None,
+        submit_label="Guardar",
+        target=None,
+        method="POST",
+        button_variant="primary",
+        helper_text="",
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.resource = str(resource or "").strip() or "resource"
+        self.fields = fields or []
+        self.endpoint = endpoint or f"/api/resources/{self.resource}/save"
+        self.title = title
+        self.submit_label = str(submit_label or "Guardar")
+        self.target = target
+        self.method = str(method or "POST").upper()
+        self.button_variant = str(button_variant or "primary")
+        self.helper_text = str(helper_text or "")
+        ResourceForm._id_counter += 1
+        self.uid = f"resource_form_{ResourceForm._id_counter}"
+
+    def _build_field_widget(self, spec):
+        from .input import (
+            TextField,
+            TextArea,
+            Select,
+            Checkbox,
+            NumberInput,
+            DatePicker,
+            TimePicker,
+        )
+
+        field = dict(spec or {})
+        name = str(field.get("name") or "").strip()
+        if not name:
+            return None
+        kind = str(field.get("type") or "text").lower()
+        placeholder = field.get("placeholder") or field.get("label") or name.replace("_", " ").title()
+        label = field.get("label")
+        required = bool(field.get("required"))
+        if kind in {"textarea", "text-area"}:
+            return TextArea(name=name, placeholder=placeholder, rows=int(field.get("rows", 3)), value=field.get("value", ""))
+        if kind == "select":
+            return Select(
+                name=name,
+                options=field.get("options", []),
+                value=field.get("value"),
+                search=bool(field.get("search", True)),
+                placeholder=placeholder,
+            )
+        if kind == "checkbox":
+            return Checkbox(label or placeholder, name=name, checked=bool(field.get("value", False)))
+        if kind == "number":
+            return NumberInput(
+                name=name,
+                value=field.get("value"),
+                min=field.get("min"),
+                max=field.get("max"),
+                step=field.get("step", 1),
+                placeholder=placeholder,
+            )
+        if kind == "date":
+            return DatePicker(name=name, label=label or placeholder, value=field.get("value"))
+        if kind == "time":
+            return TimePicker(name=name, label=label or placeholder, value=field.get("value"))
+        return TextField(
+            name=name,
+            placeholder=placeholder,
+            type="email" if kind == "email" else "text",
+            value=field.get("value", ""),
+            required=required,
+        )
+
+    def render(self):
+        from .input import Button
+        from .layout import Column, Grid, Row
+        from .text import Text, Paragraph
+        from ..backend.widgets import ResultBox
+
+        field_widgets = [self._build_field_widget(spec) for spec in self.fields]
+        field_widgets = [item for item in field_widgets if item is not None]
+        schema = {}
+        for field in self.fields:
+            name = str(field.get("name") or "").strip()
+            if not name:
+                continue
+            rule = {}
+            for key in ("required", "min_length", "max_length", "pattern", "email", "async_url", "mask"):
+                if key in field:
+                    rule[key] = field[key]
+            if rule:
+                schema[name] = rule
+
+        target_id = self.target or (self.uid + "_result")
+        submit_js = (
+            "var values=state.values;"
+            "fetch(" + _json.dumps(self.endpoint) + ",{"
+            "method:" + _json.dumps(self.method) + ","
+            "headers:{'Content-Type':'application/json'},"
+            "body:JSON.stringify(values)"
+            "}).then(function(res){return res.json().then(function(data){return {ok:res.ok,status:res.status,data:data};});})"
+            ".then(function(result){"
+            "if(result.data&&(result.data.toast||result.data._toast)&&window.__martinToastFromPayload){window.__martinToastFromPayload(result.data.toast||result.data._toast);}"
+            "var box=document.getElementById(" + _json.dumps(target_id) + ");"
+            "if(box){box.setAttribute('data-state',result.ok?'success':'error');box._martinData=result.data;box.dispatchEvent(new CustomEvent('martin:result',{detail:result.data}));}"
+            "})"
+            ".catch(function(err){"
+            "if(window.__martinToastFromPayload){window.__martinToastFromPayload({message:err.message||'Error de red',variant:'error',position:'top-right'});}"
+            "var box=document.getElementById(" + _json.dumps(target_id) + ");"
+            "if(box){box.setAttribute('data-state','error');box._martinData={error:err.message};box.dispatchEvent(new CustomEvent('martin:result',{detail:{error:err.message}}));}"
+            "});"
+            "event.preventDefault();"
+        )
+
+        content = []
+        if self.title:
+            content.append(Text(self.title, style="font-size:16px;font-weight:700;color:var(--text)"))
+        if self.helper_text:
+            content.append(Paragraph(self.helper_text, style="font-size:13px;color:var(--text-muted);line-height:1.6"))
+        content.append(Grid(columns=2, gap=12, children=field_widgets))
+        content.append(Row(gap=10, wrap=True, children=[Button(self.submit_label, variant=self.button_variant)]))
+        content.append(ResultBox(id=target_id, format="json"))
+
+        return Form(
+            id=self.uid,
+            schema=schema,
+            on_submit=submit_js,
+            children=[Column(gap=14, children=content)],
+            **self._props,
+        ).render()
+
+
+class ResourceEditor(Widget):
+    """
+    Resource form that loads an existing record and saves changes back.
+    """
+
+    _id_counter = 0
+
+    def __init__(
+        self,
+        resource,
+        record_id,
+        fields=None,
+        endpoint=None,
+        detail_endpoint=None,
+        title=None,
+        submit_label="Actualizar",
+        target=None,
+        method="PATCH",
+        button_variant="primary",
+        helper_text="",
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.resource = str(resource or "").strip() or "resource"
+        self.record_id = str(record_id if record_id is not None else "").strip()
+        self.fields = fields or []
+        self.endpoint = endpoint or f"/api/resources/{self.resource}/save"
+        self.detail_endpoint = detail_endpoint or f"/api/resources/{self.resource}/detail"
+        self.title = title
+        self.submit_label = str(submit_label or "Actualizar")
+        self.target = target
+        self.method = str(method or "PATCH").upper()
+        self.button_variant = str(button_variant or "primary")
+        self.helper_text = str(helper_text or "")
+        ResourceEditor._id_counter += 1
+        self.uid = f"resource_editor_{ResourceEditor._id_counter}"
+
+    def render(self):
+        specs = [{"name": "id", "type": "text", "value": self.record_id, "placeholder": "Id"}]
+        specs.extend(list(self.fields or []))
+        form = ResourceForm(
+            resource=self.resource,
+            fields=specs,
+            endpoint=self.endpoint,
+            title=self.title,
+            submit_label=self.submit_label,
+            target=self.target,
+            method=self.method,
+            button_variant=self.button_variant,
+            helper_text=self.helper_text,
+            style="display:block",
+        )
+        form_html = form.render()
+        js = (
+            f"<script>(function(){{"
+            f"var form=document.getElementById({_json.dumps(form.uid)});"
+            f"var endpoint={_json.dumps(self.detail_endpoint)};"
+            f"var recordId={_json.dumps(self.record_id)};"
+            f"if(!form||!recordId)return;"
+            f"function escSel(v){{return String(v).replace(/([ #;?%&,.+*~\\':\\\"!^$\\[\\]()=>|\\/])/g,'\\\\$1');}}"
+            f"function fillValue(name,val){{"
+            f"  var el=form.querySelector('[name=\"'+String(name).replace(/\"/g,'\\\\\"')+'\"]');"
+            f"  if(!el)return;"
+            f"  if(el.type==='checkbox'){{el.checked=!!val;el.value=val?'true':'false';el.dispatchEvent(new Event('input',{{bubbles:true}}));return;}}"
+            f"  if(el.id&&el.id.slice(-4)==='_val'&&window.pwSelectPick){{"
+            f"    var uid=el.id.slice(0,-4);"
+            f"    var opt=document.querySelector('#'+escSel(uid)+'_list .pw-opt[data-val=\"'+String(val).replace(/\"/g,'\\\\\"')+'\"]');"
+            f"    var label=opt?opt.getAttribute('data-label'):String(val==null?'':val);"
+            f"    window.pwSelectPick(uid,String(val==null?'':val),label);"
+            f"    el.dispatchEvent(new Event('input',{{bubbles:true}}));"
+            f"    return;"
+            f"  }}"
+            f"  el.value=val==null?'':String(val);"
+            f"  el.dispatchEvent(new Event('input',{{bubbles:true}}));"
+            f"  el.dispatchEvent(new Event('blur',{{bubbles:true}}));"
+            f"}}"
+            f"fetch(endpoint+(endpoint.indexOf('?')>=0?'&':'?')+'id='+encodeURIComponent(recordId))"
+            f".then(function(res){{return res.json();}})"
+            f".then(function(data){{"
+            f"  var record=(data&&(data.record||data.item||data.data))||{{}};"
+            f"  Object.keys(record).forEach(function(key){{fillValue(key,record[key]);}});"
+            f"  if(data&&(data.toast||data._toast)&&window.__martinToastFromPayload)window.__martinToastFromPayload(data.toast||data._toast);"
+            f"}})"
+            f".catch(function(err){{if(window.__martinToastFromPayload)window.__martinToastFromPayload({{message:err.message||'Error cargando recurso',variant:'error',position:'top-right'}});}});"
+            f"}})();</script>"
+        )
+        return f'<div style="{self._resolve_props("display:block")}">{form_html}{js}</div>'
+
+
+class ResourceTable(Widget):
+    """
+    Tabla orientada a recurso, conectada al backend por convención.
+    """
+
+    _id_counter = 0
+
+    def __init__(
+        self,
+        resource,
+        columns=None,
+        rows=None,
+        endpoint=None,
+        title=None,
+        helper_text="",
+        searchable=True,
+        refresh_label="Refrescar",
+        height=340,
+        selectable=False,
+        id_field="id",
+        selection_label="Sel.",
+        search_param="q",
+        id=None,
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.resource = str(resource or "").strip() or "resource"
+        self.columns = columns or []
+        self.rows = rows or []
+        self.endpoint = endpoint or f"/api/resources/{self.resource}/list"
+        self.title = title
+        self.helper_text = str(helper_text or "")
+        self.searchable = bool(searchable)
+        self.refresh_label = str(refresh_label or "Refrescar")
+        self.height = int(height or 340)
+        self.selectable = bool(selectable)
+        self.id_field = str(id_field or "id")
+        self.selection_label = str(selection_label or "Sel.")
+        self.search_param = str(search_param or "q")
+        ResourceTable._id_counter += 1
+        self.uid = id or f"resource_table_{ResourceTable._id_counter}"
+
+    def render(self):
+        from .input import Button
+        from .layout import Column, Row
+        from .text import Paragraph, Text
+        from .special import Raw
+
+        grid_columns = list(self.columns or [])
+        if self.selectable:
+            grid_columns = [DataGridColumn("__martin_select__", self.selection_label, width=72, sortable=False, align="center")] + grid_columns
+        grid = DataGrid(
+            rows=self.rows,
+            columns=grid_columns,
+            searchable=self.searchable,
+            sortable=True,
+            resizable=True,
+            reorderable=True,
+            virtual_scroll=True,
+            height=self.height,
+        )
+        grid_html = grid.render()
+        js = (
+            f"<script>(function(){{"
+            f"var uid='{self.uid}',endpoint={_json.dumps(self.endpoint)},activeQuery={{}},selectedIds={{}},idField={_json.dumps(self.id_field)},selectable={str(self.selectable).lower()};"
+            f"function esc(v){{return String(v==null?'':v);}}"
+            f"function normalizeRows(rows){{rows=Array.isArray(rows)?rows:[];if(!selectable)return rows;return rows.map(function(row){{var next=Object.assign({{}},row||{{}});var key=esc(next[idField]);next.__martin_select__=selectedIds[key]?'☑':'☐';return next;}});}}"
+            f"function syncSelectionUi(){{"
+            f"if(!selectable)return;"
+            f"var wrap=document.getElementById(uid);"
+            f"if(!wrap)return;"
+            f"var body=wrap.querySelector('tbody');"
+            f"if(!body)return;"
+            f"var rows=Array.prototype.slice.call(body.querySelectorAll('tr'));"
+            f"rows.forEach(function(tr){{"
+            f"var first=tr.children&&tr.children[0];"
+            f"if(!first)return;"
+            f"var text=(first.textContent||'').trim();"
+            f"if(text!=='☐'&&text!=='☑')return;"
+            f"tr.style.cursor='pointer';"
+            f"tr.setAttribute('data-martin-selectable','1');"
+            f"if(first.getAttribute('data-bound')==='1')return;"
+            f"first.setAttribute('data-bound','1');"
+            f"tr.addEventListener('click',function(){{"
+            f"var cells=this.children||[];"
+            f"if(!cells.length)return;"
+            f"var selectCell=cells[0];"
+            f"var keyCell=cells.length>1?cells[1]:null;"
+            f"var key=esc(keyCell?keyCell.textContent:'');"
+            f"if(!key)return;"
+            f"selectedIds[key]=!selectedIds[key];"
+            f"if(!selectedIds[key])delete selectedIds[key];"
+            f"if(window['{grid.uid}_setRows'])window['{grid.uid}_setRows'](normalizeRows(window[uid+'_rows']||[]));"
+            f"notifySelection();"
+            f"}});"
+            f"}});"
+            f"}}"
+            f"function notifySelection(){{"
+            f"var ids=Object.keys(selectedIds).filter(function(key){{return !!selectedIds[key];}});"
+            f"window[uid+'_getSelectedIds']=function(){{return ids.slice();}};"
+            f"window[uid+'_clearSelection']=function(){{selectedIds={{}};if(window['{grid.uid}_setRows'])window['{grid.uid}_setRows'](normalizeRows(window[uid+'_rows']||[]));notifySelection();}};"
+            f"window.dispatchEvent(new CustomEvent(uid+':selectionchange',{{detail:{{ids:ids,count:ids.length}}}}));"
+            f"}}"
+            f"window[uid+'_refresh']=function(query){{"
+            f"if(query&&typeof query==='object')activeQuery=query;"
+            f"var qs=new URLSearchParams(activeQuery||{{}}).toString();"
+            f"var finalUrl=qs?(endpoint+(endpoint.indexOf('?')>=0?'&':'?')+qs):endpoint;"
+            f"fetch(finalUrl).then(function(res){{return res.json();}}).then(function(data){{"
+            f"var rows=(data&& (data.rows||data.items||data.data)) || [];"
+            f"window[uid+'_rows']=rows;"
+            f"if(window['{grid.uid}_setRows'])window['{grid.uid}_setRows'](normalizeRows(rows));"
+            f"syncSelectionUi();notifySelection();"
+            f"if(data&&(data.toast||data._toast)&&window.__martinToastFromPayload)window.__martinToastFromPayload(data.toast||data._toast);"
+            f"}}).catch(function(err){{if(window.__martinToastFromPayload)window.__martinToastFromPayload({{message:err.message||'Error cargando recurso',variant:'error',position:'top-right'}});}});"
+            f"}};"
+            f"new MutationObserver(function(){{syncSelectionUi();}}).observe(document.getElementById({ _json.dumps(grid.uid + '_body') })||document.body,{{childList:true,subtree:true}});"
+            f"window[uid+'_refresh']();"
+            f"}})();</script>"
+        )
+        header_items = []
+        if self.title:
+            header_items.append(Text(self.title, style="font-size:16px;font-weight:700;color:var(--text)"))
+        if self.helper_text:
+            header_items.append(Paragraph(self.helper_text, style="font-size:13px;color:var(--text-muted);line-height:1.6"))
+        header_items.append(
+            Row(gap=10, wrap=True, children=[
+                Button(self.refresh_label, variant="secondary", on_click=f"{self.uid}_refresh()")
+            ])
+        )
+        return Column(children=header_items + [Raw(grid_html + js)], gap=14, **self._props).render()
+
+
+class ResourceDetails(Widget):
+    """
+    Vista simple de detalle conectada al backend por convención.
+    """
+
+    _id_counter = 0
+
+    def __init__(
+        self,
+        resource,
+        endpoint=None,
+        title=None,
+        record_id=None,
+        fields=None,
+        empty_text="Sin datos",
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.resource = str(resource or "").strip() or "resource"
+        self.endpoint = endpoint or f"/api/resources/{self.resource}/detail"
+        self.title = title
+        self.record_id = record_id
+        self.fields = list(fields or [])
+        self.empty_text = str(empty_text or "Sin datos")
+        ResourceDetails._id_counter += 1
+        self.uid = f"resource_details_{ResourceDetails._id_counter}"
+
+    def render(self):
+        extra = self._resolve_props("display:block")
+        normalized_fields = []
+        for field in self.fields:
+            if isinstance(field, dict):
+                name = str(field.get("name") or "").strip()
+                if name:
+                    normalized_fields.append({
+                        "name": name,
+                        "label": str(field.get("label") or name.replace("_", " ").title()),
+                    })
+            else:
+                name = str(field or "").strip()
+                if name:
+                    normalized_fields.append({
+                        "name": name,
+                        "label": name.replace("_", " ").title(),
+                    })
+        fields_js = _json.dumps(normalized_fields, ensure_ascii=False)
+        endpoint = self.endpoint + (f"?id={self.record_id}" if self.record_id is not None and "?" not in self.endpoint else "")
+        js = (
+            f"<script>(function(){{"
+            f"var uid='{self.uid}',endpoint={_json.dumps(endpoint)},fields={fields_js};"
+            f"var box=document.getElementById(uid+'_body'); if(!box)return;"
+            f"fetch(endpoint).then(function(res){{return res.json();}}).then(function(data){{"
+            f"var record=(data&&(data.record||data.item||data.data))||{{}};"
+            f"var keys=Array.isArray(fields)&&fields.length?fields:Object.keys(record).map(function(key){{return {{name:key,label:String(key).replace(/_/g,' ').replace(/\\b\\w/g,function(c){{return c.toUpperCase();}})}};}});"
+            f"if(!keys.length){{box.innerHTML='<p style=\"margin:0;color:var(--text-muted)\">{self.empty_text}</p>';return;}}"
+            f"box.innerHTML=keys.map(function(field){{var key=field.name||field;var label=field.label||String(key);var value=record[key]==null?'':record[key];return '<div style=\"display:grid;gap:4px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2,var(--surface))\"><span style=\"font-size:12px;color:var(--text-muted)\">'+label+'</span><strong style=\"font-size:14px;color:var(--text)\">'+value+'</strong></div>';}}).join('');"
+            f"if(data&&(data.toast||data._toast)&&window.__martinToastFromPayload)window.__martinToastFromPayload(data.toast||data._toast);"
+            f"}}).catch(function(err){{box.innerHTML='<p style=\"margin:0;color:var(--danger,#ef4444)\">'+(err.message||'Error')+'</p>';}});"
+            f"}})();</script>"
+        )
+        title_html = (
+            f'<div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:12px">{self.title}</div>'
+            if self.title
+            else ""
+        )
+        return (
+            f'<div style="{extra}">'
+            f'<div style="border:1px solid var(--border);border-radius:16px;padding:16px;background:var(--surface)">'
+            f"{title_html}"
+            f'<div id="{self.uid}_body" style="display:grid;gap:10px"></div>'
+            f"</div>{js}</div>"
+        )
+
+
+class ResourceCardList(Widget):
+    """
+    Lista de tarjetas conectada al backend por convención.
+    """
+
+    _id_counter = 0
+
+    def __init__(
+        self,
+        resource,
+        endpoint=None,
+        title=None,
+        subtitle_field=None,
+        badge_field=None,
+        columns=3,
+        empty_text="Sin elementos",
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.resource = str(resource or "").strip() or "resource"
+        self.endpoint = endpoint or f"/api/resources/{self.resource}/list"
+        self.title = title
+        self.subtitle_field = subtitle_field
+        self.badge_field = badge_field
+        self.columns = max(1, int(columns or 3))
+        self.empty_text = str(empty_text or "Sin elementos")
+        ResourceCardList._id_counter += 1
+        self.uid = f"resource_cards_{ResourceCardList._id_counter}"
+
+    def render(self):
+        extra = self._resolve_props("display:block")
+        js = (
+            f"<script>(function(){{"
+            f"var uid='{self.uid}',endpoint={_json.dumps(self.endpoint)};"
+            f"var grid=document.getElementById(uid+'_grid'); if(!grid)return;"
+            f"fetch(endpoint).then(function(res){{return res.json();}}).then(function(data){{"
+            f"var rows=(data&&(data.rows||data.items||data.data))||[];"
+            f"if(!rows.length){{grid.innerHTML='<p style=\"margin:0;color:var(--text-muted)\">{self.empty_text}</p>';return;}}"
+            f"grid.innerHTML=rows.map(function(item){{var title=item.nombre||item.name||item.titulo||'Item';var subtitle={_json.dumps(self.subtitle_field)}?item[{_json.dumps(self.subtitle_field)}]||'':'';var badge={_json.dumps(self.badge_field)}?item[{_json.dumps(self.badge_field)}]||'':'';return '<article style=\"display:grid;gap:10px;padding:14px;border:1px solid var(--border);border-radius:16px;background:var(--surface-2,var(--surface))\"><div style=\"display:flex;align-items:center;justify-content:space-between;gap:10px\"><strong style=\"font-size:15px;color:var(--text)\">'+title+'</strong>'+(badge?'<span style=\"display:inline-flex;padding:4px 10px;border-radius:999px;background:var(--accent);color:#fff;font-size:11px;font-weight:700\">'+badge+'</span>':'')+'</div>'+(subtitle?'<div style=\"font-size:13px;color:var(--text-muted)\">'+subtitle+'</div>':'')+'<pre style=\"margin:0;font-size:12px;color:var(--text-muted);white-space:pre-wrap\">'+JSON.stringify(item,null,2)+'</pre></article>';}}).join('');"
+            f"if(data&&(data.toast||data._toast)&&window.__martinToastFromPayload)window.__martinToastFromPayload(data.toast||data._toast);"
+            f"}}).catch(function(err){{grid.innerHTML='<p style=\"margin:0;color:var(--danger,#ef4444)\">'+(err.message||'Error')+'</p>';}});"
+            f"}})();</script>"
+        )
+        title_html = (
+            f'<div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:12px">{self.title}</div>'
+            if self.title
+            else ""
+        )
+        return (
+            f'<div style="{extra}">'
+            f"{title_html}"
+            f'<div id="{self.uid}_grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax({max(180, int(840 / self.columns))}px,1fr));gap:12px"></div>'
+            f"{js}</div>"
+        )
+
+
+class ResourceFilters(Widget):
+    """
+    Filtros declarativos para refrescar un ResourceTable por id.
+    """
+
+    _id_counter = 0
+
+    def __init__(self, target, filters=None, title=None, button_label="Aplicar filtros", **kwargs):
+        self._props = Widget._extract_props(kwargs)
+        self.target = str(target or "").strip()
+        self.filters = list(filters or [])
+        self.title = title
+        self.button_label = str(button_label or "Aplicar filtros")
+        ResourceFilters._id_counter += 1
+        self.uid = f"resource_filters_{ResourceFilters._id_counter}"
+
+    def render(self):
+        from .input import TextField, Select, Button
+        from .layout import Column, Grid, Row
+        from .text import Text
+
+        widgets = []
+        for spec in self.filters:
+            item = dict(spec or {})
+            name = str(item.get("name") or "").strip()
+            if not name:
+                continue
+            kind = str(item.get("type") or "text").lower()
+            placeholder = item.get("placeholder") or item.get("label") or name.replace("_", " ").title()
+            if kind == "select":
+                widgets.append(
+                    Select(
+                        id=f"{self.uid}_{name}",
+                        name=name,
+                        options=item.get("options", []),
+                        value=item.get("value"),
+                        search=bool(item.get("search", False)),
+                        placeholder=placeholder,
+                    )
+                )
+            else:
+                widgets.append(
+                    TextField(
+                        id=f"{self.uid}_{name}",
+                        name=name,
+                        placeholder=placeholder,
+                        value=item.get("value", ""),
+                    )
+                )
+
+        apply_js = (
+            "(function(){"
+            f"var params={{}};"
+            + "".join(
+                [
+                    f"var el_{idx}=document.getElementById('{self.uid}_{str((spec or {}).get('name') or '').strip()}_val')||document.getElementById('{self.uid}_{str((spec or {}).get('name') or '').strip()}');"
+                    f"if(el_{idx}&&String(el_{idx}.value||'').trim())params[{_json.dumps(str((spec or {}).get('name') or '').strip())}]=el_{idx}.value;"
+                    for idx, spec in enumerate(self.filters)
+                    if str((spec or {}).get("name") or "").strip()
+                ]
+            )
+            + f"if(window[{_json.dumps(self.target + '_refresh')}])window[{_json.dumps(self.target + '_refresh')}](params);"
+            + "})()"
+        )
+
+        children = []
+        if self.title:
+            children.append(Text(self.title, style="font-size:14px;font-weight:700;color:var(--text)"))
+        children.append(Grid(columns=max(1, min(3, len(widgets) or 1)), gap=12, children=widgets))
+        children.append(Row(gap=10, wrap=True, children=[Button(self.button_label, variant="secondary", on_click=apply_js)]))
+        return Column(gap=12, children=children, **self._props).render()
+
+
+class ResourceActions(Widget):
+    """
+    Grupo declarativo de acciones para un recurso.
+    """
+
+    def __init__(self, actions=None, title=None, **kwargs):
+        self._props = Widget._extract_props(kwargs)
+        self.actions = list(actions or [])
+        self.title = title
+
+    def render(self):
+        from .input import Button
+        from .layout import Column, Row
+        from .text import Text
+        from ..backend.widgets import ApiCall, MethodCall
+
+        buttons = []
+        for action in self.actions:
+            item = dict(action or {})
+            label = str(item.get("label") or "Action")
+            variant = str(item.get("variant") or "secondary")
+            on_click = item.get("on_click")
+            if not on_click and item.get("url"):
+                on_click = ApiCall(
+                    item["url"],
+                    method=str(item.get("method") or "POST").upper(),
+                    body=item.get("body"),
+                    target=item.get("target"),
+                )
+            if not on_click and item.get("backend_method"):
+                on_click = MethodCall(
+                    item["backend_method"],
+                    params=item.get("params"),
+                    target=item.get("target"),
+                )
+            buttons.append(Button(label, variant=variant, on_click=on_click))
+
+        children = []
+        if self.title:
+            children.append(Text(self.title, style="font-size:14px;font-weight:700;color:var(--text)"))
+        children.append(Row(gap=10, wrap=True, children=buttons))
+        return Column(gap=12, children=children, **self._props).render()
+
+
+class ResourceBulkActions(Widget):
+    """
+    Bulk actions bound to a selectable ResourceTable.
+    """
+
+    def __init__(self, target, actions=None, title=None, empty_message="Selecciona al menos un registro.", **kwargs):
+        self._props = Widget._extract_props(kwargs)
+        self.target = str(target or "").strip()
+        self.actions = list(actions or [])
+        self.title = title
+        self.empty_message = str(empty_message or "Selecciona al menos un registro.")
+
+    def render(self):
+        from .input import Button
+        from .layout import Column, Row
+        from .text import Text
+
+        buttons = []
+        for idx, action in enumerate(self.actions):
+            item = dict(action or {})
+            label = str(item.get("label") or f"Action {idx + 1}")
+            variant = str(item.get("variant") or "secondary")
+            method = str(item.get("method") or "POST").upper()
+            endpoint = str(item.get("url") or item.get("endpoint") or "").strip()
+            backend_method = str(item.get("backend_method") or "").strip()
+            payload = item.get("body") if isinstance(item.get("body"), dict) else {}
+            target = item.get("target")
+            confirm_message = item.get("confirm_message")
+            js = (
+                "(function(){"
+                + f"var ids=(window[{_json.dumps(self.target + '_getSelectedIds')}]?window[{_json.dumps(self.target + '_getSelectedIds')}]():[])||[];"
+                + f"if(!ids.length){{if(window.__martinToastFromPayload)window.__martinToastFromPayload({{message:{_json.dumps(self.empty_message)},variant:'warning',position:'top-right'}});return;}}"
+                + (f"if(!confirm({_json.dumps(confirm_message)}))return;" if confirm_message else "")
+            )
+            if endpoint:
+                js += (
+                    "fetch("
+                    + _json.dumps(endpoint)
+                    + ",{method:"
+                    + _json.dumps(method)
+                    + ",headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({},"
+                    + _json.dumps(payload, ensure_ascii=False)
+                    + ",{ids:ids}))})"
+                )
+            elif backend_method:
+                js += (
+                    "fetch('/api/_method',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({method:"
+                    + _json.dumps(backend_method)
+                    + ",params:Object.assign({},"
+                    + _json.dumps(payload, ensure_ascii=False)
+                    + ",{ids:ids})})})"
+                )
+            else:
+                js += "Promise.resolve({ok:true,json:function(){return Promise.resolve({ids:ids});}})"
+            js += (
+                ".then(function(res){return res.json().then(function(data){return {ok:res.ok,data:data};});})"
+                ".then(function(result){"
+                "if(result.data&&(result.data.toast||result.data._toast)&&window.__martinToastFromPayload){window.__martinToastFromPayload(result.data.toast||result.data._toast);}"
+            )
+            if target:
+                js += (
+                    "var box=document.getElementById("
+                    + _json.dumps(target)
+                    + ");if(box){box.setAttribute('data-state',result.ok?'success':'error');box._martinData=result.data;box.dispatchEvent(new CustomEvent('martin:result',{detail:result.data}));}"
+                )
+            js += (
+                f"if(window[{_json.dumps(self.target + '_refresh')}])window[{_json.dumps(self.target + '_refresh')}]();"
+                f"if(window[{_json.dumps(self.target + '_clearSelection')}])window[{_json.dumps(self.target + '_clearSelection')}]();"
+                "})"
+                ".catch(function(err){if(window.__martinToastFromPayload){window.__martinToastFromPayload({message:err.message||'Error de red',variant:'error',position:'top-right'});}});"
+                "})()"
+            )
+            buttons.append(Button(label, variant=variant, on_click=js))
+
+        children = []
+        if self.title:
+            children.append(Text(self.title, style="font-size:14px;font-weight:700;color:var(--text)"))
+        children.append(Row(gap=10, wrap=True, children=buttons))
+        return Column(gap=12, children=children, **self._props).render()
+
+
+class ResourceToolbar(Widget):
+    """
+    Search and quick actions toolbar for resource widgets.
+    """
+
+    _id_counter = 0
+
+    def __init__(
+        self,
+        target,
+        title=None,
+        search_placeholder="Buscar registros...",
+        search_param="q",
+        show_selected_count=True,
+        actions=None,
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.target = str(target or "").strip()
+        self.title = title
+        self.search_placeholder = str(search_placeholder or "Buscar registros...")
+        self.search_param = str(search_param or "q")
+        self.show_selected_count = bool(show_selected_count)
+        self.actions = list(actions or [])
+        ResourceToolbar._id_counter += 1
+        self.uid = f"resource_toolbar_{ResourceToolbar._id_counter}"
+
+    def render(self):
+        from .input import Button, TextField
+        from .layout import Column, Row
+        from .special import Raw
+        from .text import Text
+
+        action_buttons = []
+        for item in self.actions:
+            action = dict(item or {})
+            action_buttons.append(
+                Button(
+                    str(action.get("label") or "Action"),
+                    variant=str(action.get("variant") or "secondary"),
+                    on_click=action.get("on_click"),
+                )
+            )
+
+        count_html = (
+            f'<span id="{self.uid}_count" style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:var(--surface-2,var(--surface));color:var(--text-muted);font-size:12px">0 seleccionados</span>'
+            if self.show_selected_count
+            else ""
+        )
+        input_widget = TextField(
+            id=f"{self.uid}_search",
+            placeholder=self.search_placeholder,
+        )
+        search_js = (
+            "(function(){"
+            + f"var input=document.getElementById({_json.dumps(self.uid + '_search')});"
+            + "if(!input)return;"
+            + f"var fn=window[{_json.dumps(self.target + '_refresh')}];"
+            + "if(typeof fn!=='function')return;"
+            + "fn({"
+            + _json.dumps(self.search_param)
+            + ":input.value||''});"
+            + "})()"
+        )
+        bind_js = (
+            f"<script>(function(){{"
+            f"var count=document.getElementById({_json.dumps(self.uid + '_count')});"
+            f"if(!count)return;"
+            f"window.addEventListener({_json.dumps(self.target + ':selectionchange')},function(ev){{"
+            f"var detail=(ev&&ev.detail)||{{}};count.textContent=String(detail.count||0)+' seleccionados';"
+            f"}});"
+            f"}})();</script>"
+        )
+        children = []
+        if self.title:
+            children.append(Text(self.title, style="font-size:14px;font-weight:700;color:var(--text)"))
+        children.append(
+            Row(
+                gap=10,
+                wrap=True,
+                align="center",
+                children=[input_widget, Button("Buscar", variant="secondary", on_click=search_js)] + ([Raw(count_html)] if count_html else []) + action_buttons,
+            )
+        )
+        children.append(Raw(bind_js))
+        return Column(gap=12, children=children, **self._props).render()
+
+
+class ResourceCreateButton(Widget):
+    """
+    Quick create button for a resource using convention-based save endpoints.
+    """
+
+    def __init__(
+        self,
+        resource,
+        body=None,
+        label="Crear",
+        endpoint=None,
+        target=None,
+        variant="primary",
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.resource = str(resource or "").strip() or "resource"
+        self.body = body or {}
+        self.label = str(label or "Crear")
+        self.endpoint = endpoint or f"/api/resources/{self.resource}/save"
+        self.target = target
+        self.variant = str(variant or "primary")
+
+    def render(self):
+        from .input import Button
+        from ..backend.widgets import ApiCall
+
+        return Button(
+            self.label,
+            variant=self.variant,
+            on_click=ApiCall(self.endpoint, method="POST", body=self.body, target=self.target),
+            **self._props,
+        ).render()
+
+
+class ResourceDuplicateButton(Widget):
+    """
+    Duplicate an existing resource record with small overrides.
+    """
+
+    def __init__(
+        self,
+        resource,
+        record_id,
+        body=None,
+        label="Duplicar",
+        endpoint=None,
+        target=None,
+        variant="secondary",
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.resource = str(resource or "").strip() or "resource"
+        self.record_id = str(record_id if record_id is not None else "").strip()
+        self.body = body or {}
+        self.label = str(label or "Duplicar")
+        self.endpoint = endpoint or f"/api/resources/{self.resource}/duplicate"
+        self.target = target
+        self.variant = str(variant or "secondary")
+
+    def render(self):
+        from .input import Button
+        from ..backend.widgets import ApiCall
+
+        payload = {"id": self.record_id}
+        if isinstance(self.body, dict):
+            payload.update(self.body)
+        return Button(
+            self.label,
+            variant=self.variant,
+            on_click=ApiCall(self.endpoint, method="POST", body=payload, target=self.target),
+            **self._props,
+        ).render()
+
+
+class ResourceDeleteButton(Widget):
+    """
+    Reusable delete action for convention-based resources.
+    """
+
+    def __init__(
+        self,
+        resource,
+        record_id,
+        label="Eliminar",
+        endpoint=None,
+        target=None,
+        variant="danger",
+        confirm_message="¿Eliminar este registro?",
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.resource = str(resource or "").strip() or "resource"
+        self.record_id = str(record_id if record_id is not None else "").strip()
+        self.label = str(label or "Eliminar")
+        self.endpoint = endpoint or f"/api/resources/{self.resource}/delete"
+        self.target = target
+        self.variant = str(variant or "danger")
+        self.confirm_message = str(confirm_message or "¿Eliminar este registro?")
+
+    def render(self):
+        from .input import Button
+
+        js = (
+            "(function(){"
+            + f"if(!confirm({_json.dumps(self.confirm_message)}))return;"
+            + "fetch("
+            + _json.dumps(self.endpoint)
+            + ",{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:"
+            + _json.dumps(self.record_id)
+            + "})})"
+            + ".then(function(res){return res.json().then(function(data){return {ok:res.ok,data:data};});})"
+            + ".then(function(result){"
+            + "if(result.data&&(result.data.toast||result.data._toast)&&window.__martinToastFromPayload){window.__martinToastFromPayload(result.data.toast||result.data._toast);}"
+            + (
+                "var box=document.getElementById(" + _json.dumps(self.target) + ");"
+                "if(box){box.setAttribute('data-state',result.ok?'success':'error');box._martinData=result.data;box.dispatchEvent(new CustomEvent('martin:result',{detail:result.data}));}"
+                if self.target
+                else ""
+            )
+            + "})"
+            + ".catch(function(err){if(window.__martinToastFromPayload){window.__martinToastFromPayload({message:err.message||'Error de red',variant:'error',position:'top-right'});}});"
+            + "})()"
+        )
+        return Button(self.label, variant=self.variant, on_click=js, **self._props).render()
+
+
+class ResourceView(Widget):
+    """
+    Composite resource view: filters + actions + table + optional details/cards.
+    """
+
+    def __init__(
+        self,
+        resource,
+        columns=None,
+        form_fields=None,
+        filters=None,
+        actions=None,
+        toolbar_actions=None,
+        bulk_actions=None,
+        detail_fields=None,
+        show_form=True,
+        show_table=True,
+        show_toolbar=True,
+        show_bulk_actions=False,
+        show_details=True,
+        show_cards=False,
+        table_id=None,
+        title=None,
+        helper_text="",
+        **kwargs,
+    ):
+        self._props = Widget._extract_props(kwargs)
+        self.resource = str(resource or "").strip() or "resource"
+        self.columns = list(columns or [])
+        self.form_fields = list(form_fields or [])
+        self.filters = list(filters or [])
+        self.actions = list(actions or [])
+        self.toolbar_actions = list(toolbar_actions or [])
+        self.bulk_actions = list(bulk_actions or [])
+        self.detail_fields = list(detail_fields or [])
+        self.show_form = bool(show_form)
+        self.show_table = bool(show_table)
+        self.show_toolbar = bool(show_toolbar)
+        self.show_bulk_actions = bool(show_bulk_actions)
+        self.show_details = bool(show_details)
+        self.show_cards = bool(show_cards)
+        self.table_id = str(table_id or f"{self.resource}_table")
+        self.title = title
+        self.helper_text = str(helper_text or "")
+
+    def render(self):
+        from .layout import Column
+        from .text import Text, Paragraph
+
+        blocks = []
+        if self.title:
+            blocks.append(Text(self.title, style="font-size:18px;font-weight:700;color:var(--text)"))
+        if self.helper_text:
+            blocks.append(Paragraph(self.helper_text, style="font-size:13px;color:var(--text-muted);line-height:1.6"))
+        if self.show_form and self.form_fields:
+            blocks.append(
+                ResourceForm(
+                    resource=self.resource,
+                    title="Nuevo registro",
+                    fields=self.form_fields,
+                )
+            )
+        if self.show_toolbar:
+            blocks.append(
+                ResourceToolbar(
+                    target=self.table_id,
+                    title="Toolbar",
+                    actions=self.toolbar_actions,
+                )
+            )
+        if self.actions:
+            blocks.append(ResourceActions(title="Acciones", actions=self.actions))
+        if self.filters:
+            blocks.append(ResourceFilters(target=self.table_id, title="Filtros", filters=self.filters))
+        if self.show_bulk_actions and self.bulk_actions:
+            blocks.append(ResourceBulkActions(target=self.table_id, title="Acciones masivas", actions=self.bulk_actions))
+        if self.show_table:
+            blocks.append(
+                ResourceTable(
+                    id=self.table_id,
+                    resource=self.resource,
+                    title="Registros",
+                    columns=self.columns,
+                    selectable=self.show_bulk_actions and bool(self.bulk_actions),
+                )
+            )
+        if self.show_details:
+            blocks.append(
+                ResourceDetails(
+                    resource=self.resource,
+                    title="Detalle",
+                    record_id="1",
+                    fields=self.detail_fields or [],
+                )
+            )
+        if self.show_cards:
+            blocks.append(
+                ResourceCardList(
+                    resource=self.resource,
+                    title="Tarjetas",
+                    subtitle_field="email",
+                    badge_field="estado",
+                )
+            )
+        return Column(gap=14, children=blocks, **self._props).render()
 
 
 class JSWidgetAdapter(Widget):

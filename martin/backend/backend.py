@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 import inspect
+import json
+from pathlib import Path
+import uuid
 
 from .http import Request, Response
 from .mail import Mailer, SMTPConfig
@@ -31,6 +34,10 @@ class BackendContext:
     def json(self, default=None, silent=False):
         return self.request.json(default=default, silent=silent)
 
+    @property
+    def session(self):
+        return self.backend.get_session(self.request)
+
 
 class Backend:
     """
@@ -49,6 +56,8 @@ class Backend:
         cors=True,
         mailer=None,
         method_path="/_method",
+        session_cookie="martin_session",
+        session_store=None,
     ):
         prefix = (prefix or "").strip()
         if prefix in {"", "/"}:
@@ -62,6 +71,10 @@ class Backend:
         self._after_hooks: list[Callable[[Request, Response], Any]] = []
         self.mailer = mailer
         self.method_path = self._normalize_path(method_path or "/_method")
+        self.session_cookie = str(session_cookie or "martin_session")
+        self._sessions: dict[str, dict[str, Any]] = {}
+        self.session_store = Path(session_store) if session_store else None
+        self._load_sessions()
 
     def route(self, path, methods=None):
         if methods is None:
@@ -173,6 +186,102 @@ class Backend:
         if self.mailer is None:
             raise RuntimeError("No mailer configured. Use set_mailer() or configure_smtp().")
         return self.mailer.send(*args, **kwargs)
+
+    def create_session(self, data=None, *, session_id=None):
+        sid = str(session_id or uuid.uuid4().hex)
+        self._sessions[sid] = dict(data or {})
+        self._save_sessions()
+        return sid
+
+    def get_session(self, request: Request, default=None):
+        sid = (request.cookies or {}).get(self.session_cookie)
+        if not sid:
+            return default
+        return self._sessions.get(sid, default)
+
+    def destroy_session(self, request: Request):
+        sid = (request.cookies or {}).get(self.session_cookie)
+        if sid and sid in self._sessions:
+            del self._sessions[sid]
+            self._save_sessions()
+            return True
+        return False
+
+    def login(self, data=None):
+        sid = self.create_session(data=data)
+        resp = Response({"ok": True, "session": sid})
+        resp.set_cookie(self.session_cookie, sid)
+        return resp
+
+    def logout(self, request: Request):
+        self.destroy_session(request)
+        resp = Response({"ok": True, "logged_out": True})
+        resp.delete_cookie(self.session_cookie)
+        return resp
+
+    def require_auth(self, fn=None, *, message="Auth requerida", status=401):
+        def decorator(handler):
+            def wrapped(req, *args, **kwargs):
+                session = self.get_session(req)
+                if not session:
+                    return Response(
+                        self.with_toast(
+                            {"error": message},
+                            message=message,
+                            variant="error",
+                            position="top-right",
+                        ),
+                        status=status,
+                    )
+                return handler(req, *args, **kwargs)
+
+            return wrapped
+
+        if fn is not None:
+            return decorator(fn)
+        return decorator
+
+    def _load_sessions(self):
+        if not self.session_store:
+            return
+        try:
+            if self.session_store.exists():
+                data = json.loads(self.session_store.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    self._sessions = {str(k): dict(v or {}) for k, v in data.items()}
+        except Exception:
+            self._sessions = {}
+
+    def _save_sessions(self):
+        if not self.session_store:
+            return
+        try:
+            self.session_store.parent.mkdir(parents=True, exist_ok=True)
+            self.session_store.write_text(json.dumps(self._sessions, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+
+    @staticmethod
+    def toast(
+        message,
+        *,
+        title=None,
+        variant="info",
+        duration=4000,
+        position="bottom-right",
+    ):
+        return {
+            "message": str(message or ""),
+            "title": title,
+            "variant": str(variant or "info"),
+            "duration": max(0, int(duration or 0)),
+            "position": str(position or "bottom-right"),
+        }
+
+    def with_toast(self, data=None, **toast_kwargs):
+        payload = dict(data or {})
+        payload["toast"] = self.toast(**toast_kwargs)
+        return payload
 
     def handle_request(self, method, path, query_string, body, headers):
         route_path = self._route_path_for(path)
@@ -351,4 +460,3 @@ class Backend:
 
 
 SimpleBackend = Backend
-
