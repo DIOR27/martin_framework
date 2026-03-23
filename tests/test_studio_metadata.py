@@ -127,6 +127,11 @@ class StudioMetadataTests(unittest.TestCase):
         self.assertIn("subtitle_field", cards_params)
         self.assertIn("badge_field", cards_params)
 
+        resource_stats = describe_widget("ResourceStats")
+        self.assertIsNotNone(resource_stats)
+        stats_params = {param["name"]: param for param in resource_stats["params"]}
+        self.assertIn("metrics", stats_params)
+
         resource_filters = describe_widget("ResourceFilters")
         self.assertIsNotNone(resource_filters)
         filters_params = {param["name"]: param for param in resource_filters["params"]}
@@ -150,6 +155,11 @@ class StudioMetadataTests(unittest.TestCase):
         self.assertIn("search_placeholder", toolbar_params)
         self.assertIn("show_selected_count", toolbar_params)
 
+        resource_paginator = describe_widget("ResourcePaginator")
+        self.assertIsNotNone(resource_paginator)
+        paginator_params = {param["name"]: param for param in resource_paginator["params"]}
+        self.assertIn("per_page_options", paginator_params)
+
         resource_create = describe_widget("ResourceCreateButton")
         self.assertIsNotNone(resource_create)
         create_params = {param["name"]: param for param in resource_create["params"]}
@@ -166,6 +176,11 @@ class StudioMetadataTests(unittest.TestCase):
         self.assertIn("record_id", delete_params)
         self.assertIn("confirm_message", delete_params)
 
+        resource_kanban = describe_widget("ResourceKanban")
+        self.assertIsNotNone(resource_kanban)
+        kanban_params = {param["name"]: param for param in resource_kanban["params"]}
+        self.assertIn("group_field", kanban_params)
+
         resource_view = describe_widget("ResourceView")
         self.assertIsNotNone(resource_view)
         view_params = {param["name"]: param for param in resource_view["params"]}
@@ -173,6 +188,7 @@ class StudioMetadataTests(unittest.TestCase):
         self.assertIn("form_fields", view_params)
         self.assertIn("toolbar_actions", view_params)
         self.assertIn("bulk_actions", view_params)
+        self.assertIn("stats_metrics", view_params)
 
     def test_complex_widget_params_expose_editor_metadata(self):
         calendar = describe_widget("Calendar")

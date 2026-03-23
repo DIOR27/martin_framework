@@ -1381,6 +1381,20 @@ class Accordion(Widget):
         Accordion._id_counter += 1
         self.uid = f"acc_{Accordion._id_counter}"
 
+    @staticmethod
+    def _normalize_item(item):
+        if isinstance(item, AccordionItem):
+            return item
+        if isinstance(item, dict):
+            return AccordionItem(
+                title=item.get("title", ""),
+                content=item.get("content"),
+                child=item.get("child"),
+                children=item.get("children"),
+                open=bool(item.get("open", False)),
+            )
+        return AccordionItem(title=str(item))
+
     def _icon_svg(self, closed=True):
         if self.icon == "plus":
             if closed:
@@ -1413,7 +1427,8 @@ class Accordion(Widget):
             item_base = "border-bottom:1px solid var(--border)"
 
         items_html = ""
-        for i, item in enumerate(self.items):
+        for i, raw_item in enumerate(self.items):
+            item = self._normalize_item(raw_item)
             iid     = f"{uid}_i{i}"
             is_open = item.open
             is_last = (i == len(self.items) - 1)

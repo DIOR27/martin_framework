@@ -472,7 +472,7 @@ COMPONENTS_TEMPLATE = (
         Table, Modal, TextField, TextArea, Select, MultiSelect, Checkbox, Uploader,
         Slider, ColorPicker, DatePicker,
         DataGrid, DataGridColumn, Wizard, WizardStep, CommandPalette, Drawer, SplitPane,
-        Skeleton, EmptyState, ErrorState, Form, ResourceForm, ResourceEditor, ResourceTable, ResourceDetails, ResourceCardList, ResourceFilters, ResourceActions, ResourceBulkActions, ResourceToolbar, ResourceCreateButton, ResourceDuplicateButton, ResourceDeleteButton, ResourceView, JSWidgetAdapter,
+        Skeleton, EmptyState, ErrorState, Form, ResourceForm, ResourceEditor, ResourceTable, ResourceDetails, ResourceCardList, ResourceStats, ResourceFilters, ResourceActions, ResourceBulkActions, ResourceToolbar, ResourcePaginator, ResourceCreateButton, ResourceDuplicateButton, ResourceDeleteButton, ResourceKanban, ResourceView, JSWidgetAdapter,
         Signal, Computed, Store, I18n, L10n, PluginRegistry,
         WordCloud, Map, Calendar, CalendarEvent, Timeline, TimelineItem, Hero,
         Gallery, GalleryItem, Carousel, CarouselItem,
@@ -595,6 +595,8 @@ COMPONENTS_TEMPLATE = (
             estado = str(req.query.get("estado", "")).strip().lower()
             plan = str(req.query.get("plan", "")).strip().lower()
             query = str(req.query.get("q", "")).strip().lower()
+            page = max(1, int(str(req.query.get("page", "1") or "1")))
+            per_page = max(1, int(str(req.query.get("per_page", "10") or "10")))
             rows = list(_resource_leads)
             if estado:
                 rows = [row for row in rows if str(row.get("estado", "")).strip().lower() == estado]
@@ -607,13 +609,26 @@ COMPONENTS_TEMPLATE = (
                     or query in str(row.get("email", "")).strip().lower()
                     or query in str(row.get("plan", "")).strip().lower()
                 ]
+            total = len(rows)
+            pages = max(1, (total + per_page - 1) // per_page)
+            page = min(page, pages)
+            start = (page - 1) * per_page
+            page_rows = rows[start : start + per_page]
             return backend.with_toast(
-                {"rows": rows},
+                {"rows": page_rows, "meta": {"page": page, "per_page": per_page, "total": total, "pages": pages}},
                 message="Lista de leads actualizada.",
                 variant="info",
                 position="top-right",
                 duration=2200,
             )
+
+        @backend.get("/resources/leads/stats")
+        def resource_leads_stats(req):
+            total = len(_resource_leads)
+            qualified = sum(1 for item in _resource_leads if str(item.get("estado", "")).strip().lower() == "calificado")
+            follow_up = sum(1 for item in _resource_leads if str(item.get("estado", "")).strip().lower() == "seguimiento")
+            enterprise = sum(1 for item in _resource_leads if str(item.get("plan", "")).strip().lower() == "enterprise")
+            return {"stats": {"total": total, "qualified": qualified, "follow_up": follow_up, "enterprise": enterprise}}
 
         @backend.get("/resources/leads/detail")
         def resource_leads_detail(req):
@@ -972,13 +987,13 @@ COMPONENTS_TEMPLATE = (
                     position="top-right",
                 ),
                 Code(
-                    "from martin import Toast\n\n"
-                    "Toast(\n"
-                    "    title='Guardado',\n"
-                    "    message='Los cambios se aplicaron correctamente.',\n"
-                    "    variant='success',\n"
-                    "    duration=4000,\n"
-                    "    position='top-right',\n"
+                    "from martin import Toast\\n\\n"
+                    "Toast(\\n"
+                    "    title='Guardado',\\n"
+                    "    message='Los cambios se aplicaron correctamente.',\\n"
+                    "    variant='success',\\n"
+                    "    duration=4000,\\n"
+                    "    position='top-right',\\n"
                     ")",
                     language="python",
                     filename="toast_demo.py",
@@ -1529,6 +1544,17 @@ COMPONENTS_TEMPLATE = (
                         },
                     ],
                 ),
+                ResourceStats(
+                    resource="leads",
+                    endpoint="/api/resources/leads/stats",
+                    title="Resumen de leads",
+                    metrics=[
+                        {"key": "total", "label": "Total"},
+                        {"key": "qualified", "label": "Calificados"},
+                        {"key": "follow_up", "label": "Seguimiento"},
+                        {"key": "enterprise", "label": "Enterprise"},
+                    ],
+                ),
                 ResourceToolbar(
                     target="leads_table",
                     title="Toolbar de recurso",
@@ -1605,6 +1631,12 @@ COMPONENTS_TEMPLATE = (
                     searchable=True,
                     height=300,
                     selectable=True,
+                    per_page=5,
+                ),
+                ResourcePaginator(
+                    target="leads_table",
+                    title="Paginación de la tabla",
+                    per_page_options=[5, 10, 20],
                 ),
                 ResourceDetails(
                     resource="leads",
@@ -1619,10 +1651,19 @@ COMPONENTS_TEMPLATE = (
                     badge_field="estado",
                     columns=3,
                 ),
+                ResourceKanban(
+                    resource="leads",
+                    title="Vista kanban",
+                    group_field="estado",
+                    columns=["Nuevo", "Calificado", "Seguimiento"],
+                ),
                 ResourceView(
                     resource="leads",
                     title="Vista compuesta del recurso",
                     helper_text="Combina creación, acciones, filtros, tabla y detalle en un solo widget reutilizable.",
+                    show_stats=True,
+                    show_paginator=True,
+                    show_kanban=True,
                     form_fields=[
                         {"name": "nombre", "label": "Nombre", "type": "text", "required": True},
                         {"name": "email", "label": "Email", "type": "email", "required": True},
@@ -1645,13 +1686,17 @@ COMPONENTS_TEMPLATE = (
                     bulk_actions=[
                         {"label": "Marcar seguimiento", "variant": "secondary", "url": "/api/resources/leads/bulk", "method": "POST", "body": {"action": "follow_up"}},
                     ],
+                    stats_metrics=[
+                        {"key": "total", "label": "Total"},
+                        {"key": "qualified", "label": "Calificados"},
+                    ],
                     detail_fields=["nombre", "email", "estado", "plan"],
                     table_id="leads_compound",
                     show_cards=False,
                     show_bulk_actions=True,
                 ),
                 Code(
-                    "from martin import ResourceForm, ResourceEditor, ResourceTable, ResourceDetails, ResourceCardList, ResourceFilters, ResourceActions, ResourceBulkActions, ResourceToolbar, ResourceCreateButton, ResourceDuplicateButton, ResourceDeleteButton, ResourceView, DataGridColumn\\n\\n"
+                    "from martin import ResourceForm, ResourceEditor, ResourceTable, ResourceDetails, ResourceCardList, ResourceStats, ResourceFilters, ResourceActions, ResourceBulkActions, ResourceToolbar, ResourcePaginator, ResourceCreateButton, ResourceDuplicateButton, ResourceDeleteButton, ResourceKanban, ResourceView, DataGridColumn\\n\\n"
                     "ResourceForm(\\n"
                     "    resource='leads',\\n"
                     "    fields=[\\n"
@@ -1671,12 +1716,15 @@ COMPONENTS_TEMPLATE = (
                     "ResourceCreateButton(resource='leads', body={'nombre':'Lead rápido','email':'demo@martin.dev'})\\n"
                     "ResourceDuplicateButton(resource='leads', record_id='1', endpoint='/api/resources/leads/duplicate')\\n"
                     "ResourceDeleteButton(resource='leads', record_id='2', endpoint='/api/resources/leads/delete')\\n\\n"
+                    "ResourceStats(resource='leads', endpoint='/api/resources/leads/stats', metrics=[{'key':'total','label':'Total'}])\\n"
                     "ResourceToolbar(target='leads_table', actions=[{'label':'Refrescar','on_click':\\\"window['leads_table_refresh']&&window['leads_table_refresh']()\\\"}])\\n"
+                    "ResourcePaginator(target='leads_table', per_page_options=[5,10,20])\\n"
                     "ResourceBulkActions(target='leads_table', actions=[{'label':'Marcar seguimiento','url':'/api/resources/leads/bulk','body':{'action':'follow_up'}}])\\n"
                     "ResourceFilters(target='leads_table', filters=[{'name':'estado','type':'select'}])\\n"
                     "ResourceActions(actions=[{'label':'Refrescar','on_click':\\\"window['leads_table_refresh']&&window['leads_table_refresh']()\\\"}])\\n"
                     "ResourceDetails(resource='leads', fields=['nombre','email'])\\n"
-                    "ResourceCardList(resource='leads', subtitle_field='email', badge_field='estado')\\n\\n"
+                    "ResourceCardList(resource='leads', subtitle_field='email', badge_field='estado')\\n"
+                    "ResourceKanban(resource='leads', group_field='estado')\\n\\n"
                     "ResourceView(resource='leads', columns=[DataGridColumn('nombre','Nombre')], form_fields=[{'name':'nombre','type':'text'}])",
                     block=True,
                     language="python",

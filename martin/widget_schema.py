@@ -544,9 +544,9 @@ register_widget_schema(
                 "type": "collection",
                 "item_label": "Column",
                 "fields": [
-                    {"name": "key", "label": "Key", "type": "string", "required": True},
-                    {"name": "label", "label": "Label", "type": "string"},
-                    {"name": "width", "label": "Width", "type": "integer"},
+                    {"name": "key", "label": "Key", "type": "string", "required": True, "help": "Field name returned by the backend rows."},
+                    {"name": "label", "label": "Label", "type": "string", "help": "Visible title shown in the table header."},
+                    {"name": "width", "label": "Width", "type": "integer", "help": "Column width in pixels."},
                 ],
             },
         ),
@@ -615,6 +615,25 @@ register_widget_schema(
 )
 
 register_widget_schema(
+    "ResourceStats",
+    category="advanced",
+    summary="Metric cards connected to a resource stats endpoint.",
+    params=[
+        schema_param("resource", type="string", default="leads", group="content", required=True),
+        schema_param("endpoint", type="string", default=None, group="link"),
+        schema_param("title", type="string", default=None, group="content"),
+        schema_param("columns", type="integer", default=3, group="style"),
+        schema_param("metrics", type="array", default=[], group="content", editor={"type": "collection", "item_label": "Metric", "fields": [
+            {"name": "key", "label": "Stats key", "type": "string", "required": True, "help": "Field returned by the stats endpoint."},
+            {"name": "label", "label": "Label", "type": "string"},
+            {"name": "prefix", "label": "Prefix", "type": "string"},
+            {"name": "suffix", "label": "Suffix", "type": "string"},
+        ]}),
+    ],
+    preset_props={"resource": "leads", "title": "Lead stats", "metrics": [{"key": "total", "label": "Total"}, {"key": "qualified", "label": "Calificados"}]},
+)
+
+register_widget_schema(
     "ResourceFilters",
     category="advanced",
     summary="Declarative filter bar that refreshes a ResourceTable by target id.",
@@ -661,13 +680,13 @@ register_widget_schema(
                 "fields": [
                     {"name": "label", "label": "Label", "type": "string", "required": True},
                     {"name": "variant", "label": "Variant", "type": "enum", "options": ["primary", "secondary", "ghost", "danger", "link"]},
-                    {"name": "on_click", "label": "JS action", "type": "string"},
-                    {"name": "url", "label": "API URL", "type": "string"},
-                    {"name": "method", "label": "HTTP method", "type": "enum", "options": ["GET", "POST", "PUT", "PATCH", "DELETE"]},
-                    {"name": "backend_method", "label": "Backend method", "type": "string"},
-                    {"name": "target", "label": "Target id", "type": "string"},
-                    {"name": "body", "label": "Body JSON", "type": "json"},
-                    {"name": "params", "label": "Params JSON", "type": "json"},
+                    {"name": "on_click", "label": "JS action", "type": "string", "help": "Inline JS for quick client-side actions."},
+                    {"name": "url", "label": "API URL", "type": "string", "help": "REST endpoint to call when the action runs."},
+                    {"name": "method", "label": "HTTP method", "type": "enum", "options": ["GET", "POST", "PUT", "PATCH", "DELETE"], "help": "HTTP method used with the API URL."},
+                    {"name": "backend_method", "label": "Backend method", "type": "string", "help": "Method name for martin.backend RPC calls."},
+                    {"name": "target", "label": "Target id", "type": "string", "help": "Optional ResultBox or widget id to receive the response."},
+                    {"name": "body", "label": "Body JSON", "type": "json", "help": "JSON payload sent to REST actions."},
+                    {"name": "params", "label": "Params JSON", "type": "json", "help": "Params payload sent to backend methods."},
                 ],
             },
         ),
@@ -738,6 +757,20 @@ register_widget_schema(
 )
 
 register_widget_schema(
+    "ResourcePaginator",
+    category="advanced",
+    summary="Pagination controls bound to ResourceTable page state.",
+    params=[
+        schema_param("target", type="string", default=None, group="content", required=True),
+        schema_param("title", type="string", default=None, group="content"),
+        schema_param("page_param", type="string", default="page", group="content"),
+        schema_param("per_page_param", type="string", default="per_page", group="content"),
+        schema_param("per_page_options", type="array", default=[5, 10, 20, 50], group="content"),
+    ],
+    preset_props={"target": "leads_table", "title": "Paginación", "per_page_options": [5, 10, 20, 50]},
+)
+
+register_widget_schema(
     "ResourceCreateButton",
     category="advanced",
     summary="Quick create button that posts data to a convention-based resource save endpoint.",
@@ -785,6 +818,24 @@ register_widget_schema(
 )
 
 register_widget_schema(
+    "ResourceKanban",
+    category="advanced",
+    summary="Kanban board grouped by a resource field.",
+    params=[
+        schema_param("resource", type="string", default="leads", group="content", required=True),
+        schema_param("endpoint", type="string", default=None, group="link"),
+        schema_param("title", type="string", default=None, group="content"),
+        schema_param("group_field", type="string", default="estado", group="content"),
+        schema_param("columns", type="array", default=[], group="content"),
+        schema_param("title_field", type="string", default="nombre", group="content"),
+        schema_param("subtitle_field", type="string", default="email", group="content"),
+        schema_param("badge_field", type="string", default="plan", group="content"),
+        schema_param("empty_text", type="string", default="Sin registros", group="content"),
+    ],
+    preset_props={"resource": "leads", "title": "Lead kanban", "group_field": "estado", "columns": ["Nuevo", "Calificado", "Seguimiento"]},
+)
+
+register_widget_schema(
     "ResourceView",
     category="advanced",
     summary="Composite resource module combining forms, actions, filters, tables and details.",
@@ -793,6 +844,9 @@ register_widget_schema(
         schema_param("title", type="string", default=None, group="content"),
         schema_param("helper_text", type="string", default="", group="content"),
         schema_param("table_id", type="string", default=None, group="identity"),
+        schema_param("show_stats", type="boolean", default=False, group="props"),
+        schema_param("show_paginator", type="boolean", default=False, group="props"),
+        schema_param("show_kanban", type="boolean", default=False, group="props"),
         schema_param("show_form", type="boolean", default=True, group="props"),
         schema_param("show_table", type="boolean", default=True, group="props"),
         schema_param("show_toolbar", type="boolean", default=True, group="props"),
@@ -838,6 +892,12 @@ register_widget_schema(
             {"name": "body", "label": "Body JSON", "type": "json"},
             {"name": "confirm_message", "label": "Confirm message", "type": "string"},
         ]}),
+        schema_param("stats_metrics", type="array", default=[], group="content", editor={"type": "collection", "item_label": "Metric", "fields": [
+            {"name": "key", "label": "Stats key", "type": "string", "required": True},
+            {"name": "label", "label": "Label", "type": "string"},
+            {"name": "prefix", "label": "Prefix", "type": "string"},
+            {"name": "suffix", "label": "Suffix", "type": "string"},
+        ]}),
         schema_param("detail_fields", type="array", default=[], group="content", editor={"type": "collection", "item_label": "Detail field", "fields": [
             {"name": "name", "label": "Field name", "type": "string", "required": True},
             {"name": "label", "label": "Display label", "type": "string"},
@@ -846,6 +906,9 @@ register_widget_schema(
     preset_props={
         "resource": "leads",
         "title": "Lead workspace",
+        "show_stats": True,
+        "show_paginator": True,
+        "show_kanban": True,
         "show_cards": True,
         "show_bulk_actions": True,
         "columns": [{"key": "nombre", "label": "Nombre"}, {"key": "estado", "label": "Estado"}],
@@ -854,6 +917,7 @@ register_widget_schema(
         "actions": [{"label": "Refrescar", "variant": "secondary", "on_click": "window['leads_table_refresh']&&window['leads_table_refresh']()"}],
         "toolbar_actions": [{"label": "Nuevo rápido", "variant": "ghost", "on_click": "console.log('nuevo rápido')"}],
         "bulk_actions": [{"label": "Marcar seguimiento", "variant": "secondary", "url": "/api/resources/leads/bulk", "method": "POST"}],
+        "stats_metrics": [{"key": "total", "label": "Total"}, {"key": "qualified", "label": "Calificados"}],
         "detail_fields": [{"name": "nombre", "label": "Nombre"}, {"name": "email", "label": "Email"}],
     },
 )

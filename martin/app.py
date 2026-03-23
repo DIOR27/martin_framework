@@ -683,7 +683,7 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
                     self.footer = fresh.footer
 
             self._ts = str(time.time())
-            print(f"  ↻  recargado")
+            print("  reloaded")
         except Exception:
             import traceback
 
@@ -721,9 +721,9 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
             observer.schedule(Handler(), watch_dir, recursive=True)
             observer.daemon = True
             observer.start()
-            print(f"  👁  watchdog activo")
+            print("  watchdog activo")
         except ImportError:
-            print(f"  👁  hot reload activo (polling)")
+            print("  hot reload activo (polling)")
             mtimes = {}
 
             def poll():
@@ -871,9 +871,9 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
         hl = "activado" if self.hot_reload else "desactivado"
         pages = ""
         if self._router:
-            pages = "  📄  " + ", ".join(self._router.paths()) + "\n"
-        print(f"\n  🌐  martin -> {url}")
-        print(f"  ⚡  Hot reload: {hl}  |  Tema: {self.theme}")
+            pages = "  pages: " + ", ".join(self._router.paths()) + "\n"
+        print(f"\n  martin -> {url}")
+        print(f"  Hot reload: {hl}  |  Tema: {self.theme}")
         print(f"{pages}  Ctrl+C para parar\n")
 
         if open_browser:
@@ -883,5 +883,5 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
         try:
             server.serve_forever()
         except KeyboardInterrupt:
-            print("\n👋")
+            print("\nbye")
             server.shutdown()

@@ -17,13 +17,16 @@ from martin import (
     ResourceTable,
     ResourceDetails,
     ResourceCardList,
+    ResourceStats,
     ResourceFilters,
     ResourceActions,
     ResourceBulkActions,
     ResourceToolbar,
+    ResourcePaginator,
     ResourceCreateButton,
     ResourceDuplicateButton,
     ResourceDeleteButton,
+    ResourceKanban,
     ResourceView,
     JSWidgetAdapter,
     Text,
@@ -102,6 +105,7 @@ class AdvancedWidgetsTests(unittest.TestCase):
         ).render()
         resource_details_html = ResourceDetails(resource="leads", fields=["nombre", "email"]).render()
         resource_cards_html = ResourceCardList(resource="leads", subtitle_field="email", badge_field="estado").render()
+        resource_stats_html = ResourceStats(resource="leads", metrics=[{"key": "total", "label": "Total"}]).render()
         resource_filters_html = ResourceFilters(
             target="leads_table",
             filters=[{"name": "estado", "type": "select", "options": [("Nuevo", "Nuevo")]}],
@@ -113,6 +117,7 @@ class AdvancedWidgetsTests(unittest.TestCase):
             target="leads_table",
             actions=[{"label": "Refresh", "variant": "secondary", "on_click": "window['leads_table_refresh']&&window['leads_table_refresh']()"}],
         ).render()
+        resource_paginator_html = ResourcePaginator(target="leads_table").render()
         resource_bulk_html = ResourceBulkActions(
             target="leads_table",
             actions=[{"label": "Bulk", "url": "/api/resources/leads/bulk", "body": {"action": "follow_up"}}],
@@ -120,6 +125,7 @@ class AdvancedWidgetsTests(unittest.TestCase):
         resource_create_html = ResourceCreateButton(resource="leads", body={"nombre": "Quick", "email": "quick@martin.dev"}).render()
         resource_duplicate_html = ResourceDuplicateButton(resource="leads", record_id="1").render()
         resource_delete_html = ResourceDeleteButton(resource="leads", record_id="2").render()
+        resource_kanban_html = ResourceKanban(resource="leads", group_field="estado").render()
         resource_view_html = ResourceView(
             resource="leads",
             columns=[DataGridColumn("nombre", "Nombre")],
@@ -128,7 +134,11 @@ class AdvancedWidgetsTests(unittest.TestCase):
             actions=[{"label": "Refresh", "on_click": "window['leads_table_refresh']&&window['leads_table_refresh']()"}],
             toolbar_actions=[{"label": "Quick", "variant": "ghost", "on_click": "console.log('quick')"}],
             bulk_actions=[{"label": "Bulk", "url": "/api/resources/leads/bulk", "body": {"action": "follow_up"}}],
+            stats_metrics=[{"key": "total", "label": "Total"}],
             detail_fields=["nombre", "email"],
+            show_stats=True,
+            show_paginator=True,
+            show_kanban=True,
             show_bulk_actions=True,
         ).render()
         jsa_html = JSWidgetAdapter(
@@ -151,16 +161,20 @@ class AdvancedWidgetsTests(unittest.TestCase):
         self.assertIn("/api/resources/leads/detail", resource_details_html)
         self.assertIn("subtitle_field", ResourceCardList.__init__.__code__.co_varnames)
         self.assertIn("/api/resources/leads/list", resource_cards_html)
+        self.assertIn("/api/resources/leads/stats", resource_stats_html)
         self.assertIn("leads_table_refresh", resource_filters_html)
         self.assertIn("Refresh", resource_actions_html)
         self.assertIn("seleccionados", resource_toolbar_html)
+        self.assertIn("Página 1 de 1", resource_paginator_html)
         self.assertIn("/api/resources/leads/bulk", resource_bulk_html)
         self.assertIn("/api/resources/leads/save", resource_create_html)
         self.assertIn("/api/resources/leads/duplicate", resource_duplicate_html)
         self.assertIn("/api/resources/leads/delete", resource_delete_html)
+        self.assertIn("/api/resources/leads/list?per_page=9999", resource_kanban_html)
         self.assertIn("/api/resources/leads/list", resource_view_html)
         self.assertIn("Nuevo registro", resource_view_html)
         self.assertIn("__martin_select__", resource_view_html)
+        self.assertIn("/api/resources/leads/stats", resource_view_html)
         self.assertIn("mn-invalid", form_html)
         self.assertIn("_mnLoadScript", jsa_html)
         self.assertIn("_mnLoadCss", jsa_html)

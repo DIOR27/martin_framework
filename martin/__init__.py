@@ -1,6 +1,6 @@
 """Martin — Build webs with Python, Flutter-style."""
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 from .app import App, Router, PageConfig
 from . import backend
@@ -140,13 +140,16 @@ from .widgets import (
     ResourceTable,
     ResourceDetails,
     ResourceCardList,
+    ResourceStats,
     ResourceFilters,
     ResourceActions,
     ResourceBulkActions,
     ResourceToolbar,
+    ResourcePaginator,
     ResourceCreateButton,
     ResourceDuplicateButton,
     ResourceDeleteButton,
+    ResourceKanban,
     ResourceView,
     JSWidgetAdapter,
     # Utility
@@ -313,13 +316,16 @@ __all__ = [
     "ResourceTable",
     "ResourceDetails",
     "ResourceCardList",
+    "ResourceStats",
     "ResourceFilters",
     "ResourceActions",
     "ResourceBulkActions",
     "ResourceToolbar",
+    "ResourcePaginator",
     "ResourceCreateButton",
     "ResourceDuplicateButton",
     "ResourceDeleteButton",
+    "ResourceKanban",
     "ResourceView",
     "JSWidgetAdapter",
     "Raw",

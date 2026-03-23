@@ -23,13 +23,16 @@ __all__ = [
     "ResourceTable",
     "ResourceDetails",
     "ResourceCardList",
+    "ResourceStats",
     "ResourceFilters",
     "ResourceActions",
     "ResourceBulkActions",
     "ResourceToolbar",
+    "ResourcePaginator",
     "ResourceCreateButton",
     "ResourceDuplicateButton",
     "ResourceDeleteButton",
+    "ResourceKanban",
     "ResourceView",
     "JSWidgetAdapter",
 ]
@@ -1157,6 +1160,9 @@ class ResourceTable(Widget):
         id_field="id",
         selection_label="Sel.",
         search_param="q",
+        page_param="page",
+        per_page_param="per_page",
+        per_page=10,
         id=None,
         **kwargs,
     ):
@@ -1174,6 +1180,9 @@ class ResourceTable(Widget):
         self.id_field = str(id_field or "id")
         self.selection_label = str(selection_label or "Sel.")
         self.search_param = str(search_param or "q")
+        self.page_param = str(page_param or "page")
+        self.per_page_param = str(per_page_param or "per_page")
+        self.per_page = max(1, int(per_page or 10))
         ResourceTable._id_counter += 1
         self.uid = id or f"resource_table_{ResourceTable._id_counter}"
 
@@ -1199,7 +1208,7 @@ class ResourceTable(Widget):
         grid_html = grid.render()
         js = (
             f"<script>(function(){{"
-            f"var uid='{self.uid}',endpoint={_json.dumps(self.endpoint)},activeQuery={{}},selectedIds={{}},idField={_json.dumps(self.id_field)},selectable={str(self.selectable).lower()};"
+            f"var uid='{self.uid}',endpoint={_json.dumps(self.endpoint)},activeQuery={{{_json.dumps(self.page_param)}:1,{_json.dumps(self.per_page_param)}:{self.per_page}}},selectedIds={{}},idField={_json.dumps(self.id_field)},selectable={str(self.selectable).lower()},pageParam={_json.dumps(self.page_param)},perPageParam={_json.dumps(self.per_page_param)};"
             f"function esc(v){{return String(v==null?'':v);}}"
             f"function normalizeRows(rows){{rows=Array.isArray(rows)?rows:[];if(!selectable)return rows;return rows.map(function(row){{var next=Object.assign({{}},row||{{}});var key=esc(next[idField]);next.__martin_select__=selectedIds[key]?'☑':'☐';return next;}});}}"
             f"function syncSelectionUi(){{"
@@ -1238,15 +1247,23 @@ class ResourceTable(Widget):
             f"window[uid+'_clearSelection']=function(){{selectedIds={{}};if(window['{grid.uid}_setRows'])window['{grid.uid}_setRows'](normalizeRows(window[uid+'_rows']||[]));notifySelection();}};"
             f"window.dispatchEvent(new CustomEvent(uid+':selectionchange',{{detail:{{ids:ids,count:ids.length}}}}));"
             f"}}"
+            f"function notifyPage(data,rows){{"
+            f"var meta=((data&&data.meta)||{{}});"
+            f"var detail={{page:Number(meta.page||activeQuery[pageParam]||1),per_page:Number(meta.per_page||activeQuery[perPageParam]||{self.per_page}),total:Number(meta.total||rows.length||0),pages:Number(meta.pages||1),count:Array.isArray(rows)?rows.length:0}};"
+            f"window[uid+'_pageState']=detail;"
+            f"window.dispatchEvent(new CustomEvent(uid+':pagedata',{{detail:detail}}));"
+            f"}}"
             f"window[uid+'_refresh']=function(query){{"
-            f"if(query&&typeof query==='object')activeQuery=query;"
+            f"if(query&&typeof query==='object')activeQuery=Object.assign({{}},activeQuery,query);"
+            f"if(!activeQuery[pageParam])activeQuery[pageParam]=1;"
+            f"if(!activeQuery[perPageParam])activeQuery[perPageParam]={self.per_page};"
             f"var qs=new URLSearchParams(activeQuery||{{}}).toString();"
             f"var finalUrl=qs?(endpoint+(endpoint.indexOf('?')>=0?'&':'?')+qs):endpoint;"
             f"fetch(finalUrl).then(function(res){{return res.json();}}).then(function(data){{"
             f"var rows=(data&& (data.rows||data.items||data.data)) || [];"
             f"window[uid+'_rows']=rows;"
             f"if(window['{grid.uid}_setRows'])window['{grid.uid}_setRows'](normalizeRows(rows));"
-            f"syncSelectionUi();notifySelection();"
+            f"syncSelectionUi();notifySelection();notifyPage(data,rows);"
             f"if(data&&(data.toast||data._toast)&&window.__martinToastFromPayload)window.__martinToastFromPayload(data.toast||data._toast);"
             f"}}).catch(function(err){{if(window.__martinToastFromPayload)window.__martinToastFromPayload({{message:err.message||'Error cargando recurso',variant:'error',position:'top-right'}});}});"
             f"}};"
@@ -1265,6 +1282,43 @@ class ResourceTable(Widget):
             ])
         )
         return Column(children=header_items + [Raw(grid_html + js)], gap=14, **self._props).render()
+
+
+class ResourceStats(Widget):
+    """
+    Metric cards derived from a resource endpoint.
+    """
+
+    _id_counter = 0
+
+    def __init__(self, resource, metrics=None, endpoint=None, title=None, columns=3, **kwargs):
+        self._props = Widget._extract_props(kwargs)
+        self.resource = str(resource or "").strip() or "resource"
+        self.metrics = list(metrics or [])
+        self.endpoint = endpoint or f"/api/resources/{self.resource}/stats"
+        self.title = title
+        self.columns = max(1, int(columns or 3))
+        ResourceStats._id_counter += 1
+        self.uid = f"resource_stats_{ResourceStats._id_counter}"
+
+    def render(self):
+        extra = self._resolve_props("display:block")
+        metrics_js = _json.dumps(self.metrics, ensure_ascii=False)
+        js = (
+            f"<script>(function(){{"
+            f"var box=document.getElementById({_json.dumps(self.uid + '_grid')});if(!box)return;"
+            f"var metrics={metrics_js};"
+            f"function esc(v){{return String(v==null?'':v);}}"
+            f"fetch({_json.dumps(self.endpoint)}).then(function(res){{return res.json();}}).then(function(data){{"
+            f"var stats=(data&&(data.stats||data.data||data))||{{}};"
+            f"var items=Array.isArray(metrics)&&metrics.length?metrics:Object.keys(stats).map(function(key){{return {{label:key.replace(/_/g,' '),key:key}};}});"
+            f"box.innerHTML=items.map(function(item){{var key=item.key||item.name||item.label;var value=stats[key];var prefix=item.prefix||'';var suffix=item.suffix||'';return '<article style=\"display:grid;gap:6px;padding:14px;border:1px solid var(--border);border-radius:16px;background:var(--surface-2,var(--surface))\"><span style=\"font-size:12px;color:var(--text-muted)\">'+esc(item.label||key)+'</span><strong style=\"font-size:24px;color:var(--text)\">'+esc(prefix)+esc(value)+esc(suffix)+'</strong></article>';}}).join('');"
+            f"if(data&&(data.toast||data._toast)&&window.__martinToastFromPayload)window.__martinToastFromPayload(data.toast||data._toast);"
+            f"}}).catch(function(err){{box.innerHTML='<p style=\"margin:0;color:var(--danger,#ef4444)\">'+(err.message||'Error')+'</p>';}});"
+            f"}})();</script>"
+        )
+        title_html = f'<div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:12px">{self.title}</div>' if self.title else ""
+        return f'<div style="{extra}">{title_html}<div id="{self.uid}_grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax({max(160, int(820 / self.columns))}px,1fr));gap:12px"></div>{js}</div>'
 
 
 class ResourceDetails(Widget):
@@ -1683,6 +1737,70 @@ class ResourceToolbar(Widget):
         return Column(gap=12, children=children, **self._props).render()
 
 
+class ResourcePaginator(Widget):
+    """
+    Pagination controls bound to a ResourceTable.
+    """
+
+    _id_counter = 0
+
+    def __init__(self, target, title=None, page_param="page", per_page_param="per_page", per_page_options=None, **kwargs):
+        self._props = Widget._extract_props(kwargs)
+        self.target = str(target or "").strip()
+        self.title = title
+        self.page_param = str(page_param or "page")
+        self.per_page_param = str(per_page_param or "per_page")
+        self.per_page_options = list(per_page_options or [5, 10, 20, 50])
+        ResourcePaginator._id_counter += 1
+        self.uid = f"resource_paginator_{ResourcePaginator._id_counter}"
+
+    def render(self):
+        from .input import Button, Select
+        from .layout import Column, Row
+        from .special import Raw
+        from .text import Text
+
+        per_page_select = Select(
+            id=f"{self.uid}_per_page",
+            options=[(str(v), str(v)) for v in self.per_page_options],
+            value=str(self.per_page_options[1] if len(self.per_page_options) > 1 else self.per_page_options[0]),
+            width=110,
+        )
+        prev_js = (
+            "(function(){"
+            + f"var state=window[{_json.dumps(self.target + '_pageState')}]||{{page:1,per_page:10}};"
+            + f"if(window[{_json.dumps(self.target + '_refresh')}])window[{_json.dumps(self.target + '_refresh')}]({{{_json.dumps(self.page_param)}:Math.max(1,(state.page||1)-1),{_json.dumps(self.per_page_param)}:state.per_page||10}});"
+            + "})()"
+        )
+        next_js = (
+            "(function(){"
+            + f"var state=window[{_json.dumps(self.target + '_pageState')}]||{{page:1,pages:1,per_page:10}};"
+            + f"if(window[{_json.dumps(self.target + '_refresh')}])window[{_json.dumps(self.target + '_refresh')}]({{{_json.dumps(self.page_param)}:Math.min(state.pages||1,(state.page||1)+1),{_json.dumps(self.per_page_param)}:state.per_page||10}});"
+            + "})()"
+        )
+        bind_js = (
+            f"<script>(function(){{"
+            f"var label=document.getElementById({_json.dumps(self.uid + '_label')});"
+            f"var perPage=document.getElementById({_json.dumps(self.uid + '_per_page_val')})||document.getElementById({_json.dumps(self.uid + '_per_page')});"
+            f"function sync(detail){{if(label)label.textContent='Página '+String(detail.page||1)+' de '+String(detail.pages||1)+' · '+String(detail.total||0)+' registros'; if(perPage)perPage.value=String(detail.per_page||perPage.value||10);}}"
+            f"window.addEventListener({_json.dumps(self.target + ':pagedata')},function(ev){{sync((ev&&ev.detail)||{{}});}});"
+            f"if(perPage)perPage.addEventListener('change',function(){{if(window[{_json.dumps(self.target + '_refresh')}])window[{_json.dumps(self.target + '_refresh')}]({{{_json.dumps(self.page_param)}:1,{_json.dumps(self.per_page_param)}:this.value||10}});}});"
+            f"}})();</script>"
+        )
+        children = []
+        if self.title:
+            children.append(Text(self.title, style="font-size:14px;font-weight:700;color:var(--text)"))
+        children.append(Row(gap=10, wrap=True, align="center", children=[
+            Button("Anterior", variant="secondary", on_click=prev_js),
+            Raw(f'<span id="{self.uid}_label" style="font-size:13px;color:var(--text-muted)">Página 1 de 1 · 0 registros</span>'),
+            Button("Siguiente", variant="secondary", on_click=next_js),
+            Raw('<span style="font-size:13px;color:var(--text-muted)">Por página</span>'),
+            per_page_select,
+        ]))
+        children.append(Raw(bind_js))
+        return Column(gap=12, children=children, **self._props).render()
+
+
 class ResourceCreateButton(Widget):
     """
     Quick create button for a resource using convention-based save endpoints.
@@ -1810,6 +1928,46 @@ class ResourceDeleteButton(Widget):
         return Button(self.label, variant=self.variant, on_click=js, **self._props).render()
 
 
+class ResourceKanban(Widget):
+    """
+    Kanban board grouped by a resource field.
+    """
+
+    _id_counter = 0
+
+    def __init__(self, resource, endpoint=None, title=None, group_field="estado", columns=None, title_field="nombre", subtitle_field="email", badge_field="plan", empty_text="Sin registros", **kwargs):
+        self._props = Widget._extract_props(kwargs)
+        self.resource = str(resource or "").strip() or "resource"
+        self.endpoint = endpoint or f"/api/resources/{self.resource}/list?per_page=9999"
+        self.title = title
+        self.group_field = str(group_field or "estado")
+        self.columns = list(columns or [])
+        self.title_field = str(title_field or "nombre")
+        self.subtitle_field = str(subtitle_field or "email")
+        self.badge_field = str(badge_field or "plan")
+        self.empty_text = str(empty_text or "Sin registros")
+        ResourceKanban._id_counter += 1
+        self.uid = f"resource_kanban_{ResourceKanban._id_counter}"
+
+    def render(self):
+        extra = self._resolve_props("display:block")
+        js = (
+            f"<script>(function(){{"
+            f"var board=document.getElementById({_json.dumps(self.uid + '_board')});if(!board)return;"
+            f"var configured={_json.dumps(self.columns, ensure_ascii=False)};"
+            f"fetch({_json.dumps(self.endpoint)}).then(function(res){{return res.json();}}).then(function(data){{"
+            f"var rows=(data&&(data.rows||data.items||data.data))||[];"
+            f"if(!rows.length){{board.innerHTML='<p style=\"margin:0;color:var(--text-muted)\">{self.empty_text}</p>';return;}}"
+            f"var groups={{}};rows.forEach(function(row){{var key=String((row&&row[{_json.dumps(self.group_field)}])||'Sin grupo'); if(!groups[key])groups[key]=[]; groups[key].push(row);}});"
+            f"var order=Array.isArray(configured)&&configured.length?configured:Object.keys(groups);"
+            f"board.innerHTML=order.map(function(group){{var items=groups[group]||[];return '<section style=\"display:grid;gap:12px;align-content:start;padding:12px;border:1px solid var(--border);border-radius:16px;background:var(--surface-2,var(--surface))\"><div style=\"display:flex;align-items:center;justify-content:space-between;gap:8px\"><strong style=\"color:var(--text)\">'+group+'</strong><span style=\"font-size:12px;color:var(--text-muted)\">'+String(items.length)+'</span></div>'+(items.length?items.map(function(item){{var title=item[{_json.dumps(self.title_field)}]||'Item';var subtitle=item[{_json.dumps(self.subtitle_field)}]||'';var badge=item[{_json.dumps(self.badge_field)}]||'';return '<article style=\"display:grid;gap:8px;padding:12px;border:1px solid var(--border);border-radius:14px;background:var(--surface)\"><div style=\"display:flex;align-items:center;justify-content:space-between;gap:8px\"><strong style=\"font-size:14px;color:var(--text)\">'+title+'</strong>'+(badge?'<span style=\"display:inline-flex;padding:4px 8px;border-radius:999px;background:var(--accent);color:#fff;font-size:11px;font-weight:700\">'+badge+'</span>':'')+'</div>'+(subtitle?'<div style=\"font-size:12px;color:var(--text-muted)\">'+subtitle+'</div>':'')+'</article>';}}).join(''):'<p style=\"margin:0;color:var(--text-muted)\">{self.empty_text}</p>')+'</section>';}}).join('');"
+            f"}}).catch(function(err){{board.innerHTML='<p style=\"margin:0;color:var(--danger,#ef4444)\">'+(err.message||'Error')+'</p>';}});"
+            f"}})();</script>"
+        )
+        title_html = f'<div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:12px">{self.title}</div>' if self.title else ""
+        return f'<div style="{extra}">{title_html}<div id="{self.uid}_board" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px"></div>{js}</div>'
+
+
 class ResourceView(Widget):
     """
     Composite resource view: filters + actions + table + optional details/cards.
@@ -1825,6 +1983,10 @@ class ResourceView(Widget):
         toolbar_actions=None,
         bulk_actions=None,
         detail_fields=None,
+        show_stats=False,
+        stats_metrics=None,
+        show_paginator=False,
+        show_kanban=False,
         show_form=True,
         show_table=True,
         show_toolbar=True,
@@ -1845,6 +2007,10 @@ class ResourceView(Widget):
         self.toolbar_actions = list(toolbar_actions or [])
         self.bulk_actions = list(bulk_actions or [])
         self.detail_fields = list(detail_fields or [])
+        self.show_stats = bool(show_stats)
+        self.stats_metrics = list(stats_metrics or [])
+        self.show_paginator = bool(show_paginator)
+        self.show_kanban = bool(show_kanban)
         self.show_form = bool(show_form)
         self.show_table = bool(show_table)
         self.show_toolbar = bool(show_toolbar)
@@ -1864,6 +2030,8 @@ class ResourceView(Widget):
             blocks.append(Text(self.title, style="font-size:18px;font-weight:700;color:var(--text)"))
         if self.helper_text:
             blocks.append(Paragraph(self.helper_text, style="font-size:13px;color:var(--text-muted);line-height:1.6"))
+        if self.show_stats:
+            blocks.append(ResourceStats(resource=self.resource, title="Resumen", metrics=self.stats_metrics))
         if self.show_form and self.form_fields:
             blocks.append(
                 ResourceForm(
@@ -1896,6 +2064,8 @@ class ResourceView(Widget):
                     selectable=self.show_bulk_actions and bool(self.bulk_actions),
                 )
             )
+        if self.show_paginator:
+            blocks.append(ResourcePaginator(target=self.table_id, title="Paginación"))
         if self.show_details:
             blocks.append(
                 ResourceDetails(
@@ -1912,6 +2082,13 @@ class ResourceView(Widget):
                     title="Tarjetas",
                     subtitle_field="email",
                     badge_field="estado",
+                )
+            )
+        if self.show_kanban:
+            blocks.append(
+                ResourceKanban(
+                    resource=self.resource,
+                    title="Kanban",
                 )
             )
         return Column(gap=14, children=blocks, **self._props).render()
