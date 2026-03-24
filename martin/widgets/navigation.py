@@ -557,7 +557,8 @@ class LanguageSelector(Widget):
             f"if(persist&&window.localStorage){{"
             f"  try{{var stored=localStorage.getItem(storageKey);if(stored&&meta[String(stored).replace(/-/g,'_')])initial=String(stored).replace(/-/g,'_');}}catch(_e){{}}"
             f"}}"
-            f"applySelection(initial, true);"
+            f"function _initLS(){{applySelection(initial, true);}}"
+            f"if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_initLS);else _initLS();"
             f"}})();</script>"
         )
 
@@ -811,10 +812,10 @@ class SideMenu(Widget):
             f"position:sticky;top:{self.top}px;align-self:flex-start;" if self.sticky else ""
         )
         width_css = f"width:{self.width}px;" if isinstance(self.width, (int, float)) else f"width:{self.width};"
-        border_css = "border:1px solid var(--border);" if self.bordered else ""
+        border_css = "border-right:1px solid var(--border);" if self.bordered else ""
         base = (
             f"{sticky_css}{width_css}{border_css}"
-            "background:var(--surface);border-radius:12px;padding:14px;"
+            "background:var(--surface);border-radius:0;padding:14px;margin:0;height:calc(100vh - {self.top}px);overflow-y:auto;"
             "display:flex;flex-direction:column;gap:10px"
         )
         inline = self._resolve_props(base)

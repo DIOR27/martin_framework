@@ -6,6 +6,8 @@ martin/_context.py
 martin/_routing.py
 martin/app.py
 martin/cli.py
+martin/conditions.py
+martin/docs.py
 martin/exporter.py
 martin/i18n.py
 martin/plugins.py
@@ -15,6 +17,7 @@ martin/studio.py
 martin/styles.py
 martin/theme.py
 martin/widget.py
+martin/widget_schema.py
 martin/backend/__init__.py
 martin/backend/backend.py
 martin/backend/http.py
@@ -46,11 +49,14 @@ martin_fx/__init__.py
 tests/test_accessibility.py
 tests/test_advanced_widgets.py
 tests/test_backend_extension.py
+tests/test_cli_docs.py
+tests/test_cli_run.py
 tests/test_datepicker_feedback.py
 tests/test_export_with_backend.py
 tests/test_fx.py
 tests/test_gallery_widget.py
 tests/test_icon_support.py
+tests/test_language_selector_widget.py
 tests/test_map_layering.py
 tests/test_request_and_security.py
 tests/test_responsive_widgets.py
@@ -64,3 +70,5 @@ tests/test_studio_metadata.py
 tests/test_table_exports.py
 tests/test_table_widget.py
 tests/test_universal_attrs.py
+tests/test_uploader_widget.py
+tests/test_widget_docs.py
