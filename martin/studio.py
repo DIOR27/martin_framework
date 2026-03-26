@@ -114,12 +114,20 @@ WIDGET_CATEGORIES = {
     "Gallery": "marketing",
     "Carousel": "marketing",
     "Accordion": "marketing",
+    "AccordionItem": "marketing",
     "Testimonials": "marketing",
+    "TestimonialItem": "marketing",
     "SlideCarousel": "marketing",
+    "SlideItem": "marketing",
     "Pricing": "marketing",
+    "PricingPlan": "marketing",
     "FAQ": "marketing",
+    "FAQItem": "marketing",
     "Chart": "compound",
     "Calendar": "compound",
+    "CalendarEvent": "compound",
+    "Wizard": "advanced",
+    "WizardStep": "advanced",
 }
 
 
@@ -156,7 +164,20 @@ ENUMS = {
 
 
 IGNORED_PARAMS = {"self", "kwargs", "args"}
-STRUCTURAL_PARAMS = {"child", "children"}
+STRUCTURAL_PARAMS = {
+    "child",
+    "children",
+    "items",
+    "plans",
+    "slides",
+    "fields",
+    "columns",
+    "links",
+    "actions",
+    "badge",
+    "icon",
+    "avatar",
+}
 
 WIDGET_PRESETS = {
     "Container": {"padding": 16},
@@ -178,12 +199,20 @@ WIDGET_PRESETS = {
     "TextArea": {"placeholder": "Write something..."},
     "Checkbox": {"label": "Accept terms"},
     "Select": {
-        "options": [["starter", "Starter"], ["pro", "Pro"], ["enterprise", "Enterprise"]],
+        "options": [
+            ["starter", "Starter"],
+            ["pro", "Pro"],
+            ["enterprise", "Enterprise"],
+        ],
         "value": "starter",
         "placeholder": "Choose a plan",
     },
     "MultiSelect": {
-        "options": [["design", "Design"], ["frontend", "Frontend"], ["backend", "Backend"]],
+        "options": [
+            ["design", "Design"],
+            ["frontend", "Frontend"],
+            ["backend", "Backend"],
+        ],
         "values": ["design", "frontend"],
     },
     "Slider": {"min": 0, "max": 100, "value": 60},
@@ -198,10 +227,19 @@ WIDGET_PRESETS = {
     "ProgressBar": {"value": 72, "label": "Completion"},
     "Rating": {"value": 4},
     "FileInput": {"label": "Upload file"},
-    "Uploader": {"label": "Upload assets", "upload_url": "/api/upload", "accept": "image/*,.pdf", "layout": "gallery"},
+    "Uploader": {
+        "label": "Upload assets",
+        "upload_url": "/api/upload",
+        "accept": "image/*,.pdf",
+        "layout": "gallery",
+    },
     "Badge": {"content": "Badge"},
     "Alert": {"title": "Heads up", "message": "This is an alert example."},
-    "Toast": {"title": "Saved", "message": "Changes were saved successfully.", "variant": "success"},
+    "Toast": {
+        "title": "Saved",
+        "message": "Changes were saved successfully.",
+        "variant": "success",
+    },
     "ToastCenter": {"items": [{"message": "Ready", "variant": "info"}]},
     "NavBar": {"sticky": True, "bordered": True},
     "Footer": {"bordered": True},
@@ -227,7 +265,9 @@ WIDGET_PRESETS = {
     "Modal": {"id": "demo_modal", "title": "Modal title"},
     "Raw": {"html": "<div>Raw HTML</div>"},
     "Script": {"code": "console.log('martin studio');"},
-    "Stylesheet": {"href": "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"},
+    "Stylesheet": {
+        "href": "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+    },
     "StyleTag": {"css": ".demo { color: var(--accent); }"},
     "ThemeToggle": {"title": "Cambiar tema"},
     "ScrollToTop": {"icon": "↑", "show_after": 240},
@@ -248,13 +288,24 @@ WIDGET_PRESETS = {
         "fields": [
             {"name": "nombre", "type": "text", "required": True},
             {"name": "email", "type": "email", "required": True},
-            {"name": "plan", "type": "select", "options": [["starter", "Starter"], ["pro", "Pro"], ["enterprise", "Enterprise"]]},
+            {
+                "name": "plan",
+                "type": "select",
+                "options": [
+                    ["starter", "Starter"],
+                    ["pro", "Pro"],
+                    ["enterprise", "Enterprise"],
+                ],
+            },
         ],
     },
     "ResourceTable": {
         "resource": "leads",
         "title": "Leads",
-        "columns": [{"key": "nombre", "label": "Nombre"}, {"key": "estado", "label": "Estado"}],
+        "columns": [
+            {"key": "nombre", "label": "Nombre"},
+            {"key": "estado", "label": "Estado"},
+        ],
     },
     "ResourceDetails": {
         "resource": "leads",
@@ -270,23 +321,42 @@ WIDGET_PRESETS = {
     "ResourceStats": {
         "resource": "leads",
         "title": "Lead stats",
-        "metrics": [{"key": "total", "label": "Total"}, {"key": "qualified", "label": "Qualified"}],
+        "metrics": [
+            {"key": "total", "label": "Total"},
+            {"key": "qualified", "label": "Qualified"},
+        ],
     },
     "ResourceFilters": {
         "target": "leads_table",
-        "filters": [{"name": "estado", "type": "select"}, {"name": "plan", "type": "select"}],
+        "filters": [
+            {"name": "estado", "type": "select"},
+            {"name": "plan", "type": "select"},
+        ],
     },
     "ResourceActions": {
         "actions": [{"label": "Refresh", "variant": "secondary"}],
     },
     "ResourceBulkActions": {
         "target": "leads_table",
-        "actions": [{"label": "Mark follow-up", "variant": "secondary", "url": "/api/resources/leads/bulk", "method": "POST"}],
+        "actions": [
+            {
+                "label": "Mark follow-up",
+                "variant": "secondary",
+                "url": "/api/resources/leads/bulk",
+                "method": "POST",
+            }
+        ],
     },
     "ResourceToolbar": {
         "target": "leads_table",
         "title": "Toolbar",
-        "actions": [{"label": "Refresh", "variant": "secondary", "on_click": "window['leads_table_refresh']&&window['leads_table_refresh']()"}],
+        "actions": [
+            {
+                "label": "Refresh",
+                "variant": "secondary",
+                "on_click": "window['leads_table_refresh']&&window['leads_table_refresh']()",
+            }
+        ],
     },
     "ResourcePaginator": {
         "target": "leads_table",
@@ -320,22 +390,45 @@ WIDGET_PRESETS = {
         "show_stats": True,
         "show_paginator": True,
         "show_kanban": True,
-        "columns": [{"key": "nombre", "label": "Nombre"}, {"key": "estado", "label": "Estado"}],
+        "columns": [
+            {"key": "nombre", "label": "Nombre"},
+            {"key": "estado", "label": "Estado"},
+        ],
         "form_fields": [
             {"name": "nombre", "type": "text", "required": True},
             {"name": "email", "type": "email", "required": True},
         ],
         "filters": [{"name": "estado", "type": "select"}],
         "actions": [{"label": "Refresh", "variant": "secondary"}],
-        "toolbar_actions": [{"label": "New quick", "variant": "ghost", "on_click": "console.log('new quick')"}],
-        "bulk_actions": [{"label": "Mark follow-up", "variant": "secondary", "url": "/api/resources/leads/bulk"}],
-        "stats_metrics": [{"key": "total", "label": "Total"}, {"key": "qualified", "label": "Qualified"}],
+        "toolbar_actions": [
+            {
+                "label": "New quick",
+                "variant": "ghost",
+                "on_click": "console.log('new quick')",
+            }
+        ],
+        "bulk_actions": [
+            {
+                "label": "Mark follow-up",
+                "variant": "secondary",
+                "url": "/api/resources/leads/bulk",
+            }
+        ],
+        "stats_metrics": [
+            {"key": "total", "label": "Total"},
+            {"key": "qualified", "label": "Qualified"},
+        ],
         "detail_fields": ["nombre", "email", "estado"],
     },
-    "CookieBanner": {"title": "Cookies", "message": "We use cookies to improve the experience."},
+    "CookieBanner": {
+        "title": "Cookies",
+        "message": "We use cookies to improve the experience.",
+    },
     "CookieCategory": {"title": "Analytics", "description": "Anonymous usage metrics."},
     "SafeArea": {},
-    "WordCloud": {"words": {"Python": 10, "MARTIN": 9, "Studio": 8, "Widgets": 7, "Preview": 6}},
+    "WordCloud": {
+        "words": {"Python": 10, "MARTIN": 9, "Studio": 8, "Widgets": 7, "Preview": 6}
+    },
     "Map": {
         "markers": [
             [-2.897, -79.004, "Cuenca"],
@@ -347,11 +440,28 @@ WIDGET_PRESETS = {
     },
     "Timeline": {
         "items": [
-            {"title": "Kickoff", "date": "Q1 2026", "description": "Project started", "icon": "🚀", "color": "#6366f1"},
-            {"title": "Studio", "date": "Q2 2026", "description": "Visual editor ready", "icon": "✨", "color": "#10b981"},
+            {
+                "title": "Kickoff",
+                "date": "Q1 2026",
+                "description": "Project started",
+                "icon": "🚀",
+                "color": "#6366f1",
+            },
+            {
+                "title": "Studio",
+                "date": "Q2 2026",
+                "description": "Visual editor ready",
+                "icon": "✨",
+                "color": "#10b981",
+            },
         ]
     },
-    "Hero": {"title": "Build with MARTIN", "subtitle": "Design and code in one place.", "align": "left", "layout": "centered"},
+    "Hero": {
+        "title": "Build with MARTIN",
+        "subtitle": "Design and code in one place.",
+        "align": "left",
+        "layout": "centered",
+    },
     "Gallery": {
         "items": [
             {"src": "/assets/art_dog_field_sunrise.svg", "title": "Morning Field"},
@@ -361,22 +471,47 @@ WIDGET_PRESETS = {
     },
     "Carousel": {
         "items": [
-            {"image": "/assets/art_dog_field_sunrise.svg", "title": "Slide One", "subtitle": "First slide"},
-            {"image": "/assets/art_dog_hill_breeze.svg", "title": "Slide Two", "subtitle": "Second slide"},
+            {
+                "image": "/assets/art_dog_field_sunrise.svg",
+                "title": "Slide One",
+                "subtitle": "First slide",
+            },
+            {
+                "image": "/assets/art_dog_hill_breeze.svg",
+                "title": "Slide Two",
+                "subtitle": "Second slide",
+            },
         ],
         "visible": 1,
         "dots": True,
     },
     "Accordion": {
         "items": [
-            {"title": "What is MARTIN?", "content": "A Python-first UI framework.", "open": True},
-            {"title": "Can I export static sites?", "content": "Yes, with HTML or split output."},
+            {
+                "title": "What is MARTIN?",
+                "content": "A Python-first UI framework.",
+                "open": True,
+            },
+            {
+                "title": "Can I export static sites?",
+                "content": "Yes, with HTML or split output.",
+            },
         ]
     },
     "Testimonials": {
         "items": [
-            {"quote": "Fast and expressive.", "name": "Diego", "role": "Founder", "rating": 5},
-            {"quote": "Great for rapid prototyping.", "name": "Team", "role": "Builders", "rating": 5},
+            {
+                "quote": "Fast and expressive.",
+                "name": "Diego",
+                "role": "Founder",
+                "rating": 5,
+            },
+            {
+                "quote": "Great for rapid prototyping.",
+                "name": "Team",
+                "role": "Builders",
+                "rating": 5,
+            },
         ]
     },
     "SlideCarousel": {
@@ -387,14 +522,32 @@ WIDGET_PRESETS = {
     },
     "Pricing": {
         "plans": [
-            {"name": "Starter", "price": 19, "features": ["1 project", "Email support"], "cta_label": "Choose Starter"},
-            {"name": "Pro", "price": 49, "features": ["Unlimited projects", "Priority support"], "featured": True, "badge": "Popular"},
+            {
+                "name": "Starter",
+                "price": 19,
+                "features": ["1 project", "Email support"],
+                "cta_label": "Choose Starter",
+            },
+            {
+                "name": "Pro",
+                "price": 49,
+                "features": ["Unlimited projects", "Priority support"],
+                "featured": True,
+                "badge": "Popular",
+            },
         ]
     },
     "FAQ": {
         "items": [
-            {"question": "Can I use Python only?", "answer": "Yes, MARTIN is Python-first.", "open": True},
-            {"question": "Does it support backend actions?", "answer": "Yes, through martin.backend."},
+            {
+                "question": "Can I use Python only?",
+                "answer": "Yes, MARTIN is Python-first.",
+                "open": True,
+            },
+            {
+                "question": "Does it support backend actions?",
+                "answer": "Yes, through martin.backend.",
+            },
         ]
     },
     "Chart": {
@@ -406,7 +559,13 @@ WIDGET_PRESETS = {
     "Calendar": {
         "events": [
             {"title": "Launch", "date": "2026-03-20", "color": "#6366f1"},
-            {"title": "Demo", "date": "2026-03-25", "start_time": "10:00", "end_time": "11:00", "color": "#10b981"},
+            {
+                "title": "Demo",
+                "date": "2026-03-25",
+                "start_time": "10:00",
+                "end_time": "11:00",
+                "color": "#10b981",
+            },
         ],
         "initial_view": "month",
         "editable": True,
@@ -414,7 +573,10 @@ WIDGET_PRESETS = {
     },
     "DataGrid": {
         "columns": [{"key": "name", "label": "Name"}, {"key": "role", "label": "Role"}],
-        "rows": [{"name": "Martin", "role": "Framework"}, {"name": "Studio", "role": "Editor"}],
+        "rows": [
+            {"name": "Martin", "role": "Framework"},
+            {"name": "Studio", "role": "Editor"},
+        ],
     },
     "CommandPalette": {
         "items": [
@@ -425,8 +587,14 @@ WIDGET_PRESETS = {
     "Drawer": {"id": "demo_drawer", "title": "Drawer title"},
     "SplitPane": {"ratio": 0.5},
     "Skeleton": {"lines": 3},
-    "EmptyState": {"title": "Nothing here yet", "description": "Add your first widget."},
-    "ErrorState": {"title": "Something went wrong", "description": "Try again in a moment."},
+    "EmptyState": {
+        "title": "Nothing here yet",
+        "description": "Add your first widget.",
+    },
+    "ErrorState": {
+        "title": "Something went wrong",
+        "description": "Try again in a moment.",
+    },
     "Form": {"id": "demo_form", "method": "post"},
     "JSWidgetAdapter": {"tag": "div", "script": "console.log('adapter ready')"},
 }
@@ -479,6 +647,9 @@ PROP_EDITORS = {
             {"name": "start_time", "label": "Start time", "type": "time"},
             {"name": "end_time", "label": "End time", "type": "time"},
             {"name": "color", "label": "Color", "type": "color"},
+            {"name": "description", "label": "Description", "type": "string"},
+            {"name": "all_day", "label": "All day", "type": "boolean"},
+            {"name": "url", "label": "URL", "type": "string"},
         ],
     },
     "WordCloud.words": {
@@ -489,6 +660,100 @@ PROP_EDITORS = {
         "key_placeholder": "Python",
         "value_placeholder": "10",
         "value_type": "integer",
+    },
+    "Accordion.items": {
+        "type": "collection",
+        "item_label": "Accordion Item",
+        "fields": [
+            {"name": "title", "label": "Title", "type": "string", "required": True},
+            {"name": "content", "label": "Content", "type": "string"},
+            {"name": "open", "label": "Open by default", "type": "boolean"},
+        ],
+    },
+    "CommandPalette.items": {
+        "type": "collection",
+        "item_label": "Command",
+        "fields": [
+            {"name": "label", "label": "Label", "type": "string", "required": True},
+            {"name": "href", "label": "URL", "type": "string"},
+            {"name": "action", "label": "Action JS", "type": "string"},
+        ],
+    },
+    "Gallery.items": {
+        "type": "collection",
+        "item_label": "Image",
+        "fields": [
+            {"name": "src", "label": "Image URL", "type": "string", "required": True},
+            {"name": "title", "label": "Title", "type": "string"},
+            {"name": "description", "label": "Description", "type": "string"},
+            {"name": "alt", "label": "Alt text", "type": "string"},
+            {"name": "url", "label": "Link URL", "type": "string"},
+            {"name": "span_cols", "label": "Columns span", "type": "integer"},
+            {"name": "span_rows", "label": "Rows span", "type": "integer"},
+        ],
+    },
+    "Carousel.items": {
+        "type": "collection",
+        "item_label": "Slide",
+        "fields": [
+            {"name": "image", "label": "Image URL", "type": "string"},
+            {"name": "title", "label": "Title", "type": "string"},
+            {"name": "subtitle", "label": "Subtitle", "type": "string"},
+            {"name": "url", "label": "Link URL", "type": "string"},
+        ],
+    },
+    "Testimonials.items": {
+        "type": "collection",
+        "item_label": "Testimonial",
+        "fields": [
+            {"name": "name", "label": "Name", "type": "string", "required": True},
+            {"name": "text", "label": "Quote", "type": "string", "required": True},
+            {"name": "role", "label": "Role/Company", "type": "string"},
+            {"name": "avatar", "label": "Avatar URL", "type": "string"},
+            {"name": "rating", "label": "Rating (1-5)", "type": "integer"},
+        ],
+    },
+    "Pricing.plans": {
+        "type": "collection",
+        "item_label": "Plan",
+        "fields": [
+            {"name": "name", "label": "Plan name", "type": "string", "required": True},
+            {"name": "price", "label": "Price", "type": "integer", "required": True},
+            {"name": "currency", "label": "Currency", "type": "string"},
+            {"name": "period", "label": "Period", "type": "string"},
+            {"name": "description", "label": "Description", "type": "string"},
+            {"name": "cta_label", "label": "CTA Label", "type": "string"},
+            {"name": "cta_url", "label": "CTA URL", "type": "string"},
+            {"name": "featured", "label": "Featured", "type": "boolean"},
+            {"name": "badge", "label": "Badge text", "type": "string"},
+        ],
+    },
+    "FAQ.items": {
+        "type": "collection",
+        "item_label": "Question",
+        "fields": [
+            {
+                "name": "question",
+                "label": "Question",
+                "type": "string",
+                "required": True,
+            },
+            {"name": "answer", "label": "Answer", "type": "string"},
+            {"name": "open", "label": "Open by default", "type": "boolean"},
+        ],
+    },
+    "Wizard.steps": {
+        "type": "collection",
+        "item_label": "Step",
+        "fields": [
+            {
+                "name": "title",
+                "label": "Step title",
+                "type": "string",
+                "required": True,
+            },
+            {"name": "description", "label": "Description", "type": "string"},
+        ],
     },
 }
 
@@ -516,8 +781,7 @@ def _safe_default(value):
     ):
         return list(value)
     if isinstance(value, dict) and all(
-        isinstance(k, str)
-        and (isinstance(v, (str, int, float, bool)) or v is None)
+        isinstance(k, str) and (isinstance(v, (str, int, float, bool)) or v is None)
         for k, v in value.items()
     ):
         return dict(value)
@@ -568,7 +832,9 @@ def _infer_type(widget_name: str, param_name: str, annotation, default):
         return "integer"
     if annotation in (float, "float") or isinstance(default, float):
         return "float"
-    if annotation in (list, tuple, "list", "tuple") or isinstance(default, (list, tuple)):
+    if annotation in (list, tuple, "list", "tuple") or isinstance(
+        default, (list, tuple)
+    ):
         return "array"
     if annotation in (dict, "dict") or isinstance(default, dict):
         return "object"
@@ -576,9 +842,24 @@ def _infer_type(widget_name: str, param_name: str, annotation, default):
     lowered = param_name.lower()
     if lowered in {"disabled", "checked", "hidden", "wrap", "search", "overlay"}:
         return "boolean"
-    if lowered.endswith("_id") or lowered in {"id", "name", "href", "placeholder", "title"}:
+    if lowered.endswith("_id") or lowered in {
+        "id",
+        "name",
+        "href",
+        "placeholder",
+        "title",
+    }:
         return "string"
-    if lowered in {"gap", "padding", "margin", "radius", "width", "height", "rows", "columns"}:
+    if lowered in {
+        "gap",
+        "padding",
+        "margin",
+        "radius",
+        "width",
+        "height",
+        "rows",
+        "columns",
+    }:
         return "integer"
     if lowered in {"content", "label", "subtitle", "description", "text"}:
         return "string"
@@ -629,7 +910,9 @@ def get_widget_preset(name: str) -> dict:
     return dict(WIDGET_PRESETS.get(name, {}))
 
 
-def _build_widget_from_schema(name: str, cls, schema: dict, *, accepts_children: bool, has_content_slot: bool) -> dict:
+def _build_widget_from_schema(
+    name: str, cls, schema: dict, *, accepts_children: bool, has_content_slot: bool
+) -> dict:
     schema_params = [dict(param) for param in (schema.get("params") or [])]
     existing_param_names = {param["name"] for param in schema_params}
     return {
@@ -638,15 +921,26 @@ def _build_widget_from_schema(name: str, cls, schema: dict, *, accepts_children:
         "module": schema.get("module") or cls.__module__,
         "doc": schema.get("doc") or _clean_doc(cls.__doc__),
         "summary": schema.get("summary") or _first_sentence(cls.__doc__),
-        "accepts_children": accepts_children if schema.get("accepts_children") is None else bool(schema.get("accepts_children")),
-        "has_content_slot": has_content_slot if schema.get("has_content_slot") is None else bool(schema.get("has_content_slot")),
+        "accepts_children": accepts_children
+        if schema.get("accepts_children") is None
+        else bool(schema.get("accepts_children")),
+        "has_content_slot": has_content_slot
+        if schema.get("has_content_slot") is None
+        else bool(schema.get("has_content_slot")),
         "preset_props": get_widget_preset(name),
-        "params": schema_params + [dict(prop) for prop in UNIVERSAL_PROPS if prop["name"] not in existing_param_names],
+        "params": schema_params
+        + [
+            dict(prop)
+            for prop in UNIVERSAL_PROPS
+            if prop["name"] not in existing_param_names
+        ],
     }
 
 
 def get_widget_catalog() -> dict:
-    widget_names = [name for name in getattr(_widgets, "__all__", []) if hasattr(_widgets, name)]
+    widget_names = [
+        name for name in getattr(_widgets, "__all__", []) if hasattr(_widgets, name)
+    ]
     widgets = []
 
     for name in widget_names:
@@ -661,7 +955,10 @@ def get_widget_catalog() -> dict:
         for param in signature.parameters.values():
             if param.name in IGNORED_PARAMS:
                 continue
-            if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+            if param.kind in (
+                inspect.Parameter.VAR_POSITIONAL,
+                inspect.Parameter.VAR_KEYWORD,
+            ):
                 continue
             described = _describe_parameter(name, param)
             params.append(described)
@@ -694,7 +991,12 @@ def get_widget_catalog() -> dict:
                 "accepts_children": accepts_children,
                 "has_content_slot": has_content_slot,
                 "preset_props": get_widget_preset(name),
-                "params": params + [dict(prop) for prop in UNIVERSAL_PROPS if prop["name"] not in existing_param_names],
+                "params": params
+                + [
+                    dict(prop)
+                    for prop in UNIVERSAL_PROPS
+                    if prop["name"] not in existing_param_names
+                ],
             }
         )
 
@@ -730,7 +1032,9 @@ def parse_source_file_to_design(path: str | Path) -> dict:
     runtime_design = _parse_source_file_to_design_runtime(source_path)
     if runtime_design is not None:
         return runtime_design
-    module = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
+    module = ast.parse(
+        source_path.read_text(encoding="utf-8"), filename=str(source_path)
+    )
     parser = _StudioAstParser(source_path)
     return parser.parse(module)
 
@@ -788,7 +1092,9 @@ def _update_martin_imports(source: str, martin_imports: list[str]) -> str:
             break
 
     merged = sorted({*existing, *imports})
-    import_block = "from martin import (\n" + "".join(f"    {name},\n" for name in merged) + ")\n"
+    import_block = (
+        "from martin import (\n" + "".join(f"    {name},\n" for name in merged) + ")\n"
+    )
     if target is None:
         return import_block + "\n" + source
 
@@ -801,8 +1107,14 @@ def _update_martin_imports(source: str, martin_imports: list[str]) -> str:
 
 def render_source_file_preview_html(path: str | Path) -> str:
     source_path = Path(path).resolve()
-    module_name = f"_martin_studio_preview_{source_path.stem}_{abs(hash(str(source_path)))}"
-    project_path = str(source_path.parent.parent if source_path.parent.name == "pages" else source_path.parent)
+    module_name = (
+        f"_martin_studio_preview_{source_path.stem}_{abs(hash(str(source_path)))}"
+    )
+    project_path = str(
+        source_path.parent.parent
+        if source_path.parent.name == "pages"
+        else source_path.parent
+    )
     added_path = False
     if project_path not in sys.path:
         sys.path.insert(0, project_path)
@@ -824,7 +1136,10 @@ def render_source_file_preview_html(path: str | Path) -> str:
                 break
         if candidate is None:
             for value in module.__dict__.values():
-                if callable(value) and getattr(value, "__module__", None) == module.__name__:
+                if (
+                    callable(value)
+                    and getattr(value, "__module__", None) == module.__name__
+                ):
                     candidate = value
                     break
         if candidate is None:
@@ -862,8 +1177,14 @@ def _parse_source_file_to_design_runtime(source_path: Path) -> dict | None:
 
 def _load_source_candidate(source_path: Path):
     source_path = source_path.resolve()
-    module_name = f"_martin_studio_design_{source_path.stem}_{abs(hash(str(source_path)))}"
-    project_path = str(source_path.parent.parent if source_path.parent.name == "pages" else source_path.parent)
+    module_name = (
+        f"_martin_studio_design_{source_path.stem}_{abs(hash(str(source_path)))}"
+    )
+    project_path = str(
+        source_path.parent.parent
+        if source_path.parent.name == "pages"
+        else source_path.parent
+    )
     added_path = False
     if project_path not in sys.path:
         sys.path.insert(0, project_path)
@@ -881,7 +1202,11 @@ def _load_source_candidate(source_path: Path):
             if callable(fn):
                 return fn
         for value in module.__dict__.values():
-            if callable(value) and getattr(value, "__module__", None) == module.__name__ and not getattr(value, "__name__", "").startswith("_"):
+            if (
+                callable(value)
+                and getattr(value, "__module__", None) == module.__name__
+                and not getattr(value, "__name__", "").startswith("_")
+            ):
                 return value
         return None
     finally:
@@ -904,7 +1229,10 @@ class _StudioRuntimeSerializer:
         for param in signature.parameters.values():
             if param.name in IGNORED_PARAMS:
                 continue
-            if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+            if param.kind in (
+                inspect.Parameter.VAR_POSITIONAL,
+                inspect.Parameter.VAR_KEYWORD,
+            ):
                 continue
             value = self._runtime_param_value(widget, param.name)
             if param.name == "children":
@@ -956,9 +1284,17 @@ class _StudioRuntimeSerializer:
         if not value:
             return []
         if isinstance(value, list):
-            return [self.serialize_widget(item) for item in value if isinstance(item, Widget)]
+            return [
+                self.serialize_widget(item)
+                for item in value
+                if isinstance(item, Widget)
+            ]
         if isinstance(value, tuple):
-            return [self.serialize_widget(item) for item in value if isinstance(item, Widget)]
+            return [
+                self.serialize_widget(item)
+                for item in value
+                if isinstance(item, Widget)
+            ]
         if isinstance(value, Widget):
             return [self.serialize_widget(value)]
         return []
@@ -1082,7 +1418,9 @@ class _StudioAstParser:
         self._index_module(module)
         root_node = self._find_root_widget(module)
         if root_node is None:
-            root_node = self._fallback_node("Raw", {"content": f"Unsupported source: {self.source_path.name}"})
+            root_node = self._fallback_node(
+                "Raw", {"content": f"Unsupported source: {self.source_path.name}"}
+            )
         return {
             "version": 1,
             "title": self.source_path.stem,
@@ -1110,8 +1448,14 @@ class _StudioAstParser:
         ]
         ordered = []
         for name in preferred_names:
-            ordered.extend(node for node in functions if node.name == name and node not in ordered)
-        ordered.extend(node for node in functions if not node.name.startswith("_") and node not in ordered)
+            ordered.extend(
+                node for node in functions if node.name == name and node not in ordered
+            )
+        ordered.extend(
+            node
+            for node in functions
+            if not node.name.startswith("_") and node not in ordered
+        )
         ordered.extend(node for node in functions if node not in ordered)
 
         for node in ordered:
@@ -1152,7 +1496,9 @@ class _StudioAstParser:
                 child = self._convert_expr(item)
                 if child is not None:
                     children.append(child)
-            return self._fallback_node("Raw", {"content": f"List[{len(expr.elts)}]"}, children=children)
+            return self._fallback_node(
+                "Raw", {"content": f"List[{len(expr.elts)}]"}, children=children
+            )
         if isinstance(expr, ast.ListComp):
             return self._convert_list_comp(expr)
         return None
@@ -1318,9 +1664,15 @@ class _StudioAstParser:
             return names
         return []
 
-    def _fallback_node(self, widget_type: str, props: dict | None = None, children=None):
+    def _fallback_node(
+        self, widget_type: str, props: dict | None = None, children=None
+    ):
         safe_props = dict(props or {})
-        if widget_type == "Raw" and "content" in safe_props and "html" not in safe_props:
+        if (
+            widget_type == "Raw"
+            and "content" in safe_props
+            and "html" not in safe_props
+        ):
             safe_props["html"] = safe_props.pop("content")
         return {
             "id": self._next_id(),
