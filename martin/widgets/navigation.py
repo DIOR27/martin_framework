@@ -777,6 +777,7 @@ class SideMenu(Widget):
         self,
         title=None,
         items=None,
+        position="content-left",
         sticky=True,
         top=84,
         width=260,
@@ -788,6 +789,7 @@ class SideMenu(Widget):
         self._props = Widget._extract_props(kwargs)
         self.title = title
         self.items = items or []
+        self.position = position
         self.sticky = sticky
         self.top = top
         self.width = width
@@ -808,14 +810,30 @@ class SideMenu(Widget):
         return str(item), "#"
 
     def render(self):
-        sticky_css = (
-            f"position:sticky;top:{self.top}px;align-self:flex-start;" if self.sticky else ""
-        )
+        is_page = "page" in self.position
+        is_right = "right" in self.position
+        
+        pos_css = ""
+        order_css = ""
+        if is_page:
+            edge = "right:0;" if is_right else "left:0;"
+            pos_css = f"position:fixed;{edge}top:{self.top}px;z-index:40;"
+            order_css = "order:999;" if is_right else "order:-999;"
+        else:
+            edge = "right:0;" if is_right else "left:0;"
+            pos_css = f"position:sticky;{edge}top:{self.top}px;align-self:flex-start;" if self.sticky else ""
+            if is_right: order_css = "order:999;"
+            else: order_css = "order:-999;"
+
         width_css = f"width:{self.width}px;" if isinstance(self.width, (int, float)) else f"width:{self.width};"
-        border_css = "border-right:1px solid var(--border);" if self.bordered else ""
+        
+        border_css = ""
+        if self.bordered:
+            border_css = "border-left:1px solid var(--border);" if is_right else "border-right:1px solid var(--border);"
+            
         base = (
-            f"{sticky_css}{width_css}{border_css}"
-            "background:var(--surface);border-radius:0;padding:14px;margin:0;height:calc(100vh - {self.top}px);overflow-y:auto;"
+            f"{pos_css}{width_css}{border_css}{order_css}"
+            f"background:var(--surface);border-radius:0;padding:14px;margin:0;height:calc(100vh - {self.top}px);overflow-y:auto;"
             "display:flex;flex-direction:column;gap:10px"
         )
         inline = self._resolve_props(base)
@@ -846,4 +864,9 @@ class SideMenu(Widget):
             )
 
         links_html = "".join(links)
-        return f"<aside{attrs}>{title_html}<nav>{links_html}</nav></aside>"
+        aside_html = f"<aside{attrs}>{title_html}<nav>{links_html}</nav></aside>"
+        if is_page:
+            spacer_order = "order:999;" if is_right else "order:-999;"
+            spacer = f'<div style="{width_css}flex-shrink:0;{spacer_order}"></div>'
+            return spacer + aside_html
+        return aside_html

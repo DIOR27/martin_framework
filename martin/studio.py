@@ -147,6 +147,7 @@ ENUMS = {
     "Hero.align": ["center", "left", "right"],
     "Hero.layout": ["centered", "split"],
     "Hero.actions_direction": ["row", "column"],
+    "SideMenu.position": ["page-left", "page-right", "content-left", "content-right"],
     "Drawer.side": ["left", "right"],
     "Code.theme": ["auto", "dark", "light"],
     "Counter.mode": ["countdown", "countup", "remaining"],
@@ -204,6 +205,14 @@ WIDGET_PRESETS = {
     "ToastCenter": {"items": [{"message": "Ready", "variant": "info"}]},
     "NavBar": {"sticky": True, "bordered": True},
     "Footer": {"bordered": True},
+    "SideMenu": {
+        "title": "Menu lateral",
+        "items": [
+            {"label": "Overview", "href": "#"},
+            {"label": "Settings", "href": "#"},
+        ],
+        "position": "content-left",
+    },
     "Breadcrumb": {"items": [["Home", "/"], ["Docs", "/docs"], ["Studio", None]]},
     "Tabs": {
         "items": [
