@@ -339,12 +339,6 @@ HOME_TEMPLATE = (
 
 
     _HERO_CSS = Raw(\"\"\"<style>
-    .hero-gradient {
-        background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 60%, transparent) 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
     .feature-card { transition: transform .2s, box-shadow .2s; }
     .feature-card:hover {
         transform: translateY(-3px);
@@ -404,8 +398,7 @@ HOME_TEMPLATE = (
                         Heading(
                             _t("home.hero.title", "PROJECT_DESC"),
                             level=1,
-                            class_name="hero-gradient",
-                            style="font-size:clamp(36px,6vw,64px);font-weight:800;letter-spacing:-2px;line-height:1.1;margin:0",
+                            style=[GradientText.aurora(), TextStyle(size="clamp(36px,6vw,64px)", weight="800")],
                         ),
                         Paragraph(
                             _t("home.hero.subtitle", "Construido con Martin Framework \\u2014 Python para la web, sin complicaciones."),
@@ -2858,8 +2851,12 @@ def render_new_project_files(name: str, title: str, desc: str):
             "PROJECT_DESC", desc
         ),
         "pages/components.py": COMPONENTS_TEMPLATE.replace("PROJECT_NAME", title),
-        "locales/es_ES.po": LOCALE_ES_ES_TEMPLATE.replace("PROJECT_NAME", title).replace("PROJECT_DESC", desc).replace("YEAR", year),
-        "locales/en_US.po": LOCALE_EN_US_TEMPLATE.replace("PROJECT_NAME", title).replace("PROJECT_DESC", desc).replace("YEAR", year),
+        "locales/es_ES.po": LOCALE_ES_ES_TEMPLATE.replace("PROJECT_NAME", title)
+        .replace("PROJECT_DESC", desc)
+        .replace("YEAR", year),
+        "locales/en_US.po": LOCALE_EN_US_TEMPLATE.replace("PROJECT_NAME", title)
+        .replace("PROJECT_DESC", desc)
+        .replace("YEAR", year),
         ".gitignore": GITIGNORE,
         "README.md": README_TEMPLATE.format(name=name),
     }
