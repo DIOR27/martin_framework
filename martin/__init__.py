@@ -65,6 +65,9 @@ from .styles import (
     Glass,
     GradientText,
     MeshBackground,
+    HeroLayout,
+    HeroPanel,
+    HoverLiftStyle,
     Colors,
 )
 from .widgets import (
@@ -251,6 +254,9 @@ __all__ = [
     "Glass",
     "GradientText",
     "MeshBackground",
+    "HeroLayout",
+    "HeroPanel",
+    "HoverLiftStyle",
     "Colors",
     "Container",
     "Row",

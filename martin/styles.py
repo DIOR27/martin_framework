@@ -635,15 +635,50 @@ class MeshBackground(StyleBase):
     MeshBackground.dark()                     # fija fondo oscuro
     MeshBackground.light()                    # fija fondo claro
     MeshBackground.themed()                   # sigue var(--bg) del tema activo
-    MeshBackground(color1="#6366f1", ...)     # colores custom, base themed
+    MeshBackground(color1="#6366f1", ...)    # colores custom, base themed
+
+    Configuración avanzada:
+        MeshBackground(
+            color1="#6366f1", pos1="18% 16%", size1="32%",  # gradiente 1
+            color2="#34d399", pos2="82% 80%", size2="28%",  # gradiente 2
+            color3="#7c3aed", pos3="52% 50%", size3="40%",  # gradiente 3
+            base="var(--bg)",
+            opacity1=0.18, opacity2=0.12, opacity3=0.08,    # opacidades
+            min_height="100vh"
+        )
     """
 
-    def __init__(self, color1="#6366f1", color2="#34d399", color3="#7c3aed", base=None):
+    def __init__(
+        self,
+        color1="#6366f1",
+        color2="#34d399",
+        color3="#7c3aed",
+        base=None,
+        pos1="20% 10%",
+        pos2="80% 80%",
+        pos3="50% 50%",
+        size1="60%",
+        size2="50%",
+        size3="40%",
+        opacity1=0.18,
+        opacity2=0.12,
+        opacity3=0.08,
+        min_height="100vh",
+    ):
         self.color1 = color1
         self.color2 = color2
         self.color3 = color3
-        # base=None → usa var(--bg) del tema CSS
         self.base = base
+        self.pos1 = pos1
+        self.pos2 = pos2
+        self.pos3 = pos3
+        self.size1 = size1
+        self.size2 = size2
+        self.size3 = size3
+        self.opacity1 = opacity1
+        self.opacity2 = opacity2
+        self.opacity3 = opacity3
+        self.min_height = min_height
 
     @classmethod
     def dark(cls):
@@ -664,17 +699,113 @@ class MeshBackground(StyleBase):
         return f"rgba({r},{g},{b},{opacity})"
 
     def to_css(self) -> dict:
-        c1 = self._hex_rgba(self.color1, 0.18)
-        c2 = self._hex_rgba(self.color2, 0.12)
-        c3 = self._hex_rgba(self.color3, 0.08)
+        c1 = self._hex_rgba(self.color1, self.opacity1)
+        c2 = self._hex_rgba(self.color2, self.opacity2)
+        c3 = self._hex_rgba(self.color3, self.opacity3)
         base = self.base if self.base else "var(--bg)"
         return {
             "background": (
-                f"radial-gradient(ellipse 80% 60% at 20% 10%, {c1} 0%, transparent 60%), "
-                f"radial-gradient(ellipse 60% 50% at 80% 80%, {c2} 0%, transparent 55%), "
-                f"radial-gradient(ellipse 50% 40% at 50% 50%, {c3} 0%, transparent 50%), "
+                f"radial-gradient(ellipse {self.size1} at {self.pos1}, {c1} 0%, transparent {self.size1}), "
+                f"radial-gradient(ellipse {self.size2} at {self.pos2}, {c2} 0%, transparent {self.size2}), "
+                f"radial-gradient(ellipse {self.size3} at {self.pos3}, {c3} 0%, transparent {self.size3}), "
                 f"{base}"
             ),
-            "min-height": "100vh",
+            "min-height": self.min_height,
             "color": "var(--text)",
+        }
+
+
+class HeroLayout(StyleBase):
+    """
+    Layout grid para secciones hero con contenido y panel lateral.
+
+    HeroLayout()                          # usa valores por defecto
+    HeroLayout(
+        content_col="1fr",                # columna del contenido
+        panel_col="0.92fr",              # columna del panel
+        gap=28,                           # espacio entre columnas
+        padding="104px 0 80px",           # padding vertical
+        max_width="1180px"                # ancho máximo
+    )
+
+    Úsalo con style=[] para agregar a un Container/Column.
+    """
+
+    def __init__(
+        self,
+        content_col="1.08fr",
+        panel_col="0.92fr",
+        gap=28,
+        padding_v=104,
+        padding_h=0,
+        max_width="1180px",
+    ):
+        self.content_col = content_col
+        self.panel_col = panel_col
+        self.gap = gap
+        self.padding_v = padding_v
+        self.padding_h = padding_h
+        self.max_width = max_width
+
+    def to_css(self) -> dict:
+        padding = (
+            f"{self.padding_v}px {self.padding_h}px"
+            if self.padding_h
+            else f"{self.padding_v}px 0"
+        )
+        return {
+            "display": "grid",
+            "grid-template-columns": f"minmax(0, {self.content_col}) minmax(320px, {self.panel_col})",
+            "gap": f"{self.gap}px",
+            "align-items": "center",
+            "max-width": self.max_width,
+            "margin": "0 auto",
+            "padding": padding,
+        }
+
+
+class HeroPanel(StyleBase):
+    """
+    Panel lateral de un hero con efecto glass/blur.
+
+    HeroPanel()                           # blur por defecto de 18px
+    HeroPanel(blur=24, opacity=0.1)     # personalizar
+
+    Úsalo con style=[] en un Card o Container.
+    """
+
+    def __init__(self, blur=18, opacity=0.08):
+        self.blur = blur
+        self.opacity = opacity
+
+    def to_css(self) -> dict:
+        return {
+            "backdrop-filter": f"blur({self.blur}px)",
+            "-webkit-backdrop-filter": f"blur({self.blur}px)",
+        }
+
+
+class HoverLiftStyle(StyleBase):
+    """
+    Efecto de elevación en hover (como HoverLift pero como estilo).
+
+    HoverLiftStyle(distance=4)           # elevación por defecto 4px
+    HoverLiftStyle(distance=8, shadow="0 22px 56px rgba(15, 23, 42, .22)")
+
+    Úsalo en style=[] de un widget que tenga FX (Hover, Transition, etc.)
+    """
+
+    def __init__(self, distance=4, shadow=None):
+        self.distance = distance
+        self.shadow = shadow or "0 22px 56px rgba(15, 23, 42, .22)"
+
+    def to_css(self) -> dict:
+        return {
+            "transition": "transform .24s ease, box-shadow .24s ease",
+        }
+
+    def to_hover_css(self) -> dict:
+        return {
+            "transform": f"translateY(-{self.distance}px)",
+            "box-shadow": self.shadow,
         }
