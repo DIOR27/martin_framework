@@ -1,0 +1,10 @@
+<svg width="640" height="240" viewBox="0 0 640 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g opacity="0.9" stroke="#3D3D3D" stroke-width="3" stroke-linecap="round">
+    <path d="M92 118C72 106 72 76 95 70C111 66 124 79 120 93C116 106 100 109 95 96"/>
+    <path d="M548 118C568 106 568 76 545 70C529 66 516 79 520 93C524 106 540 109 545 96"/>
+    <path d="M136 86C156 70 176 66 198 69"/>
+    <path d="M442 69C464 66 484 70 504 86"/>
+  </g>
+  <text x="320" y="142" text-anchor="middle" fill="#3D3D3D" font-family="Georgia, 'Times New Roman', serif" font-size="84" font-style="italic" font-weight="700" letter-spacing="-2">martin</text>
+  <path d="M210 168H430" stroke="#3D3D3D" stroke-width="3" stroke-linecap="round" opacity="0.56"/>
+</svg>

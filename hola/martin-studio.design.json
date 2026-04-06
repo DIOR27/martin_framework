@@ -1,0 +1,462 @@
+{
+  "version": 1,
+  "title": "home",
+  "source_file": "c:\\Users\\diego\\OneDrive\\Documentos\\Python\\martin_ecosystem\\hola\\pages\\home.py",
+  "root": {
+    "id": "rt_39",
+    "type": "Column",
+    "props": {
+      "gap": 0,
+      "align": "stretch",
+      "justify": "flex-start"
+    },
+    "children": [
+      {
+        "id": "rt_1",
+        "type": "Raw",
+        "props": {
+          "html": "<style>\n.hero-gradient {\n    background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 60%, transparent) 100%);\n    -webkit-background-clip: text;\n    -webkit-text-fill-color: transparent;\n    background-clip: text;\n}\n.feature-card { transition: transform .2s, box-shadow .2s; }\n.feature-card:hover {\n    transform: translateY(-3px);\n    box-shadow: 0 8px 32px rgba(0,0,0,.12);\n}\n</style>"
+        },
+        "children": []
+      },
+      {
+        "id": "rt_9",
+        "type": "Column",
+        "props": {
+          "gap": 20,
+          "align": "stretch",
+          "justify": "flex-start",
+          "style": "max-width: 860px; margin: 0 auto; align-items: center; text-align: center; padding-top: 96px; padding-bottom: 80px",
+          "padding": 64
+        },
+        "children": [
+          {
+            "id": "node_447nfrfl",
+            "type": "Calendar",
+            "props": {
+              "events": [
+                {
+                  "title": "Launch",
+                  "date": "2026-03-20",
+                  "color": "#6366f1"
+                },
+                {
+                  "title": "Demo",
+                  "date": "2026-03-25",
+                  "start_time": "10:00",
+                  "end_time": "11:00",
+                  "color": "#10b981"
+                },
+                {
+                  "title": "",
+                  "date": "",
+                  "start_time": "",
+                  "end_time": "",
+                  "color": "#6366f1"
+                }
+              ],
+              "initial_view": "month",
+              "editable": true,
+              "height": 540,
+              "range_select": false,
+              "show_views": true,
+              "show_today": true,
+              "first_day": 1,
+              "locale": "es",
+              "accent": "var(--accent)",
+              "event_colors": [],
+              "visible": true,
+              "readonly": false,
+              "disabled": false,
+              "float_position": "bottom-right",
+              "float_offset": 20,
+              "float_gap": 12,
+              "float_z_index": 999
+            },
+            "children": []
+          },
+          {
+            "id": "rt_3",
+            "type": "Row",
+            "props": {
+              "gap": 8,
+              "align": "center",
+              "justify": "center",
+              "wrap": false
+            },
+            "children": [
+              {
+                "id": "rt_2",
+                "type": "Text",
+                "props": {
+                  "content": "holassss",
+                  "style": "font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); background: color-mix(in srgb,var(--accent) 12%,transparent); padding: 4px 12px; border-radius: 999px; border: 1px solid color-mix(in srgb,var(--accent) 30%,transparent)"
+                },
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "rt_4",
+            "type": "Heading",
+            "props": {
+              "content": "Let's build an incredible idea",
+              "level": 1,
+              "style": "font-size: clamp(36px,6vw,64px); font-weight: 800; letter-spacing: -2px; line-height: 1.1; margin: 0"
+            },
+            "children": []
+          },
+          {
+            "id": "rt_5",
+            "type": "Paragraph",
+            "props": {
+              "content": "Construido con Martin Framework — Python para la web, sin complicaciones.",
+              "style": "font-size: 18px; color: var(--text-muted); max-width: 560px; line-height: 1.6; margin: 0"
+            },
+            "children": []
+          },
+          {
+            "id": "rt_8",
+            "type": "Row",
+            "props": {
+              "gap": 12,
+              "align": "center",
+              "justify": "center",
+              "wrap": false,
+              "style": "margin-top: 8px"
+            },
+            "children": [
+              {
+                "id": "rt_6",
+                "type": "Button",
+                "props": {
+                  "label": "Ver componentes",
+                  "variant": "primary",
+                  "href": "/components",
+                  "disabled": false,
+                  "style": "padding: 11px 24px; font-size: 15px"
+                },
+                "children": []
+              },
+              {
+                "id": "rt_7",
+                "type": "Button",
+                "props": {
+                  "label": "GitHub",
+                  "variant": "ghost",
+                  "href": "https://github.com",
+                  "disabled": false,
+                  "style": "padding: 11px 24px; font-size: 15px"
+                },
+                "children": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "rt_33",
+        "type": "Column",
+        "props": {
+          "gap": 28,
+          "align": "stretch",
+          "justify": "flex-start",
+          "style": "max-width: 1100px; margin: 0 auto; padding-top: 0",
+          "padding": 48
+        },
+        "children": [
+          {
+            "id": "rt_10",
+            "type": "Divider",
+            "props": {
+              "color": "var(--border)",
+              "thickness": 1,
+              "vertical": false
+            },
+            "children": []
+          },
+          {
+            "id": "rt_11",
+            "type": "Heading",
+            "props": {
+              "content": "¿Por qué Martin?",
+              "level": 2,
+              "style": "font-size: 26px; font-weight: 700; text-align: center"
+            },
+            "children": []
+          },
+          {
+            "id": "rt_32",
+            "type": "Grid",
+            "props": {
+              "columns": 2,
+              "gap": 16
+            },
+            "children": [
+              {
+                "id": "rt_16",
+                "type": "Card",
+                "props": {
+                  "class_name": "feature-card",
+                  "padding": 24,
+                  "radius": 14
+                },
+                "children": [
+                  {
+                    "id": "rt_14",
+                    "type": "Row",
+                    "props": {
+                      "gap": 10,
+                      "align": "center",
+                      "justify": "flex-start",
+                      "wrap": false
+                    },
+                    "children": [
+                      {
+                        "id": "rt_12",
+                        "type": "Text",
+                        "props": {
+                          "content": "⚡",
+                          "style": "font-size: 26px"
+                        },
+                        "children": []
+                      },
+                      {
+                        "id": "rt_13",
+                        "type": "Heading",
+                        "props": {
+                          "content": "Rápido",
+                          "level": 3,
+                          "style": "font-size: 16px; margin: 0"
+                        },
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "rt_15",
+                    "type": "Paragraph",
+                    "props": {
+                      "content": "Servidor de desarrollo con hot-reload. Exporta HTML estático listo para producción.",
+                      "style": "font-size: 14px; color: var(--text-muted); margin-top: 8px; line-height: 1.6"
+                    },
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "id": "rt_21",
+                "type": "Card",
+                "props": {
+                  "class_name": "feature-card",
+                  "padding": 24,
+                  "radius": 14
+                },
+                "children": [
+                  {
+                    "id": "rt_19",
+                    "type": "Row",
+                    "props": {
+                      "gap": 10,
+                      "align": "center",
+                      "justify": "flex-start",
+                      "wrap": false
+                    },
+                    "children": [
+                      {
+                        "id": "rt_17",
+                        "type": "Text",
+                        "props": {
+                          "content": "🧩",
+                          "style": "font-size: 26px"
+                        },
+                        "children": []
+                      },
+                      {
+                        "id": "rt_18",
+                        "type": "Heading",
+                        "props": {
+                          "content": "Composable",
+                          "level": 3,
+                          "style": "font-size: 16px; margin: 0"
+                        },
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "rt_20",
+                    "type": "Paragraph",
+                    "props": {
+                      "content": "Construye interfaces complejas con widgets simples y reutilizables.",
+                      "style": "font-size: 14px; color: var(--text-muted); margin-top: 8px; line-height: 1.6"
+                    },
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "id": "rt_26",
+                "type": "Card",
+                "props": {
+                  "class_name": "feature-card",
+                  "padding": 24,
+                  "radius": 14
+                },
+                "children": [
+                  {
+                    "id": "rt_24",
+                    "type": "Row",
+                    "props": {
+                      "gap": 10,
+                      "align": "center",
+                      "justify": "flex-start",
+                      "wrap": false
+                    },
+                    "children": [
+                      {
+                        "id": "rt_22",
+                        "type": "Text",
+                        "props": {
+                          "content": "🎨",
+                          "style": "font-size: 26px"
+                        },
+                        "children": []
+                      },
+                      {
+                        "id": "rt_23",
+                        "type": "Heading",
+                        "props": {
+                          "content": "Elegante",
+                          "level": 3,
+                          "style": "font-size: 16px; margin: 0"
+                        },
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "rt_25",
+                    "type": "Paragraph",
+                    "props": {
+                      "content": "Tema oscuro/claro automático. CSS moderno listo para usar desde el primer momento.",
+                      "style": "font-size: 14px; color: var(--text-muted); margin-top: 8px; line-height: 1.6"
+                    },
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "id": "rt_31",
+                "type": "Card",
+                "props": {
+                  "class_name": "feature-card",
+                  "padding": 24,
+                  "radius": 14
+                },
+                "children": [
+                  {
+                    "id": "rt_29",
+                    "type": "Row",
+                    "props": {
+                      "gap": 10,
+                      "align": "center",
+                      "justify": "flex-start",
+                      "wrap": false
+                    },
+                    "children": [
+                      {
+                        "id": "rt_27",
+                        "type": "Text",
+                        "props": {
+                          "content": "🐍",
+                          "style": "font-size: 26px"
+                        },
+                        "children": []
+                      },
+                      {
+                        "id": "rt_28",
+                        "type": "Heading",
+                        "props": {
+                          "content": "Solo Python",
+                          "level": 3,
+                          "style": "font-size: 16px; margin: 0"
+                        },
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "rt_30",
+                    "type": "Paragraph",
+                    "props": {
+                      "content": "Sin HTML, sin CSS, sin JavaScript. Todo se expresa en Python puro.",
+                      "style": "font-size: 14px; color: var(--text-muted); margin-top: 8px; line-height: 1.6"
+                    },
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "rt_38",
+        "type": "Column",
+        "props": {
+          "gap": 20,
+          "align": "stretch",
+          "justify": "flex-start",
+          "style": "max-width: 760px; margin: 0 auto",
+          "padding": 48
+        },
+        "children": [
+          {
+            "id": "rt_34",
+            "type": "Divider",
+            "props": {
+              "color": "var(--border)",
+              "thickness": 1,
+              "vertical": false
+            },
+            "children": []
+          },
+          {
+            "id": "rt_35",
+            "type": "Heading",
+            "props": {
+              "content": "Inicio rápido",
+              "level": 2,
+              "style": "font-size: 26px; font-weight: 700"
+            },
+            "children": []
+          },
+          {
+            "id": "rt_36",
+            "type": "Code",
+            "props": {
+              "content": "martin new mi_proyecto\ncd mi_proyecto\nmartin run",
+              "language": "bash",
+              "block": true,
+              "copy": true,
+              "line_numbers": false,
+              "theme": "auto",
+              "editable": false
+            },
+            "children": []
+          },
+          {
+            "id": "rt_37",
+            "type": "Paragraph",
+            "props": {
+              "content": "Tu aplicación estará disponible en http://localhost:3908",
+              "style": "font-size: 14px; color: var(--text-muted)"
+            },
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}
