@@ -1,0 +1,28 @@
+name: CI Zero-Noise Scaffold
+
+on:
+  pull_request:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  scaffold-clean:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # No extra dependencies required for the scaffold check
+
+      - name: Run zero-noise scaffold verification
+        run: |
+          python tools/ci_verify_scaffold_clean.py
