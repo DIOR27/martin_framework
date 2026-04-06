@@ -1,0 +1,40 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg_sky" x1="200" y1="80" x2="1400" y2="860" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EAF8FF"/>
+      <stop offset="0.5" stop-color="#CDEEFF"/>
+      <stop offset="1" stop-color="#B9EAD7"/>
+    </linearGradient>
+    <linearGradient id="hill_back" x1="1600" y1="360" x2="100" y2="760" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8BD6B2"/>
+      <stop offset="1" stop-color="#70C8A1"/>
+    </linearGradient>
+    <linearGradient id="hill_front" x1="100" y1="500" x2="1500" y2="980" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#59B98F"/>
+      <stop offset="1" stop-color="#3DAE7E"/>
+    </linearGradient>
+    <radialGradient id="sun_halo" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1250 180) rotate(90) scale(180 180)">
+      <stop stop-color="#FFF8C8"/>
+      <stop offset="1" stop-color="#FFF8C8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg_sky)"/>
+  <circle cx="1250" cy="180" r="80" fill="#FFF2A8"/>
+  <circle cx="1250" cy="180" r="180" fill="url(#sun_halo)"/>
+
+  <path d="M0 500C160 455 300 430 445 445C620 462 760 540 930 532C1110 522 1260 442 1430 456C1510 463 1560 476 1600 490V900H0V500Z" fill="url(#hill_back)"/>
+  <path d="M0 620C185 598 355 555 540 575C700 592 810 665 1005 648C1165 634 1310 570 1465 583C1518 588 1563 598 1600 612V900H0V620Z" fill="url(#hill_front)"/>
+
+  <g transform="translate(500 320) scale(0.75)">
+    <ellipse cx="310" cy="460" rx="250" ry="42" fill="#0D1224" fill-opacity="0.14"/>
+    <path d="M40 250C24 240 22 225 34 214C48 202 60 188 60 166C60 142 62 118 74 99C90 73 89 53 72 38C54 22 51 -2 68 -16C86 -31 114 -30 142 -20C168 -11 191 -11 214 -20C250 -34 292 -27 323 -4C352 17 370 49 374 86C378 119 370 146 352 167C344 176 345 183 354 193C367 207 385 216 408 216C446 217 479 232 500 262C511 278 522 280 536 266C550 251 562 232 570 212C576 200 590 199 597 212C608 233 611 257 604 280C596 309 579 329 553 342C537 350 535 360 548 372C560 383 558 401 540 411C518 424 493 424 467 420C431 414 395 418 360 427C306 441 251 443 197 435C155 429 119 413 92 383C70 357 56 328 53 297C52 281 48 267 40 250Z" fill="#0D1224"/>
+    <path d="M176 344C158 370 150 401 154 430C158 450 175 463 197 463C221 463 238 448 241 425C245 395 237 366 220 343L176 344Z" fill="#0D1224"/>
+    <path d="M318 360C295 382 286 407 288 430C290 452 308 466 333 466C360 466 378 450 379 425C380 398 368 377 346 357L318 360Z" fill="#0D1224"/>
+  </g>
+
+  <ellipse cx="320" cy="120" rx="140" ry="36" fill="#FFFFFF" fill-opacity="0.55"/>
+  <ellipse cx="520" cy="170" rx="110" ry="30" fill="#FFFFFF" fill-opacity="0.5"/>
+  <ellipse cx="770" cy="118" rx="130" ry="32" fill="#FFFFFF" fill-opacity="0.5"/>
+  <ellipse cx="1010" cy="138" rx="100" ry="28" fill="#FFFFFF" fill-opacity="0.47"/>
+</svg>
