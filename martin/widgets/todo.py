@@ -4,7 +4,7 @@ Idea: render a visible placeholder for TODO items within the UI. This allows
 the philosophy "TODO is a widget" to be realized at runtime and scaffold level.
 """
 
-from .widget import Widget
+from ..widget import Widget
 
 
 class TodoWidget(Widget):
