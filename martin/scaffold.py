@@ -332,6 +332,8 @@ HOME_TEMPLATE = (
         Divider,
         Raw,
         PageConfig,
+        GradientText,
+        TextStyle,
     )
     # Noise-free scaffolds by default; no toggle exposed
 
@@ -462,22 +464,29 @@ HOME_TEMPLATE = (
 COMPONENTS_TEMPLATE = (
     textwrap.dedent(
         """
-    from martin import (
-        Container, Column, Row, Grid, Card, Section, Divider, Spacer,
-        Heading, Text, Paragraph, Link, Code, Button, Icon, Badge, Alert, Toast, ToastCenter,
-        Image, Avatar, IconPack, NavBar, Footer, LanguageSelector, Tabs, Breadcrumb,
-        Table, Modal, TextField, TextArea, Select, MultiSelect, Checkbox, Uploader,
-        Slider, ColorPicker, DatePicker,
-        DataGrid, DataGridColumn, Wizard, WizardStep, CommandPalette, Drawer, SplitPane,
-        Skeleton, EmptyState, ErrorState, Form, ResourceForm, ResourceEditor, ResourceTable, ResourceDetails, ResourceCardList, ResourceStats, ResourceFilters, ResourceActions, ResourceBulkActions, ResourceToolbar, ResourcePaginator, ResourceCreateButton, ResourceDuplicateButton, ResourceDeleteButton, ResourceKanban, ResourceView, JSWidgetAdapter,
-        Signal, Computed, Store, I18n, L10n, PluginRegistry,
-        WordCloud, Map, Calendar, CalendarEvent, Timeline, TimelineItem, Hero,
-        Gallery, GalleryItem, Carousel, CarouselItem,
-        Border, Shadow, TextStyle, Glass, GradientText, MeshBackground, Colors,
-        SideMenu, Raw, ScrollToTop, WhatsAppButton, Counter, Field, PageConfig,
-    )
-    from martin.backend import ApiCall, Backend, MethodCall, Ref, Response, ResultBox
-    from martin.fx import (
+from martin import (
+    Container,  # layout
+    Column,
+    Row,
+    Grid,
+    Card,
+    Section,
+    Divider,
+    Spacer,
+    Heading,
+    Text,
+    Paragraph,
+    Link,
+    Code,
+    Button,
+    Raw,
+    PageConfig,
+    GradientText,  # styling
+    TextStyle,     # styling
+
+"""""
+from martin.backend import ApiCall, Backend, MethodCall, Ref, Response, ResultBox
+from martin.fx import (
         FadeIn, SlideIn, ScaleIn, Pulse, Spin, Transition,
         Hover, HoverLift, HoverGlow, Stagger, ReducedMotion, RevealOnScroll,
     )
