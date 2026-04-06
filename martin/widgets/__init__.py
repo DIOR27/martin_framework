@@ -5,6 +5,8 @@ Public widget exports grouped by category modules.
 """
 
 from .layout import Container, Row, Column, Grid, Stack, Card, Section, Spacer, Divider
+from .todo import TodoWidget
+from .todo import TodoWidget
 from .text import Text, Heading, Paragraph, Link, Code
 from .media import Image, Video, Icon, IconPack, Avatar
 from .input import (
@@ -214,4 +216,5 @@ __all__ = [
     "ResourceKanban",
     "ResourceView",
     "JSWidgetAdapter",
+    "TodoWidget",
 ]

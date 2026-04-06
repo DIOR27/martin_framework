@@ -246,10 +246,11 @@ MAIN_TEMPLATE = (
         TextStyle,
         load_locale_catalogs,
     )
+    # TodoWidget is not imported here to avoid noise in generated scaffolds
     from martin.backend import Backend
     from pages.home import home
     from pages.components import components, register_components_backend
-
+    
     router = Router()
     router.add("/",           home,       title="Inicio")
     router.add("/components", components, title="Componentes")
@@ -332,6 +333,7 @@ HOME_TEMPLATE = (
         Raw,
         PageConfig,
     )
+    # Noise-free scaffolds by default; no toggle exposed
 
 
     def _t(key, fallback, tag="span"):
@@ -415,6 +417,8 @@ HOME_TEMPLATE = (
                         ),
                     ],
                 ),
+
+                # Noisy blocks removed: scaffold remains clean by default
 
                 # ── Features ──────────────────────────────────────────────
                 Column(
