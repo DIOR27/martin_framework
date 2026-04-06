@@ -1,9 +1,1 @@
-{
-    "python-envs.pythonProjects": [
-        {
-            "path": "martin_studio",
-            "envManager": "ms-python.python:venv",
-            "packageManager": "ms-python.python:pip"
-        }
-    ]
-}
+{}
