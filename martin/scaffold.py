@@ -41,7 +41,7 @@ SCAFFOLD_ASSETS = [
 
 GITIGNORE = (
     textwrap.dedent(
-        """
+"""
     __pycache__/
     *.py[cod]
     .env
@@ -239,13 +239,7 @@ LOCALE_EN_US_TEMPLATE = (
 MAIN_TEMPLATE = (
     textwrap.dedent(
         """
-    from martin import (
-        App, Router,
-        NavBar, Footer, LanguageSelector,
-        Heading, Text, Link, Row, Button, Raw,
-        TextStyle,
-        load_locale_catalogs,
-    )
+    from martin import *
     # TodoWidget is not imported here to avoid noise in generated scaffolds
     from martin.backend import Backend
     from pages.home import home
@@ -319,22 +313,7 @@ MAIN_TEMPLATE = (
 HOME_TEMPLATE = (
     textwrap.dedent(
         """
-    from martin import (
-        Column,
-        Row,
-        Grid,
-        Card,
-        Heading,
-        Paragraph,
-        Text,
-        Button,
-        Code,
-        Divider,
-        Raw,
-        PageConfig,
-        GradientText,
-        TextStyle,
-    )
+    from martin import *
     # Noise-free scaffolds by default; no toggle exposed
 
 
@@ -464,27 +443,8 @@ HOME_TEMPLATE = (
 COMPONENTS_TEMPLATE = (
     textwrap.dedent(
         """
-from martin import (
-    Container,  # layout
-    Column,
-    Row,
-    Grid,
-    Card,
-    Section,
-    Divider,
-    Spacer,
-    Heading,
-    Text,
-    Paragraph,
-    Link,
-    Code,
-    Button,
-    Raw,
-    PageConfig,
-    GradientText,  # styling
-    TextStyle,     # styling
-
-"""""
+from martin import *
+"""
 from martin.backend import ApiCall, Backend, MethodCall, Ref, Response, ResultBox
 from martin.fx import (
         FadeIn, SlideIn, ScaleIn, Pulse, Spin, Transition,
