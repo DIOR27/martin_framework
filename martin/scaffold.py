@@ -246,10 +246,12 @@ MAIN_TEMPLATE = (
         TextStyle,
         load_locale_catalogs,
     )
+    from martin.widgets import TodoWidget
+    from martin.widgets import TodoWidget
     from martin.backend import Backend
     from pages.home import home
     from pages.components import components, register_components_backend
-
+    
     router = Router()
     router.add("/",           home,       title="Inicio")
     router.add("/components", components, title="Componentes")
@@ -331,6 +333,7 @@ HOME_TEMPLATE = (
         Divider,
         Raw,
         PageConfig,
+        TodoWidget,
     )
 
 
