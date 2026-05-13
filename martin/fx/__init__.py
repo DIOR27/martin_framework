@@ -17,10 +17,6 @@ def _dimension(value, unit="px") -> str:
     return f"{value}{unit}"
 
 
-def _copy_from(instance, other):
-    instance.__dict__.update(other.__dict__)
-
-
 def _hex_to_rgba(color: str, alpha: float) -> str:
     if not isinstance(color, str):
         return f"rgba(99,102,241,{alpha})"
@@ -726,11 +722,13 @@ class Animate(FXStyle):
 
 class FadeIn(Animate):
     def __init__(self, duration=0.45, timing="ease-out", delay=0, disabled=False):
-        _copy_from(
-            self,
-            Animate.fade_in(
-                duration=duration, timing=timing, delay=delay, disabled=disabled
-            ),
+        super().__init__(
+            "martin-fx-fade-in",
+            duration=duration,
+            timing=timing,
+            delay=delay,
+            will_change="opacity",
+            disabled=disabled,
         )
 
 
@@ -738,35 +736,47 @@ class SlideIn(Animate):
     def __init__(
         self, direction="up", distance=24, duration=0.55, delay=0, disabled=False
     ):
-        _copy_from(
-            self,
-            Animate.slide_in(
-                direction=direction,
-                distance=distance,
-                duration=duration,
-                delay=delay,
-                disabled=disabled,
-            ),
+        offsets = {
+            "up": ("0", _dimension(distance)),
+            "down": ("0", _dimension(-distance)),
+            "left": (_dimension(distance), "0"),
+            "right": (_dimension(-distance), "0"),
+        }
+        x, y = offsets.get(direction, offsets["up"])
+        super().__init__(
+            "martin-fx-slide-in",
+            duration=duration,
+            timing="cubic-bezier(0.22, 1, 0.36, 1)",
+            delay=delay,
+            will_change="opacity, transform",
+            extra_css={"--martin-fx-x": x, "--martin-fx-y": y},
+            disabled=disabled,
         )
 
 
 class ScaleIn(Animate):
     def __init__(self, start=0.94, duration=0.45, delay=0, disabled=False):
-        _copy_from(
-            self,
-            Animate.scale_in(
-                start=start, duration=duration, delay=delay, disabled=disabled
-            ),
+        super().__init__(
+            "martin-fx-scale-in",
+            duration=duration,
+            timing="cubic-bezier(0.2, 0.8, 0.2, 1)",
+            delay=delay,
+            will_change="opacity, transform",
+            extra_css={"--martin-fx-scale-from": str(start)},
+            disabled=disabled,
         )
 
 
 class BlurIn(Animate):
     def __init__(self, blur=12, duration=0.5, delay=0, disabled=False):
-        _copy_from(
-            self,
-            Animate.blur_in(
-                blur=blur, duration=duration, delay=delay, disabled=disabled
-            ),
+        super().__init__(
+            "martin-fx-blur-in",
+            duration=duration,
+            timing="ease-out",
+            delay=delay,
+            will_change="opacity, filter",
+            extra_css={"--martin-fx-blur-from": _dimension(blur)},
+            disabled=disabled,
         )
 
 
@@ -779,45 +789,61 @@ class RotateIn(Animate):
         origin="center center",
         disabled=False,
     ):
-        _copy_from(
-            self,
-            Animate.rotate_in(
-                angle=angle,
-                duration=duration,
-                delay=delay,
-                origin=origin,
-                disabled=disabled,
-            ),
+        super().__init__(
+            "martin-fx-rotate-in",
+            duration=duration,
+            timing="cubic-bezier(0.2, 0.9, 0.2, 1)",
+            delay=delay,
+            will_change="opacity, transform",
+            extra_css={
+                "--martin-fx-angle-from": _dimension(angle, "deg"),
+                "transform-origin": origin,
+            },
+            disabled=disabled,
         )
 
 
 class Float(Animate):
     def __init__(self, distance=10, duration=3.2, delay=0, disabled=False):
-        _copy_from(
-            self,
-            Animate.float(
-                distance=distance, duration=duration, delay=delay, disabled=disabled
-            ),
+        super().__init__(
+            "martin-fx-float",
+            duration=duration,
+            timing="ease-in-out",
+            delay=delay,
+            count="infinite",
+            fill="both",
+            will_change="transform",
+            extra_css={"--martin-fx-float-distance": _dimension(distance)},
+            disabled=disabled,
         )
 
 
 class Pulse(Animate):
     def __init__(self, scale=1.035, duration=2.2, delay=0, disabled=False):
-        _copy_from(
-            self,
-            Animate.pulse(
-                scale=scale, duration=duration, delay=delay, disabled=disabled
-            ),
+        super().__init__(
+            "martin-fx-pulse",
+            duration=duration,
+            timing="ease-in-out",
+            delay=delay,
+            count="infinite",
+            fill="both",
+            will_change="opacity, transform",
+            extra_css={"--martin-fx-pulse-scale": str(scale)},
+            disabled=disabled,
         )
 
 
 class Spin(Animate):
     def __init__(self, duration=1.1, timing="linear", delay=0, disabled=False):
-        _copy_from(
-            self,
-            Animate.spin(
-                duration=duration, timing=timing, delay=delay, disabled=disabled
-            ),
+        super().__init__(
+            "martin-fx-spin",
+            duration=duration,
+            timing=timing,
+            delay=delay,
+            count="infinite",
+            fill="both",
+            will_change="transform",
+            disabled=disabled,
         )
 
 

@@ -15,6 +15,8 @@ Widgets especiales y utilitarios de alto nivel.
     CookieBanner   — banner GDPR con persistencia
 """
 
+import uuid as _uuid
+
 from ..widget import Widget
 
 
@@ -260,8 +262,6 @@ class ScrollToTop(Widget):
         ScrollToTop(icon=Icon(name="arrow-up", provider="fa", variant="solid"), background="#6366f1", color="#fff")
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         icon="↑",
@@ -311,8 +311,7 @@ class ScrollToTop(Widget):
         self.top = top
         self.z_index = int(z_index)
         self.target = str(target or "window")
-        ScrollToTop._id_counter += 1
-        self.uid = f"scroll_top_{ScrollToTop._id_counter}"
+        self.uid = f"scroll_top_{_uuid.uuid4().hex[:8]}"
 
     def _render_content(self):
         content = self.content if self.content is not None else self.icon
@@ -409,8 +408,6 @@ class WhatsAppButton(Widget):
         WhatsAppButton(icon=Icon(name="whatsapp", provider="fa", variant="brands"), url="https://wa.me/593999999999")
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         phone=None,
@@ -450,8 +447,7 @@ class WhatsAppButton(Widget):
         self.shape = str(shape or "circle").lower()
         self.size = max(40, int(size))
         self.show_label = bool(show_label)
-        WhatsAppButton._id_counter += 1
-        self.uid = f"wa_btn_{WhatsAppButton._id_counter}"
+        self.uid = f"wa_btn_{_uuid.uuid4().hex[:8]}"
 
     def _render_content(self):
         content = self.content if self.content is not None else self.icon
@@ -536,8 +532,6 @@ class Counter(Widget):
         Counter(to="2026-04-01", mode="remaining", format="human")
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         to=None,
@@ -572,8 +566,7 @@ class Counter(Widget):
             "remaining": "Faltan",
             "elapsed": "Han pasado",
         }
-        Counter._id_counter += 1
-        self.uid = f"martin_counter_{Counter._id_counter}"
+        self.uid = f"martin_counter_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         import json as _json
@@ -1078,8 +1071,6 @@ class SafeArea(Widget):
         class_name    str     clase CSS adicional
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         top=True,
@@ -1121,8 +1112,7 @@ class SafeArea(Widget):
         if child is not None and children is None:
             children = [child]
         self.children = children or []
-        SafeArea._id_counter += 1
-        self.uid = id or f"sa_{SafeArea._id_counter}"
+        self.uid = id or f"sa_{_uuid.uuid4().hex[:8]}"
 
     # ── CSS env() helpers ────────────────────────────────────────────────────
 

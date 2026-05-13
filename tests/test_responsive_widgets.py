@@ -5,7 +5,6 @@ from martin import Carousel, CarouselItem, WordCloud
 
 class ResponsiveWidgetsTests(unittest.TestCase):
     def test_carousel_uses_mobile_visible_logic(self):
-        Carousel._id_counter = 0
         html = Carousel(
             items=[CarouselItem(image="/a.png"), CarouselItem(image="/b.png"), CarouselItem(image="/c.png")],
             mode="slides",
@@ -23,7 +22,6 @@ class ResponsiveWidgetsTests(unittest.TestCase):
         self.assertIn("_syncMode()", html)
 
     def test_wordcloud_limits_wide_words_on_mobile(self):
-        WordCloud._id_counter = 0
         html = WordCloud(words={"JavaScript": 8, "Python": 7}, width=600, height=280).render()
         self.assertIn("maxWordW", html)
         self.assertIn("word._drawSize=size", html)

@@ -5,9 +5,8 @@ from martin import Gallery, GalleryItem
 
 class GalleryWidgetTests(unittest.TestCase):
     def test_lightbox_opens_clicked_index_not_uid_number(self):
-        # Force uid=gal_2 to guard against the old regex bug that picked "2"
-        Gallery._id_counter = 1
         html = Gallery(
+            id="gal_2",
             items=[
                 GalleryItem("/a.svg", title="A"),
                 GalleryItem("/b.svg", title="B"),

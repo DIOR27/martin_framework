@@ -238,8 +238,6 @@ class TextArea(Widget):
         monospace    bool  fuente monoespaciada (default False)
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         placeholder="",
@@ -268,8 +266,7 @@ class TextArea(Widget):
         self.max_length = max_length
         self.show_count = show_count or (max_length is not None)
         self.monospace = monospace
-        TextArea._id_counter += 1
-        self.uid = id or f"ta_{TextArea._id_counter}"
+        self.uid = id or f"ta_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         uid = self.uid
@@ -420,8 +417,6 @@ class Select(Widget):
         Select(options=[...], placeholder="Elige uno...", name="lang")
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         options=None,
@@ -438,8 +433,7 @@ class Select(Widget):
         self.search = search
         self.placeholder = placeholder
         self.name = name
-        Select._id_counter += 1
-        self.uid = id or f"pw_select_{Select._id_counter}"
+        self.uid = id or f"pw_select_{_uuid.uuid4().hex[:8]}"
 
     def _auto_label(self):
         if self.name:
@@ -623,8 +617,6 @@ class MultiSelect(Widget):
         MultiSelect(options=[("py", "Python"), ("js", "JavaScript")], values=["py"])
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         options=None,
@@ -645,8 +637,7 @@ class MultiSelect(Widget):
         self.tag_color = tag_color
         self.tag_border = tag_border
         self.tag_text = tag_text
-        MultiSelect._id_counter += 1
-        self.uid = id or f"pw_multi_{MultiSelect._id_counter}"
+        self.uid = id or f"pw_multi_{_uuid.uuid4().hex[:8]}"
 
     def _auto_label(self):
         if self.name:
@@ -863,8 +854,6 @@ class Slider(Widget):
         color       str     color del rango activo (default: var(--accent))
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         label=None,
@@ -897,8 +886,7 @@ class Slider(Widget):
         self.name = name
         self.disabled = _bind_runtime_prop(self._props, "disabled", disabled, False)
         self.color = color
-        Slider._id_counter += 1
-        self.uid = id or f"sl_{Slider._id_counter}"
+        self.uid = id or f"sl_{_uuid.uuid4().hex[:8]}"
 
     def _fmt(self, v):
         return self.format.replace("{v}", str(v))
@@ -1158,8 +1146,6 @@ class RadioGroup(Widget):
         on_change   str     JS ejecutado al cambiar (recibe el valor como string)
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         options=None,
@@ -1180,8 +1166,7 @@ class RadioGroup(Widget):
         self.direction = direction
         self.disabled = _bind_runtime_prop(self._props, "disabled", disabled, False)
         self.on_change = on_change
-        RadioGroup._id_counter += 1
-        self.uid = id or f"rg_{RadioGroup._id_counter}"
+        self.uid = id or f"rg_{_uuid.uuid4().hex[:8]}"
 
     def _parse(self):
         out = []
@@ -1280,8 +1265,6 @@ class NumberInput(Widget):
         on_change   str     JS ejecutado al cambiar (recibe el valor numérico)
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         label=None,
@@ -1306,8 +1289,7 @@ class NumberInput(Widget):
         self.name = name
         self.disabled = _bind_runtime_prop(self._props, "disabled", disabled, False)
         self.on_change = on_change
-        NumberInput._id_counter += 1
-        self.uid = id or f"ni_{NumberInput._id_counter}"
+        self.uid = id or f"ni_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         uid = self.uid
@@ -1419,8 +1401,6 @@ class TimePicker(Widget):
         on_change   str     JS ejecutado al cambiar (recibe "HH:MM" o "HH:MM:SS")
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         label=None,
@@ -1443,8 +1423,7 @@ class TimePicker(Widget):
         self.disabled = _bind_runtime_prop(self._props, "disabled", disabled, False)
         self.step = step
         self.on_change = on_change
-        TimePicker._id_counter += 1
-        self.uid = id or f"tp_{TimePicker._id_counter}"
+        self.uid = id or f"tp_{_uuid.uuid4().hex[:8]}"
 
     def _parse(self):
         parts = (self.value or "00:00").split(":")
@@ -1602,8 +1581,6 @@ class ProgressBar(Widget):
         id              str     id del elemento (para actualizar dinámicamente)
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         value=0,
@@ -1628,8 +1605,7 @@ class ProgressBar(Widget):
         self.striped = striped
         self.animated = animated
         self.indeterminate = indeterminate
-        ProgressBar._id_counter += 1
-        self.uid = id or f"pb_{ProgressBar._id_counter}"
+        self.uid = id or f"pb_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         uid = self.uid
@@ -1749,8 +1725,6 @@ class Rating(Widget):
         on_change   str     JS ejecutado al cambiar (recibe el valor)
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         value=0,
@@ -1777,8 +1751,7 @@ class Rating(Widget):
         self.size = size
         self.name = name
         self.on_change = on_change
-        Rating._id_counter += 1
-        self.uid = id or f"rt_{Rating._id_counter}"
+        self.uid = id or f"rt_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         uid = self.uid
@@ -1908,8 +1881,6 @@ class FileInput(Widget):
         max_size_mb float   tamaño máximo en MB (solo validación visual)
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         label=None,
@@ -1932,8 +1903,7 @@ class FileInput(Widget):
         self.disabled = _bind_runtime_prop(self._props, "disabled", disabled, False)
         self.on_change = on_change
         self.max_size_mb = max_size_mb
-        FileInput._id_counter += 1
-        self.uid = id or f"fi_{FileInput._id_counter}"
+        self.uid = id or f"fi_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         uid = self.uid
@@ -2057,8 +2027,6 @@ class Uploader(Widget):
         Uploader(max_files=4, max_size_mb=8, chunk_size_mb=1)
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         label=None,
@@ -2109,8 +2077,7 @@ class Uploader(Widget):
         self.on_change = on_change
         self.on_success = on_success
         self.on_error = on_error
-        Uploader._id_counter += 1
-        self.uid = id or f"uploader_{Uploader._id_counter}"
+        self.uid = id or f"uploader_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         uid = self.uid
@@ -2524,8 +2491,6 @@ class FormGroup(Widget):
         gap             int     espacio entre hijos (default: 16)
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         title=None,
@@ -2547,8 +2512,7 @@ class FormGroup(Widget):
         if child is not None and children is None:
             children = [child]
         self.children = children or []
-        FormGroup._id_counter += 1
-        self.uid = id or f"fg_{FormGroup._id_counter}"
+        self.uid = id or f"fg_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         uid = self.uid
@@ -2641,8 +2605,6 @@ class ColorPicker(Widget):
         disabled    bool    deshabilita el control
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         label=None,
@@ -2661,8 +2623,7 @@ class ColorPicker(Widget):
         self.show_hex = show_hex
         self.name = name
         self.disabled = _bind_runtime_prop(self._props, "disabled", disabled, False)
-        ColorPicker._id_counter += 1
-        self.uid = id or f"cp_{ColorPicker._id_counter}"
+        self.uid = id or f"cp_{_uuid.uuid4().hex[:8]}"
 
     def _auto_label(self):
         if self.label:
@@ -2813,8 +2774,6 @@ class DatePicker(Widget):
         format          str     "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD"
     """
 
-    _id_counter = 0
-
     _MONTHS = {
         "es": ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
                "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"],
@@ -2866,8 +2825,7 @@ class DatePicker(Widget):
         self.name_end = name_end or (f"{name}_end" if name else "")
         self.disabled = _bind_runtime_prop(self._props, "disabled", disabled, False)
         self.fmt = format
-        DatePicker._id_counter += 1
-        self.uid = id or f"dp_{DatePicker._id_counter}"
+        self.uid = id or f"dp_{_uuid.uuid4().hex[:8]}"
 
     def _auto_label(self):
         if self.label:

@@ -4,6 +4,8 @@ Martin — Data Visualization Widgets
 Auto-extracted from former compound module.
 """
 
+import uuid as _uuid
+
 from ..widget import Widget
 
 __all__ = [
@@ -34,8 +36,6 @@ class WordCloud(Widget):
         on_click    str     JS ejecutado al hacer click: usa `word` y `weight`.
     """
 
-    _id_counter = 0
-
     def __init__(self, words=None, width=600, height=300,
                  min_size=12, max_size=72,
                  colors=None, font="inherit", on_click=None, **kwargs):
@@ -52,8 +52,7 @@ class WordCloud(Widget):
         ]
         self.font     = font
         self.on_click = on_click
-        WordCloud._id_counter += 1
-        self.uid = f"wc_{WordCloud._id_counter}"
+        self.uid = f"wc_{_uuid.uuid4().hex[:8]}"
 
     def _parse_words(self):
         w = self.words
@@ -303,8 +302,6 @@ class Map(Widget):
          "color": str, "icon": str}
     """
 
-    _id_counter = 0
-
     _TILES = {
         "osm":   ("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                   "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a>"),
@@ -332,8 +329,7 @@ class Map(Widget):
         self.route_weight    = route_weight
         self.tile            = tile
         self.on_marker_click = on_marker_click
-        Map._id_counter += 1
-        self.uid = "map_" + str(Map._id_counter)
+        self.uid = "map_" + _uuid.uuid4().hex[:8]
 
     def _normalize_markers(self):
         result = []
@@ -871,7 +867,6 @@ class Chart(Widget):
         download     bool   botón descargar PNG (default: False)
     """
 
-    _id_counter = 0
     DEFAULT_COLORS = [
         "#6366f1", "#f472b6", "#34d399", "#fb923c",
         "#38bdf8", "#a78bfa", "#4ade80", "#fbbf24",
@@ -902,8 +897,7 @@ class Chart(Widget):
         self.download     = download
         self.text_color   = text_color
         self.muted_text_color = muted_text_color
-        Chart._id_counter += 1
-        self.uid = f"chart_{Chart._id_counter}"
+        self.uid = f"chart_{_uuid.uuid4().hex[:8]}"
 
     def _resolve_type(self):
         """Map internal type to Chart.js type."""

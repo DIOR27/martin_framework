@@ -26,14 +26,12 @@ class UniversalAttrsTests(unittest.TestCase):
         self.assertIn('data-e2e="email-input"', html)
 
     def test_code_block_skips_script_link_and_applies_on_main_container(self):
-        Code._id_counter = 0
         html = Code(
             "x = 1",
             language="python",
             attrs={"data-e2e": "code-block"},
         ).render()
         self.assertIn('data-e2e="code-block"', html)
-        self.assertIn('<div id="code_1"', html)
 
     def test_button_can_render_as_floating_widget(self):
         html = Button(

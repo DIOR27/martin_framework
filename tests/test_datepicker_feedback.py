@@ -5,7 +5,6 @@ from martin import DatePicker
 
 class DatePickerFeedbackTests(unittest.TestCase):
     def test_range_mode_updates_display_after_first_pick(self):
-        DatePicker._id_counter = 0
         html = DatePicker(
             range=True,
             placeholder_start="¿Cuándo sales?",

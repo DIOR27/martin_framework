@@ -6,7 +6,6 @@ from martin.exporter import BASE_CSS
 
 class SelectWidgetStyleTests(unittest.TestCase):
     def test_native_select_includes_theme_fallback_style(self):
-        Select._id_counter = 0
         html = Select(
             id="plan_select",
             options=[("starter", "Starter"), ("pro", "Pro"), ("enterprise", "Enterprise")],

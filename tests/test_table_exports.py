@@ -5,7 +5,6 @@ from martin import Table
 
 class TableExportTests(unittest.TestCase):
     def test_export_buttons_and_public_api_are_rendered(self):
-        Table._id_counter = 0
         html = Table(
             headers=["Nombre", "Ciudad"],
             rows=[["Ana", "Bogota"], ["Luis", "Quito"]],
@@ -27,7 +26,6 @@ class TableExportTests(unittest.TestCase):
         self.assertIn("var _exportFilename=", html)
 
     def test_true_export_formats_enables_all(self):
-        Table._id_counter = 0
         html = Table(
             headers=["A"],
             rows=[["1"]],

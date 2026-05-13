@@ -2,6 +2,7 @@
 Martin — App, Router & Dev Server
 """
 
+import json as _json
 import os, sys, time, threading, importlib.util, mimetypes, html as _html
 import http.server, webbrowser
 from pathlib import Path
@@ -400,8 +401,6 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
         toggle_js = THEME_TOGGLE_JS.replace("'INITIAL_THEME'", f"'{theme_js}'")
 
         # ── SEO meta tags ─────────────────────────────────────────────
-        import json as _json
-
         desc = page_desc or self.description
         kw = page_keywords or self.keywords
         og_img = page_og_image or self.og_image
@@ -821,9 +820,7 @@ nav.martin-nav .mn-drawer a.mn-active{color:var(--accent);font-weight:600;backgr
                 self.wfile.write(data)
 
             def _send_json(self, obj):
-                import json
-
-                data = json.dumps(obj).encode("utf-8")
+                data = _json.dumps(obj).encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(data)))

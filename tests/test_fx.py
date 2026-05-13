@@ -13,7 +13,7 @@ from martin.fx import (
     Stagger,
     Transition,
 )
-from martin_fx import Pulse
+from martin.fx import Pulse
 
 
 class FxTests(unittest.TestCase):

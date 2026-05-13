@@ -9,8 +9,7 @@ from ..widget import Widget
 
 class TodoWidget(Widget):
     def __init__(self, text: str = "TODO", **kwargs):
-        # Base widget props (style, padding, etc.) are optional; keep minimal.
-        self._props = kwargs or {}
+        self._props = Widget._extract_props(kwargs)
         self._text = text
 
     def render(self) -> str:

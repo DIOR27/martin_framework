@@ -5,7 +5,6 @@ from martin import Table
 
 class TableWidgetTests(unittest.TestCase):
     def test_sorting_script_reorders_rows_in_dom(self):
-        Table._id_counter = 0
         html = Table(
             headers=["Ciudad"],
             rows=[["Bogota"], ["Cali"], ["Medellin"]],

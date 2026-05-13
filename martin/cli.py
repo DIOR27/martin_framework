@@ -268,7 +268,88 @@ def _build_parser():
     p_docs.add_argument("--widgets", nargs="*", help="Filtra por nombres de widget")
 
     sub.add_parser("version", help="Muestra la version")
+
+    # ── module subcommands ───────────────────────────────────────────
+    p_module = sub.add_parser("module", help="Gestiona modulos del ERP")
+    p_module_sub = p_module.add_subparsers(dest="module_command", metavar="accion")
+
+    p_mod_create = p_module_sub.add_parser("create", help="Crea un nuevo modulo")
+    p_mod_create.add_argument("name", help="Nombre del modulo")
+    p_mod_create.add_argument("--desc", default="", help="Descripcion del modulo")
+    p_mod_create.add_argument("--dir", default="modules", help="Directorio de modulos (default: modules)")
+
+    p_mod_list = p_module_sub.add_parser("list", help="Lista modulos disponibles")
+    p_mod_list.add_argument("--dir", default="modules", help="Directorio de modulos (default: modules)")
+
+    p_mod_install = p_module_sub.add_parser("install", help="Instala un modulo (crea tablas DB)")
+    p_mod_install.add_argument("name", nargs="*", help="Nombre del modulo (vacio=instalar todos)")
+    p_mod_install.add_argument("--dir", default="modules", help="Directorio de modulos (default: modules)")
+
     return parser
+
+
+def cmd_module(args):
+    """Dispatch module subcommands."""
+    if args.module_command == "create":
+        _cmd_module_create(args)
+    elif args.module_command == "list":
+        _cmd_module_list(args)
+    elif args.module_command == "install":
+        _cmd_module_install(args)
+    else:
+        print("Usa: martin module create|list|install")
+
+
+def _cmd_module_create(args):
+    from .module.scaffold import write_module
+    modules_dir = Path(args.dir)
+    modules_dir.mkdir(parents=True, exist_ok=True)
+    mod_path = write_module(modules_dir, args.name, args.desc)
+    print(f"  OK  Modulo '{args.name}' creado en {mod_path}/")
+    print()
+    print("  Estructura:")
+    for f in sorted(mod_path.rglob("*")):
+        if f.is_file():
+            print(f"    {f.relative_to(mod_path.parent)}")
+    print()
+    print("  Siguiente: Agrega campos a models/, vistas a views/")
+
+
+def _cmd_module_list(args):
+    from .module import ModuleRegistry
+    modules_dir = Path(args.dir)
+    if not modules_dir.exists():
+        print("  No hay modulos en", modules_dir)
+        return
+    modules = ModuleRegistry.discover(str(modules_dir))
+    if not modules:
+        print("  No se encontraron modulos en", modules_dir)
+        return
+    print(f"  Modulos en {modules_dir}/:")
+    for m in modules:
+        deps = ", ".join(m.manifest.depends) if m.manifest.depends else "(ninguna)"
+        print(f"    {m.name:20s} v{m.manifest.version:8s}  depends: {deps}")
+    ModuleRegistry.reset()
+
+
+def _cmd_module_install(args):
+    from .module import ModuleRegistry
+    from .orm.model import create_all_tables
+    modules_dir = Path(args.dir)
+    if not modules_dir.exists():
+        print(f"  ERROR: Directorio '{args.dir}' no encontrado.")
+        return
+    ModuleRegistry.discover(str(modules_dir))
+    ModuleRegistry.resolve_dependencies()
+    loaded = ModuleRegistry.load_all()
+    if not loaded:
+        print("  No se cargaron modulos.")
+        return
+    create_all_tables()
+    print(f"  OK  Tablas creadas para {len(loaded)} modulo(s):")
+    for m in loaded:
+        print(f"    {m.name} v{m.manifest.version}")
+    ModuleRegistry.reset()
 
 
 def main():
@@ -281,6 +362,7 @@ def main():
         "export": cmd_export,
         "docs": cmd_docs,
         "version": cmd_version,
+        "module": cmd_module,
     }
 
     cmd = commands.get(args.command)

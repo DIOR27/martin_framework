@@ -53,8 +53,21 @@ class Widget:
                 merged.append(token)
         return " ".join(merged)
 
+    _slots: dict = {}  # {slot_name: {"desc": ..., "default": ...}}
+
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
+        # Register slot declarations in hook system
+        slots = cls.__dict__.get("_slots", {})
+        if slots:
+            try:
+                from .module.hook import register_hook as _reg_hook
+                for slot_name, slot_config in slots.items():
+                    hook_name = f"{cls.__name__}.{slot_name}"
+                    _reg_hook(hook_name, default=slot_config.get("default"))
+            except ImportError:
+                pass  # module system not available
+
         render = cls.__dict__.get("render")
         if render is None:
             return
@@ -71,6 +84,23 @@ class Widget:
 
         _wrapped_render._martin_auto_attrs_wrapped = True
         cls.render = _wrapped_render
+
+    def render_slot(self, name: str, context: dict | None = None) -> str:
+        """Resolve slot contributions from all modules and render them.
+
+        Args:
+            name: Slot name (e.g. "form_fields").
+            context: Optional dict passed to each contributor.
+
+        Returns:
+            Concatenated HTML from all contributors.
+        """
+        try:
+            from .module.hook import resolve_hooks
+            contributions = resolve_hooks(f"{self.__class__.__name__}.{name}", context or {})
+            return "".join(str(c) for c in contributions if c is not None)
+        except ImportError:
+            return ""
 
     @staticmethod
     def _extract_props(kwargs: dict) -> dict:

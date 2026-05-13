@@ -8,6 +8,7 @@ Widgets para mostrar información estructurada.
 
 import json as _j
 import re as _re
+import uuid as _uuid
 
 from ..widget import Widget
 
@@ -62,8 +63,6 @@ class Table(Widget):
         export_scope   str     "filtered" (default) o "page"
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         headers=None,
@@ -89,8 +88,7 @@ class Table(Widget):
         self.export_formats = self._normalize_export_formats(export_formats)
         self.export_filename = str(export_filename or "table_export")
         self.export_scope = "page" if export_scope == "page" else "filtered"
-        Table._id_counter += 1
-        self.uid = f"tbl_{Table._id_counter}"
+        self.uid = f"tbl_{_uuid.uuid4().hex[:8]}"
 
     # ------------------------------------------------------------------
     # helpers

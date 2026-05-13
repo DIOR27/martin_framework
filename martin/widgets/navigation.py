@@ -12,6 +12,7 @@ Widgets que estructuran la navegación de la página.
 """
 
 import json as _json
+import uuid as _uuid
 
 from ..i18n import describe_locale, discover_locale_codes, normalize_locale
 from ..widget import Widget
@@ -49,8 +50,6 @@ class NavBar(Widget):
         bordered   bool     borde inferior (default: True)
     """
 
-    _id_counter = 0
-
     def __init__(
         self, brand=None, links=None, actions=None, sticky=True, bordered=True, **kwargs
     ):
@@ -60,8 +59,7 @@ class NavBar(Widget):
         self.actions = actions or []
         self.sticky = sticky
         self.bordered = bordered
-        NavBar._id_counter += 1
-        self.uid = f"nav_{NavBar._id_counter}"
+        self.uid = f"nav_{_uuid.uuid4().hex[:8]}"
 
     def _default_a11y_attrs(self):
         return {"aria-label": "Barra de navegacion"}
@@ -258,8 +256,6 @@ class LanguageSelector(Widget):
     Puede colocarse directamente en NavBar, Footer o cualquier layout.
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         locales=None,
@@ -294,8 +290,7 @@ class LanguageSelector(Widget):
         self.name = name
         self.placeholder = placeholder
         self.on_change = on_change or ""
-        LanguageSelector._id_counter += 1
-        self.uid = id or f"lang_select_{LanguageSelector._id_counter}"
+        self.uid = id or f"lang_select_{_uuid.uuid4().hex[:8]}"
 
     def _resolved_locales(self):
         locales = discover_locale_codes(
@@ -647,14 +642,11 @@ class Tabs(Widget):
         default  int    índice del tab activo inicial (default: 0)
     """
 
-    _id_counter = 0
-
     def __init__(self, tabs=None, default=0, **kwargs):
         self._props = Widget._extract_props(kwargs)
         self.tabs = tabs or []
         self.default = default
-        Tabs._id_counter += 1
-        self.uid = f"tabs_{Tabs._id_counter}"
+        self.uid = f"tabs_{_uuid.uuid4().hex[:8]}"
 
     def _default_a11y_attrs(self):
         return {"aria-label": "Pestanas"}

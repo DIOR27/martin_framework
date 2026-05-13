@@ -3,6 +3,7 @@ Martin advanced widgets.
 """
 
 import json as _json
+import uuid as _uuid
 
 from ..widget import Widget
 
@@ -71,8 +72,6 @@ class DataGrid(Widget):
       - virtual scrolling
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         rows=None,
@@ -102,8 +101,7 @@ class DataGrid(Widget):
         self.row_height = max(26, int(row_height))
         self.height = max(180, int(height))
         self.overscan = max(1, int(overscan))
-        DataGrid._id_counter += 1
-        self.uid = f"dg_{DataGrid._id_counter}"
+        self.uid = f"dg_{_uuid.uuid4().hex[:8]}"
 
     def _normalize(self):
         rows = self.rows or []
@@ -311,8 +309,6 @@ class Wizard(Widget):
     Multi-step flow with progress, step navigation and finish actions.
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         children=None,
@@ -335,8 +331,7 @@ class Wizard(Widget):
         self.next_label = str(next_label or "Next")
         self.finish_label = str(finish_label or "Finish")
         self.on_finish = str(on_finish or "")
-        Wizard._id_counter += 1
-        self.uid = f"wiz_{Wizard._id_counter}"
+        self.uid = f"wiz_{_uuid.uuid4().hex[:8]}"
 
     def _normalize_steps(self):
         steps = []
@@ -437,8 +432,6 @@ class CommandPalette(Widget):
     Global command palette (Ctrl/Cmd+K).
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         items=None,
@@ -456,8 +449,7 @@ class CommandPalette(Widget):
         self.trigger_label = trigger_label
         self.show_trigger = bool(show_trigger)
         self.hotkey = str(hotkey or "k").lower()
-        CommandPalette._id_counter += 1
-        self.uid = f"cmd_{CommandPalette._id_counter}"
+        self.uid = f"cmd_{_uuid.uuid4().hex[:8]}"
 
     @staticmethod
     def _normalize_item(item):
@@ -676,8 +668,6 @@ class SplitPane(Widget):
     Resizable two-pane layout.
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         left=None,
@@ -697,8 +687,7 @@ class SplitPane(Widget):
         self.min_right = max(80, int(min_right))
         self.gutter = max(6, int(gutter))
         self.mobile_breakpoint = max(360, int(mobile_breakpoint))
-        SplitPane._id_counter += 1
-        self.uid = f"split_{SplitPane._id_counter}"
+        self.uid = f"split_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         uid = self.uid
@@ -739,16 +728,13 @@ class SplitPane(Widget):
 
 
 class Skeleton(Widget):
-    _id_counter = 0
-
     def __init__(self, lines=3, avatar=False, animated=True, line_height=12, **kwargs):
         self._props = Widget._extract_props(kwargs)
         self.lines = max(1, int(lines))
         self.avatar = bool(avatar)
         self.animated = bool(animated)
         self.line_height = max(6, int(line_height))
-        Skeleton._id_counter += 1
-        self.uid = f"sk_{Skeleton._id_counter}"
+        self.uid = f"sk_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         anim = "animation:mnSkPulse 1.25s ease-in-out infinite;" if self.animated else ""
@@ -835,8 +821,6 @@ class Form(Widget):
       - dirty/touched state
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         children=None,
@@ -862,8 +846,7 @@ class Form(Widget):
         self.prevent_default = bool(prevent_default)
         self.method = str(method or "post")
         self.action = str(action or "")
-        Form._id_counter += 1
-        self.uid = id or f"form_{Form._id_counter}"
+        self.uid = id or f"form_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         uid = self.uid
@@ -910,7 +893,11 @@ class ResourceForm(Widget):
     Formulario orientado a recurso, conectado al backend por convención.
     """
 
-    _id_counter = 0
+    _slots = {
+        "header_buttons": {"desc": "Buttons above form title"},
+        "form_fields": {"desc": "Extra fields injected into the form grid"},
+        "footer_actions": {"desc": "Actions below the submit button"},
+    }
 
     def __init__(
         self,
@@ -935,8 +922,7 @@ class ResourceForm(Widget):
         self.method = str(method or "POST").upper()
         self.button_variant = str(button_variant or "primary")
         self.helper_text = str(helper_text or "")
-        ResourceForm._id_counter += 1
-        self.uid = f"resource_form_{ResourceForm._id_counter}"
+        self.uid = f"resource_form_{_uuid.uuid4().hex[:8]}"
 
     def _build_field_widget(self, spec):
         from .input import (
@@ -1032,12 +1018,25 @@ class ResourceForm(Widget):
         )
 
         content = []
+        # Slot: header_buttons (from extending modules)
+        slot_header = self.render_slot("header_buttons", {"resource": self.resource})
+        if slot_header:
+            content.append(Raw(slot_header))
         if self.title:
             content.append(Text(self.title, style="font-size:16px;font-weight:700;color:var(--text)"))
         if self.helper_text:
             content.append(Paragraph(self.helper_text, style="font-size:13px;color:var(--text-muted);line-height:1.6"))
+        # Base form fields
         content.append(Grid(columns=2, gap=12, children=field_widgets))
+        # Slot: form_fields (from extending modules)
+        slot_fields = self.render_slot("form_fields", {"resource": self.resource})
+        if slot_fields:
+            content.append(Raw(slot_fields))
         content.append(Row(gap=10, wrap=True, children=[Button(self.submit_label, variant=self.button_variant)]))
+        # Slot: footer_actions (from extending modules)
+        slot_footer = self.render_slot("footer_actions", {"resource": self.resource})
+        if slot_footer:
+            content.append(Raw(slot_footer))
         content.append(ResultBox(id=target_id, format="json"))
 
         return Form(
@@ -1053,8 +1052,6 @@ class ResourceEditor(Widget):
     """
     Resource form that loads an existing record and saves changes back.
     """
-
-    _id_counter = 0
 
     def __init__(
         self,
@@ -1083,8 +1080,7 @@ class ResourceEditor(Widget):
         self.method = str(method or "PATCH").upper()
         self.button_variant = str(button_variant or "primary")
         self.helper_text = str(helper_text or "")
-        ResourceEditor._id_counter += 1
-        self.uid = f"resource_editor_{ResourceEditor._id_counter}"
+        self.uid = f"resource_editor_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         specs = [{"name": "id", "type": "text", "value": self.record_id, "placeholder": "Id"}]
@@ -1143,7 +1139,10 @@ class ResourceTable(Widget):
     Tabla orientada a recurso, conectada al backend por convención.
     """
 
-    _id_counter = 0
+    _slots = {
+        "toolbar_buttons": {"desc": "Buttons above the table toolbar"},
+        "extra_columns": {"desc": "Extra columns appended to the table"},
+    }
 
     def __init__(
         self,
@@ -1183,8 +1182,7 @@ class ResourceTable(Widget):
         self.page_param = str(page_param or "page")
         self.per_page_param = str(per_page_param or "per_page")
         self.per_page = max(1, int(per_page or 10))
-        ResourceTable._id_counter += 1
-        self.uid = id or f"resource_table_{ResourceTable._id_counter}"
+        self.uid = id or f"resource_table_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         from .input import Button
@@ -1289,8 +1287,6 @@ class ResourceStats(Widget):
     Metric cards derived from a resource endpoint.
     """
 
-    _id_counter = 0
-
     def __init__(self, resource, metrics=None, endpoint=None, title=None, columns=3, **kwargs):
         self._props = Widget._extract_props(kwargs)
         self.resource = str(resource or "").strip() or "resource"
@@ -1298,8 +1294,7 @@ class ResourceStats(Widget):
         self.endpoint = endpoint or f"/api/resources/{self.resource}/stats"
         self.title = title
         self.columns = max(1, int(columns or 3))
-        ResourceStats._id_counter += 1
-        self.uid = f"resource_stats_{ResourceStats._id_counter}"
+        self.uid = f"resource_stats_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         extra = self._resolve_props("display:block")
@@ -1326,7 +1321,10 @@ class ResourceDetails(Widget):
     Vista simple de detalle conectada al backend por convención.
     """
 
-    _id_counter = 0
+    _slots = {
+        "detail_fields": {"desc": "Extra fields shown in detail view"},
+        "action_buttons": {"desc": "Buttons in the detail footer"},
+    }
 
     def __init__(
         self,
@@ -1345,8 +1343,7 @@ class ResourceDetails(Widget):
         self.record_id = record_id
         self.fields = list(fields or [])
         self.empty_text = str(empty_text or "Sin datos")
-        ResourceDetails._id_counter += 1
-        self.uid = f"resource_details_{ResourceDetails._id_counter}"
+        self.uid = f"resource_details_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         extra = self._resolve_props("display:block")
@@ -1400,8 +1397,6 @@ class ResourceCardList(Widget):
     Lista de tarjetas conectada al backend por convención.
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         resource,
@@ -1421,8 +1416,7 @@ class ResourceCardList(Widget):
         self.badge_field = badge_field
         self.columns = max(1, int(columns or 3))
         self.empty_text = str(empty_text or "Sin elementos")
-        ResourceCardList._id_counter += 1
-        self.uid = f"resource_cards_{ResourceCardList._id_counter}"
+        self.uid = f"resource_cards_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         extra = self._resolve_props("display:block")
@@ -1456,16 +1450,13 @@ class ResourceFilters(Widget):
     Filtros declarativos para refrescar un ResourceTable por id.
     """
 
-    _id_counter = 0
-
     def __init__(self, target, filters=None, title=None, button_label="Aplicar filtros", **kwargs):
         self._props = Widget._extract_props(kwargs)
         self.target = str(target or "").strip()
         self.filters = list(filters or [])
         self.title = title
         self.button_label = str(button_label or "Aplicar filtros")
-        ResourceFilters._id_counter += 1
-        self.uid = f"resource_filters_{ResourceFilters._id_counter}"
+        self.uid = f"resource_filters_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         from .input import TextField, Select, Button
@@ -1654,8 +1645,6 @@ class ResourceToolbar(Widget):
     Search and quick actions toolbar for resource widgets.
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         target,
@@ -1673,8 +1662,7 @@ class ResourceToolbar(Widget):
         self.search_param = str(search_param or "q")
         self.show_selected_count = bool(show_selected_count)
         self.actions = list(actions or [])
-        ResourceToolbar._id_counter += 1
-        self.uid = f"resource_toolbar_{ResourceToolbar._id_counter}"
+        self.uid = f"resource_toolbar_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         from .input import Button, TextField
@@ -1742,8 +1730,6 @@ class ResourcePaginator(Widget):
     Pagination controls bound to a ResourceTable.
     """
 
-    _id_counter = 0
-
     def __init__(self, target, title=None, page_param="page", per_page_param="per_page", per_page_options=None, **kwargs):
         self._props = Widget._extract_props(kwargs)
         self.target = str(target or "").strip()
@@ -1751,8 +1737,7 @@ class ResourcePaginator(Widget):
         self.page_param = str(page_param or "page")
         self.per_page_param = str(per_page_param or "per_page")
         self.per_page_options = list(per_page_options or [5, 10, 20, 50])
-        ResourcePaginator._id_counter += 1
-        self.uid = f"resource_paginator_{ResourcePaginator._id_counter}"
+        self.uid = f"resource_paginator_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         from .input import Button, Select
@@ -1933,8 +1918,6 @@ class ResourceKanban(Widget):
     Kanban board grouped by a resource field.
     """
 
-    _id_counter = 0
-
     def __init__(self, resource, endpoint=None, title=None, group_field="estado", columns=None, title_field="nombre", subtitle_field="email", badge_field="plan", empty_text="Sin registros", **kwargs):
         self._props = Widget._extract_props(kwargs)
         self.resource = str(resource or "").strip() or "resource"
@@ -1946,8 +1929,7 @@ class ResourceKanban(Widget):
         self.subtitle_field = str(subtitle_field or "email")
         self.badge_field = str(badge_field or "plan")
         self.empty_text = str(empty_text or "Sin registros")
-        ResourceKanban._id_counter += 1
-        self.uid = f"resource_kanban_{ResourceKanban._id_counter}"
+        self.uid = f"resource_kanban_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         extra = self._resolve_props("display:block")
@@ -1972,6 +1954,10 @@ class ResourceView(Widget):
     """
     Composite resource view: filters + actions + table + optional details/cards.
     """
+
+    _slots = {
+        "view_sections": {"desc": "Extra sections in the resource view"},
+    }
 
     def __init__(
         self,
@@ -2099,8 +2085,6 @@ class JSWidgetAdapter(Widget):
     Generic JavaScript adapter with Python API.
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         init_js,
@@ -2117,8 +2101,7 @@ class JSWidgetAdapter(Widget):
         self.scripts = list(scripts or [])
         self.stylesheets = list(stylesheets or [])
         self.height = max(80, int(height))
-        JSWidgetAdapter._id_counter += 1
-        self.uid = id or f"jsa_{JSWidgetAdapter._id_counter}"
+        self.uid = id or f"jsa_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         uid = self.uid

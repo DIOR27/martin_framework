@@ -11,6 +11,7 @@ Todo lo que sea palabras vive aquí.
 """
 
 import json as _json
+import uuid as _uuid
 
 from ..widget import Widget
 from .._context import get_current_path
@@ -219,8 +220,6 @@ class Code(Widget):
         id           str     id del elemento HTML
     """
 
-    _id_counter = 0
-
     def __init__(
         self,
         content="",
@@ -245,8 +244,7 @@ class Code(Widget):
         self.theme = theme
         self.max_height = max_height
         self.editable = editable
-        Code._id_counter += 1
-        self.uid = id or f"code_{Code._id_counter}"
+        self.uid = id or f"code_{_uuid.uuid4().hex[:8]}"
 
     # ── helpers ──────────────────────────────────────────────────────────────
 

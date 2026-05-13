@@ -4,6 +4,8 @@ Martin — Calendar Widgets
 Auto-extracted from former compound module.
 """
 
+import uuid as _uuid
+
 from ..widget import Widget
 
 __all__ = ["CalendarEvent", "Calendar"]
@@ -79,8 +81,6 @@ class Calendar(Widget):
         accent             str color de acento (default: "var(--accent)")
         event_colors       list[str] paleta para el picker de color
     """
-
-    _id_counter = 0
 
     MONTHS_ES = [
         "Enero",
@@ -165,8 +165,7 @@ class Calendar(Widget):
         self.height = height
         self.accent = accent
         self.event_colors = event_colors or self.DEFAULT_COLORS
-        Calendar._id_counter += 1
-        self.uid = f"cal_{Calendar._id_counter}"
+        self.uid = f"cal_{_uuid.uuid4().hex[:8]}"
 
     def _serialize_events(self):
         import json as _j

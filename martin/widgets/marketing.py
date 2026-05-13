@@ -4,6 +4,8 @@ Martin — Marketing/Content Widgets
 Auto-extracted from former compound module.
 """
 
+import uuid as _uuid
+
 from ..widget import Widget
 
 __all__ = [
@@ -431,11 +433,9 @@ class Gallery(Widget):
         object_fit   str                "cover"|"contain"|"fill"  (default: "cover")
     """
 
-    _id_counter = 0
-
     def __init__(self, items=None, columns=3, rows=None, gap=8,
                  masonry=False, img_height=220, lightbox=True,
-                 object_fit="cover", **kwargs):
+                 object_fit="cover", id=None, **kwargs):
         self._props      = Widget._extract_props(kwargs)
         self.items       = items or []
         self.columns     = columns
@@ -445,8 +445,7 @@ class Gallery(Widget):
         self.img_height  = img_height
         self.lightbox    = lightbox
         self.object_fit  = object_fit
-        Gallery._id_counter += 1
-        self.uid = f"gal_{Gallery._id_counter}"
+        self.uid = id or f"gal_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         import json as _json
@@ -815,8 +814,6 @@ class Carousel(Widget):
         url / url_target     prop universal del widget wrapper
     """
 
-    _id_counter = 0
-
     def __init__(self, items=None, mode="slides",
                  # slides
                  visible=1, gap=16, loop=True, autoplay=0,
@@ -846,8 +843,7 @@ class Carousel(Widget):
         self.brand_filter_hover = brand_filter_hover  # None = sin filtro (color)
         self.brand_gap     = brand_gap
         self.speed         = speed
-        Carousel._id_counter += 1
-        self.uid = f"car_{Carousel._id_counter}"
+        self.uid = f"car_{_uuid.uuid4().hex[:8]}"
 
     # ── helpers ───────────────────────────────────────────────────────────
 
@@ -1369,8 +1365,6 @@ class Accordion(Widget):
         radius       int     radio de bordes
     """
 
-    _id_counter = 0
-
     def __init__(self, items=None, multiple=False, variant="default",
                  icon="chevron", **kwargs):
         self._props   = Widget._extract_props(kwargs)
@@ -1378,8 +1372,7 @@ class Accordion(Widget):
         self.multiple = multiple
         self.variant  = variant
         self.icon     = icon
-        Accordion._id_counter += 1
-        self.uid = f"acc_{Accordion._id_counter}"
+        self.uid = f"acc_{_uuid.uuid4().hex[:8]}"
 
     @staticmethod
     def _normalize_item(item):
@@ -1610,8 +1603,6 @@ class Testimonials(Widget):
         accent       str   color de acento para estrellas y comillas
     """
 
-    _id_counter = 0
-
     def __init__(self, items=None, mode="grid", columns=3,
                  autoplay=True, interval=5000,
                  card_radius=16, show_quotes=True,
@@ -1625,8 +1616,7 @@ class Testimonials(Widget):
         self.card_radius = card_radius
         self.show_quotes = show_quotes
         self.accent      = accent
-        Testimonials._id_counter += 1
-        self.uid = f"tsm_{Testimonials._id_counter}"
+        self.uid = f"tsm_{_uuid.uuid4().hex[:8]}"
 
     def _render_card(self, item, uid_prefix=""):
         """Render a single testimonial card."""
@@ -1822,8 +1812,6 @@ class SlideCarousel(Widget):
         transition   str    "slide" | "fade"
     """
 
-    _id_counter = 0
-
     def __init__(self, items=None, visible=1, gap=0,
                  loop=True, autoplay=False, interval=4000,
                  arrows=True, dots=True,
@@ -1839,8 +1827,7 @@ class SlideCarousel(Widget):
         self.dots       = dots
         self.arrow_style = arrow_style
         self.transition  = transition
-        SlideCarousel._id_counter += 1
-        self.uid = f"sc_{SlideCarousel._id_counter}"
+        self.uid = f"sc_{_uuid.uuid4().hex[:8]}"
 
     def _resolve_item(self, item):
         """Convierte SlideItem o Widget directo a HTML."""
@@ -2067,8 +2054,6 @@ class Pricing(Widget):
         check_icon   str    icono SVG/HTML para los features (default: ✓ estilizado)
     """
 
-    _id_counter = 0
-
     def __init__(self, plans=None, columns=None, toggle=False,
                  toggle_discount="Ahorra 20%",
                  accent="var(--accent)", **kwargs):
@@ -2078,8 +2063,7 @@ class Pricing(Widget):
         self.toggle          = toggle
         self.toggle_discount = toggle_discount
         self.accent          = accent
-        Pricing._id_counter += 1
-        self.uid = f"prc_{Pricing._id_counter}"
+        self.uid = f"prc_{_uuid.uuid4().hex[:8]}"
 
     def _check_icon(self):
         return (
@@ -2335,8 +2319,6 @@ class FAQ(Widget):
         multiple     bool   permite varios abiertos (default: False)
     """
 
-    _id_counter = 0
-
     def __init__(self, items=None, searchable=False, columns=1,
                  variant="separated", multiple=False, **kwargs):
         self._props     = Widget._extract_props(kwargs)
@@ -2345,8 +2327,7 @@ class FAQ(Widget):
         self.columns    = columns
         self.variant    = variant
         self.multiple   = multiple
-        FAQ._id_counter += 1
-        self.uid = f"faq_{FAQ._id_counter}"
+        self.uid = f"faq_{_uuid.uuid4().hex[:8]}"
 
     def render(self):
         uid   = self.uid

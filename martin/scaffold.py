@@ -71,7 +71,31 @@ def render_new_project_files(name: str, title: str, desc: str):
     """
     year = str(__import__("datetime").datetime.now().year)
     files = {
-        "main.py": f"# Scaffold for {title}\nYear: {year}\n",
+        "main.py": (
+            f'"""Martin ERP — {title}"""\n'
+            "from pathlib import Path\n"
+            "from martin import App, Router, Container, Heading, Paragraph\n"
+            "from martin.backend import Backend\n"
+            "from martin.orm import auto_register_all, create_all_tables\n"
+            "from martin.module import ModuleRegistry\n\n"
+            "router = Router()\n\n"
+            '@router.page("/", title="Home")\n'
+            "def home():\n"
+            '    return Container(padding=32, children=[\n'
+            '        Heading("' + title + '", level=1),\n'
+            '        Paragraph("' + desc + '"),\n'
+            "    ])\n\n"
+            "app = App(router=router, title='" + title + "')\n"
+            "backend = Backend(prefix='/api')\n\n"
+            "# Load modules\n"
+            "modules_dir = Path(__file__).parent / 'modules'\n"
+            "if modules_dir.exists():\n"
+            "    ModuleRegistry.load_and_install(str(modules_dir))\n"
+            "    auto_register_all(backend)\n\n"
+            "backend.mount(app)\n\n"
+            "if __name__ == '__main__':\n"
+            "    app.run()\n"
+        ),
         "pages/__init__.py": "",
         "pages/home.py": f"# Home for {title}\n{desc}\n",
         "pages/components.py": "# Components placeholder\n",
@@ -80,7 +104,32 @@ def render_new_project_files(name: str, title: str, desc: str):
         ".gitignore": "venv/\n",
         "README.md": f"# {name}\n",
     }
+
+    # Add base module scaffold
+    base_files = _render_base_module_files()
+    for rel_path, content in base_files.items():
+        files[f"modules/base/{rel_path}"] = content
+
     return files
+
+
+def _render_base_module_files():
+    """Base module files for scaffold."""
+    return {
+        "__init__.py": "# Base module\n",
+        "manifest.py": (
+            'manifest = {\n'
+            '    "name": "Base",\n'
+            '    "version": "1.0.0",\n'
+            '    "depends": [],\n'
+            '    "category": "Core",\n'
+            '    "description": "Core module. Required by all other modules.",\n'
+            '    "data": [],\n'
+            '    "demo": [],\n'
+            '}\n'
+        ),
+        "models/__init__.py": "# Models\n",
+    }
 
 
 README_TEMPLATE = (

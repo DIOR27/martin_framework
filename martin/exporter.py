@@ -570,35 +570,6 @@ def _copy_assets_bundle(out_dir: Path, assets_src: str = "assets"):
         print("  assets/ (package) copied")
 
 
-def _reset_widget_counters():
-    """Resetea contadores de UID antes de cada render para que HTML y JS coincidan."""
-    try:
-        from martin.widgets import (
-            Select,
-            MultiSelect,
-            WordCloud,
-            Map,
-            Gallery,
-            Carousel,
-            Accordion,
-            Testimonials,
-            SlideCarousel,
-            Pricing,
-            FAQ,
-            Chart,
-            Calendar,
-        )
-
-        Select._id_counter = MultiSelect._id_counter = 0
-        WordCloud._id_counter = Map._id_counter = 0
-        Gallery._id_counter = Carousel._id_counter = 0
-        Accordion._id_counter = Testimonials._id_counter = 0
-        SlideCarousel._id_counter = Pricing._id_counter = 0
-        FAQ._id_counter = Chart._id_counter = Calendar._id_counter = 0
-    except Exception:
-        pass
-
-
 def _extract_head_style(html):
     m = re.search(r"<style[^>]*>(.*?)</style>", html, re.DOTALL)
     if not m:
@@ -820,7 +791,6 @@ def export_split(app, out_dir: str = "dist", assets_src: str = "assets"):
     print()
     for route in routes:
         slug = _slugify(route)
-        _reset_widget_counters()  # IDs siempre desde 1
         raw_html = app._render(route)
         html, page_css, page_js = _assemble_page(raw_html, app, route, route_map, slug)
         (out / route_map[route]).write_text(html, encoding="utf-8")
@@ -854,7 +824,6 @@ def export_html(app, out_dir: str = "dist"):
     print()
     for route in routes:
         slug = _slugify(route)
-        _reset_widget_counters()
         raw = app._render(route)
         # Quitar live-reload
         raw = re.sub(r"<script[^>]*>.*?/__ping__.*?</script>", "", raw, flags=re.DOTALL)
